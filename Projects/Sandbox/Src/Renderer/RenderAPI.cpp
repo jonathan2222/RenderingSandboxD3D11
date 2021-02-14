@@ -11,7 +11,7 @@ std::shared_ptr<RenderAPI> RenderAPI::Get()
     return s_Display;
 }
 
-void RenderAPI::PreDisplayInit(DisplayDescription& displayDescriptor)
+void RenderAPI::Init(DisplayDescription& displayDescriptor)
 {
 	HRESULT result;
 
@@ -20,29 +20,8 @@ void RenderAPI::PreDisplayInit(DisplayDescription& displayDescriptor)
 	RS_D311_ASSERT_CHECK(result, "Could not initiate DirectX11: Failed to create the DirectX factory object!");
 
 	// Go through graphics adapters which are compatible with DirectX.
-	IDXGIAdapter* adapter = nullptr;
 	std::vector <IDXGIAdapter*> adapters = EnumerateAdapters();
-	adapter = adapters[0]; // Use the first adapter.
-	/*DXGI_ADAPTER_DESC descI;
-	DXGI_ADAPTER_DESC descCurrent;
-	for (IDXGIAdapter*& ad : adapters)
-	{
-		ZeroMemory(&descI, sizeof(descI));
-		ad->GetDesc(&descI);
-
-		if (adapter == nullptr) adapter = ad;
-		else
-		{
-			ZeroMemory(&descCurrent, sizeof(descCurrent));
-			adapter->GetDesc(&descCurrent);
-			// TODO: Change this, this is a bad way of fetching the gpu.
-			if (descI.DedicatedVideoMemory > descCurrent.DedicatedVideoMemory)
-			{
-				adapter = ad;
-			}
-		}
-	}
-	*/
+	IDXGIAdapter* adapter = ChooseAdapter(adapters);
 	FillVideoCardInfo(adapter);
 
 	CreateDevice(adapter, D3D_DRIVER_TYPE::D3D_DRIVER_TYPE_UNKNOWN);
@@ -54,10 +33,7 @@ void RenderAPI::PreDisplayInit(DisplayDescription& displayDescriptor)
 	for (auto& ad : adapters)
 		ad->Release();
 	adapter = 0;
-}
 
-void RenderAPI::PostDisplayInit()
-{
 	CreateSwapChain();
 	// Release the factory.
 	m_pFactory->Release();
@@ -168,7 +144,7 @@ void RenderAPI::CreateSwapChain()
 		fullscreenDesc.RefreshRate.Numerator = 0;
 		fullscreenDesc.RefreshRate.Denominator = 1;
 	}
-
+	
 	HWND wnd = (HWND)Display::Get()->GetHWND();
 	HRESULT result = m_pFactory->CreateSwapChainForHwnd(m_pDevice, wnd, &swapChainDesc, &fullscreenDesc, NULL, &m_pSwapChain);
 	RS_D311_ASSERT_CHECK(result, "Could not initiate DirectX11: Failed to create swap chain!");
@@ -230,6 +206,33 @@ std::vector<IDXGIAdapter*> RenderAPI::EnumerateAdapters()
 		vAdapters.push_back(pAdapter);
 
 	return vAdapters;
+}
+
+IDXGIAdapter* RenderAPI::ChooseAdapter(std::vector<IDXGIAdapter*>& adapters)
+{
+	IDXGIAdapter* pAdapter = nullptr;
+
+	DXGI_ADAPTER_DESC descI;
+	DXGI_ADAPTER_DESC descCurrent;
+	for (IDXGIAdapter*& ad : adapters)
+	{
+		ZeroMemory(&descI, sizeof(descI));
+		ad->GetDesc(&descI);
+
+		if (pAdapter == nullptr) pAdapter = ad;
+		else
+		{
+			ZeroMemory(&descCurrent, sizeof(descCurrent));
+			pAdapter->GetDesc(&descCurrent);
+			// TODO: Change this, this is a bad way of fetching the gpu.
+			if (descI.DedicatedVideoMemory > descCurrent.DedicatedVideoMemory)
+			{
+				pAdapter = ad;
+			}
+		}
+	}
+
+	return pAdapter;
 }
 
 void RenderAPI::FillVideoCardInfo(IDXGIAdapter* adapter)

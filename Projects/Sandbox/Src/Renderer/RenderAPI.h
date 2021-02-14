@@ -31,8 +31,7 @@ namespace RS
 
 		static std::shared_ptr<RenderAPI> Get();
 
-		void PreDisplayInit(DisplayDescription& displayDescriptor);
-		void PostDisplayInit();
+		void Init(DisplayDescription& displayDescriptor);
 		void Release();
 
 		VideoCardInfo& GetVideoCardInfo();
@@ -46,6 +45,7 @@ namespace RS
 		void CreateSwapChain();
 		void GetRefreshRate(IDXGIAdapter* adapter, DisplayDescription& displayDescriptor);
 		std::vector<IDXGIAdapter*> EnumerateAdapters();
+		IDXGIAdapter* ChooseAdapter(std::vector<IDXGIAdapter*>& adapters);
 
 		void FillVideoCardInfo(IDXGIAdapter* adapter);
 
