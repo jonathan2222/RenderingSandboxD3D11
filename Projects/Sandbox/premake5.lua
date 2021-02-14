@@ -16,7 +16,7 @@ project "Sandbox"
 	{
 		"PreCompiled.h"
 	}
-    
+
 	-- Targets
 	targetdir ("%{wks.location}/Build/bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("%{wks.location}/Build/obj/" .. outputdir .. "/%{prj.name}")
@@ -27,10 +27,20 @@ project "Sandbox"
 	--Includes
     includedirs { "Src" }
 
-    sysincludedirs 
-    { 
-        "%{includeDir.glm}",
-        "%{includeDir.spdlog}"
-    }
+    sysincludedirs
+	{
+		"%{includeDir.glm}",
+		"%{includeDir.imgui}",
+		"%{includeDir.spdlog}",
+		"%{includeDir.stb}",
+		"%{includeDir.json}",
+		"%{includeDir.glfw}"
+	}
+
+	links
+	{
+		"glfw",
+		"imgui"
+	}
 
 project "*"

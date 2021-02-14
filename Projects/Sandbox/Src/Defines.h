@@ -5,11 +5,13 @@
 
 #define RS_CONFIG_DEVELOPMENT defined(RS_CONFIG_DEBUG) || defined(RS_CONFIG_RELEASE)
 
-/*#ifdef RS_CONFIG_DEVELOPMENT
+#include "Utils/Logger.h"
+
+#ifdef RS_CONFIG_DEVELOPMENT
 	#define RS_ASSERT(exp, ...) {if(!(exp)){LOG_CRITICAL(__VA_ARGS__);} assert(exp); }
 #else
 	#define RS_ASSERT(exp, ...) {assert(exp);}
-#endif*/
+#endif
 
 #define RS_CONFIG_FILE_PATH "../../Assets/Config/EngineConfig.json"
 #define RS_SHADER_PATH "../../Assets/Shaders/"

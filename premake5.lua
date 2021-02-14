@@ -81,8 +81,16 @@ workspace "RenderingSandboxD3D11"
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}-%{cfg.platform}"
 
 includeDir = {}
+includeDir["glfw"] 		= "%{wks.location}/Externals/glfw/include"
+includeDir["imgui"] 	= "%{wks.location}/Externals/imgui"
+includeDir["glm"] 		= "%{wks.location}/Externals/glm/"
+includeDir["spdlog"] 	= "%{wks.location}/Externals/spdlog/include"
+includeDir["stb"] 		= "%{wks.location}/Externals/stb/"
+includeDir["json"] 		= "%{wks.location}/Externals/json/single_include"
 
---group "Externals"
---group ""
+group "Externals"
+		include "Externals/glfw"
+		include "Externals/imgui"
+group ""
 
 include "Projects/Sandbox"
