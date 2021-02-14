@@ -21,10 +21,10 @@ void RenderAPI::Init(DisplayDescription& displayDescriptor)
 
 	// Go through graphics adapters which are compatible with DirectX.
 	std::vector <IDXGIAdapter*> adapters = EnumerateAdapters();
-	IDXGIAdapter* adapter = ChooseAdapter(adapters);
-	FillVideoCardInfo(adapter);
+	IDXGIAdapter* pAdapter = ChooseAdapter(adapters);
+	FillVideoCardInfo(pAdapter);
 
-	CreateDevice(adapter, D3D_DRIVER_TYPE::D3D_DRIVER_TYPE_UNKNOWN);
+	CreateDevice(pAdapter, D3D_DRIVER_TYPE::D3D_DRIVER_TYPE_UNKNOWN);
 
 	// Fetch refresh rate from the default adapter.
 	GetRefreshRate(adapters[0], displayDescriptor);
@@ -32,12 +32,12 @@ void RenderAPI::Init(DisplayDescription& displayDescriptor)
 	// Release the adapters.
 	for (auto& ad : adapters)
 		ad->Release();
-	adapter = 0;
+	pAdapter = nullptr;
 
 	CreateSwapChain();
 	// Release the factory.
 	m_pFactory->Release();
-	m_pFactory = 0;
+	m_pFactory = nullptr;
 }
 
 void RenderAPI::Release()
@@ -49,13 +49,13 @@ void RenderAPI::Release()
 	if (m_pDeviceContext)
 	{
 		m_pDeviceContext->Release();
-		m_pDeviceContext = 0;
+		m_pDeviceContext = nullptr;
 	}
 
 	if (m_pSwapChain)
 	{
 		m_pSwapChain->Release();
-		m_pSwapChain = 0;
+		m_pSwapChain = nullptr;
 	}
 
 	if (m_pDevice)
@@ -66,7 +66,7 @@ void RenderAPI::Release()
 		m_pDebug->Release();
 #endif
 		m_pDevice->Release();
-		m_pDevice = 0;
+		m_pDevice = nullptr;
 	}
 }
 
