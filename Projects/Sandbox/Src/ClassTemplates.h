@@ -12,10 +12,6 @@
 	name(const name&) = default;	\
 	name& operator=(const name&) = default;
 
-#define RS_DEFAULT_MOVE(name) \
-	name(const name&&) = default;	\
-	name& operator=(const name&&) = default;
-
 #define RS_DEFAULT_CLASS(name) \
 	name() = default; \
 	~name() = default;
@@ -52,12 +48,10 @@
 
 #define RS_DEFAULT_CONSTRUCTORS(name) \
 	RS_DEFAULT_COPY(name) \
-	RS_DEFAULT_MOVE(name) \
 	name() = default; \
 	~name() = default;
 
 #define RS_CONSTRUCTORS(name) \
 	RS_DEFAULT_COPY(name) \
-	RS_DEFAULT_MOVE(name) \
 	name(); \
 	~name();

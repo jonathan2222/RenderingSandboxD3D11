@@ -78,6 +78,11 @@ void RS::Display::PollEvents()
 	glfwPollEvents();
 }
 
+GLFWwindow* Display::GetGLFWWindow()
+{
+	return m_pWindow;
+}
+
 HWND RS::Display::GetHWND()
 {
 	return m_HWND;

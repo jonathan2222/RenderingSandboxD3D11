@@ -28,6 +28,7 @@ namespace RS
 
 		void PollEvents();
 
+		GLFWwindow* GetGLFWWindow();
 		HWND GetHWND();
 
 		void SetDescription(const DisplayDescription& description);

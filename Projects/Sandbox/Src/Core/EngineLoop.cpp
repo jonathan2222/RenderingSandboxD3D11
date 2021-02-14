@@ -3,7 +3,7 @@
 
 #include "Utils/Logger.h"
 #include "Utils/Config.h"
-#include "Utils/Timer.h"
+#include "FrameTimer.h"
 
 #include <glm/glm.hpp>
 
@@ -11,6 +11,7 @@
 
 #include "Renderer/RenderAPI.h"
 #include "Renderer/Renderer.h"
+#include "Renderer/ImGuiRenderer.h"
 
 void RS::EngineLoop::Init()
 {
@@ -26,10 +27,12 @@ void RS::EngineLoop::Init()
     Display::Get()->Init(displayDesc);
     RenderAPI::Get()->Init(displayDesc);
     Renderer::Get()->Init(displayDesc);
+    ImGuiRenderer::Init(Display::Get().get());
 }
 
 void RS::EngineLoop::Release()
 {
+    ImGuiRenderer::Release();
     Renderer::Get()->Release();
     RenderAPI::Get()->Release();
     Display::Get()->Release();
@@ -40,47 +43,18 @@ void RS::EngineLoop::Run()
     std::shared_ptr<Display> pDisplay = Display::Get();
 
     FrameStats frameStats = {};
-    const float FIXED_DT = 1.f / frameStats.fixedUpdate.fixedFPS;
-    Timer timer;
-    TimeStamp frameTime;
-    float accumulator = 0.0f;
-    float debugTimer = 0.0f;
-    uint32 debugFrameCounter = 0;
-    uint32 updateCalls = 0;
-    uint32 accUpdateCalls = 0;
+    FrameTimer frameTimer;
+    frameTimer.Init(&frameStats, 0.25f);
     while (!pDisplay->ShouldClose())
     {
-        frameTime = timer.CalcDelta();
-        frameStats.frame.currentDT = frameTime.GetDeltaTimeSec();
-        accumulator += frameStats.frame.currentDT;
+        frameTimer.Begin();
 
         pDisplay->PollEvents();
 
-        updateCalls = 0;
-        while (accumulator > FIXED_DT && updateCalls < frameStats.fixedUpdate.maxUpdateCalls)
-        {
-            FixedTick();
-            accumulator -= FIXED_DT;
-            updateCalls++;
-        }
-        accUpdateCalls += updateCalls;
-
+        frameTimer.FixedTick([&]() { EngineLoop(); });
         Tick(frameStats);
 
-        frameStats.frame.minDT = glm::min(frameStats.frame.minDT, frameStats.frame.currentDT * 1000.f);
-        frameStats.frame.maxDT = glm::max(frameStats.frame.maxDT, frameStats.frame.currentDT * 1000.f);
-        debugFrameCounter++;
-        debugTimer += frameStats.frame.currentDT;
-        if (debugTimer >= 1.0f)
-        {
-            frameStats.frame.avgFPS = 1.0f / (debugTimer / (float)debugFrameCounter);
-            frameStats.frame.avgDTMs = (debugTimer / (float)debugFrameCounter) * 1000.f;
-            frameStats.fixedUpdate.updateCallsRatio = ((float)accUpdateCalls / (float)debugFrameCounter) * 100.f;
-            LOG_INFO("dt: {}, FPS: {}", frameStats.frame.currentDT, frameStats.frame.avgFPS);
-            debugTimer = 0.0f;
-            debugFrameCounter = 0;
-            accUpdateCalls = 0;
-        }
+        frameTimer.End();
     }
 }
 
@@ -90,15 +64,123 @@ void RS::EngineLoop::FixedTick()
 
 void RS::EngineLoop::Tick(const FrameStats& frameStats)
 {
-    RS_UNREFERENCED_VARIABLE(frameStats);
+    DrawFrameStats(frameStats);
 
     std::shared_ptr<Renderer> renderer = Renderer::Get();
     renderer->BeginScene(0.f, 0.f, 0.f, 1.f);
 
+    ImGuiRenderer::Render();
     renderer->EndScene();
 }
 
 void RS::EngineLoop::DrawFrameStats(const FrameStats& frameStats)
 {
-    RS_UNREFERENCED_VARIABLE(frameStats);
+    ImGuiRenderer::Draw([&]() {
+        auto Lerp = [](ImVec4 c1, ImVec4 c2, float x)-> ImVec4
+        {
+            ImVec4 res;
+            res.x = (1.f - x) * c1.x + x * c2.x;
+            res.y = (1.f - x) * c1.y + x * c2.y;
+            res.z = (1.f - x) * c1.z + x * c2.z;
+            res.w = (1.f - x) * c1.w + x * c2.w;
+            return res;
+        };
+
+        auto CLerp = [&](float x)->ImVec4
+        {
+            return Lerp(ImVec4(0.f, 1.f, 0.f, 1.f), ImVec4(1.f, 0.f, 0.f, 1.f), x);
+        };
+
+        auto Norm = [](float min, float max, float x)->float
+        {
+            return (x - min) / (max - min);
+        };
+
+        auto OnOffText = [](bool state, const std::string& on, const std::string& off) 
+        {
+            ImGui::TextColored(state ? ImVec4(0.f, 1.f, 0.f, 1.f) : ImVec4(1.f, 0.f, 0.f, 1.f), "%s", state ? on.c_str() : off.c_str());
+        };
+
+        ImGuiWindowFlags flags =
+            ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoTitleBar |
+            ImGuiWindowFlags_NoResize;
+
+        uint32_t displayWidth = Display::Get()->GetWidth();
+        const uint32_t width = 260;
+        const uint32_t height = 305;
+
+        // Draw the stats in the top right corner.
+        ImGui::SetNextWindowPos(ImVec2((float)displayWidth - width, 0), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2((float)width, (float)height), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowBgAlpha(0.5f);
+
+        ImGui::PushStyleColor(ImGuiCol_Border, 0);
+        ImGui::PushStyleColor(ImGuiCol_ResizeGrip, 0);
+        ImGui::PushStyleColor(ImGuiCol_ResizeGripHovered, 0);
+        ImGui::PushStyleColor(ImGuiCol_ResizeGripActive, 0);
+
+        if (ImGui::Begin("Frame stats", (bool*)0, flags))
+        {
+            float v = 0.f;
+            ImGui::Text("Frame");
+            {
+                ImGui::Indent();
+                ImGui::Text("Avrage DT:", frameStats.frame.avgDTMs, (uint32_t)frameStats.frame.avgFPS);
+                v = frameStats.frame.avgDTMs;
+                ImGui::SameLine(); ImGui::TextColored(CLerp(Norm(0.f, 50.f, v)), "%.2f ms (FPS: %d)", frameStats.frame.avgDTMs, (uint32_t)frameStats.frame.avgFPS);
+                ImGui::Text("Min DT:");
+                v = frameStats.frame.minDT;
+                ImGui::SameLine(); ImGui::TextColored(CLerp(Norm(0.f, 50.f, v)), "%.2f ms", v);
+                ImGui::Text("Max DT:");
+                v = frameStats.frame.maxDT;
+                ImGui::SameLine(); ImGui::TextColored(CLerp(Norm(0.f, 50.f, v)), "%.2f ms", v);
+                ImGui::Unindent();
+            }
+
+            ImGui::NewLine();
+            ImGui::Text("Fixed Update");
+            {
+                ImGui::Indent();
+                ImGui::Text("Fixed FPS: %d", (uint32_t)frameStats.fixedUpdate.fixedFPS);
+                ImGui::Text("Calls:");
+                v = frameStats.fixedUpdate.updateCallsRatio;
+                ImGui::SameLine(); ImGui::TextColored(CLerp(glm::max(v * 0.01f, 1.f) - 1.f), "%.2f%%", v);
+                ImGui::Unindent();
+            }
+
+            ImGui::NewLine();
+            ImGui::Text("Display");
+            {
+                DisplayDescription& displayDesc = Display::Get()->GetDescription();
+                ImGui::Indent();
+                ImGui::Text("VSync:");
+                ImGui::SameLine(); OnOffText(displayDesc.VSync, "On", "Off");
+                ImGui::Text("Width: %d", displayDesc.Width);
+                ImGui::Text("Height: %d", displayDesc.Height);
+                ImGui::Unindent();
+            }
+
+            ImGui::NewLine();
+            ImGui::Text("Renderer");
+            {
+#ifdef RS_CONFIG_DEBUG
+                char* configStr = "DEBUG";
+#elif defined(RS_CONFIG_RELEASE)
+                char* configStr = "RELEASE";
+#else
+                char* configStr = "PRODUCTION";
+#endif
+                ImGui::Indent();
+                ImGui::Text("Config: %s", configStr);
+                RenderAPI::VideoCardInfo& videoCardInfo = RenderAPI::Get()->GetVideoCardInfo();
+                ImGui::Text("%s", videoCardInfo.Name.c_str());
+                ImGui::Unindent();
+            }
+
+        }
+        ImGui::End();
+
+        ImGui::PopStyleColor(4);
+    });
 }
