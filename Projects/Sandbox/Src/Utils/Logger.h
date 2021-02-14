@@ -4,6 +4,7 @@
 #pragma warning( disable : 26451 )
 #pragma warning( disable : 26439 )
 #pragma warning( disable : 26495 )
+#pragma warning( disable : 4244 )
 #include <spdlog/spdlog.h>
 #pragma warning( pop )
 

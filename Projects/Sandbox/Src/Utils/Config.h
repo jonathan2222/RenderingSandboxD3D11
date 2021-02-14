@@ -4,6 +4,7 @@
 #pragma warning( disable : 26444 )
 #pragma warning( disable : 26451 )
 #pragma warning( disable : 28020 )
+#pragma warning( disable : 4100)
 #include <nlohmann/json.hpp>
 
 #include "Defines.h"

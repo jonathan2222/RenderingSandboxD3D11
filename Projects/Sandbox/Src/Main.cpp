@@ -1,14 +1,20 @@
 #include <iostream>
 
-#include "Utils/Logger.h"
-#include "Utils/Config.h"
+#include "Core/EngineLoop.h"
 
-int main()
+int main(int argc, char* argv[])
 {
-    RS::Logger::Init();
-    RS::Config::Get()->Init(RS_CONFIG_FILE_PATH);
+    RS_UNREFERENCED_VARIABLE(argc);
+    RS_UNREFERENCED_VARIABLE(argv);
 
-    
-    
+#ifdef RS_CONFIG_DEVELOPMENT
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
+
+    RS::EngineLoop engineLoop;
+    engineLoop.Init();
+    engineLoop.Run();
+    engineLoop.Release();
+
     return 0;
 }
