@@ -3,9 +3,8 @@
 
 #include "Utils/Logger.h"
 #include "Utils/Config.h"
+#include "Utils/Maths.h"
 #include "FrameTimer.h"
-
-#include <glm/glm.hpp>
 
 #include "Display.h"
 

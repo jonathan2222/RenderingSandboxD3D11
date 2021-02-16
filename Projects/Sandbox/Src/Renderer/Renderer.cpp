@@ -35,7 +35,7 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 	CreateRasterizer();
 	m_pContext->RSSetState(m_pRasterizerState);
 
-	CreateAndSetViewport((float)displayDescriptor.Width, (float)displayDescriptor.Height);
+	SetViewport(0.f, 0.f, (float)displayDescriptor.Width, (float)displayDescriptor.Height);
 }
 
 void Renderer::Release()
@@ -72,7 +72,7 @@ void Renderer::Resize(uint32 width, uint32 height)
     ClearRTV();
     m_pSwapChain->ResizeBuffers(0, (UINT)width, (UINT)height, DXGI_FORMAT_UNKNOWN, 0);
     CreateRTV();
-    CreateAndSetViewport((float)width, (float)height);
+    SetViewport(0.f, 0.f, (float)width, (float)height);
 }
 
 void Renderer::BeginScene(float r, float g, float b, float a)
@@ -87,12 +87,12 @@ void Renderer::BeginScene(float r, float g, float b, float a)
 void Renderer::SetViewport(float x, float y, float width, float height)
 {
 	D3D11_VIEWPORT viewport = {};
-	viewport.TopLeftX = x;
-	viewport.TopLeftY = y;
-	viewport.Width = width;
-	viewport.Height = height;
-	viewport.MaxDepth = 1.f;
-	viewport.MinDepth = 0.f;
+	viewport.TopLeftX	= x;
+	viewport.TopLeftY	= y;
+	viewport.Width		= width;
+	viewport.Height		= height;
+	viewport.MaxDepth	= 1.f;
+	viewport.MinDepth	= 0.f;
 	m_pContext->RSSetViewports(1, &viewport);
 }
 
@@ -233,19 +233,4 @@ void Renderer::CreateRasterizer()
 	// Create the rasterizer state from the description we just filled out.
 	HRESULT result = m_pDevice->CreateRasterizerState(&rasterizerDesc, &m_pRasterizerState);
 	RS_D311_ASSERT_CHECK(result, "Could not initiate DirectX11: Failed to create the rasterizer state!");
-}
-
-void Renderer::CreateAndSetViewport(float width, float height)
-{
-	// Setup the viewport for rendering.
-	D3D11_VIEWPORT viewport;
-	viewport.Width = width;
-	viewport.Height = height;
-	viewport.MinDepth = 0.0f;
-	viewport.MaxDepth = 1.0f;
-	viewport.TopLeftX = 0.0f;
-	viewport.TopLeftY = 0.0f;
-
-	// Create the viewport.
-	m_pContext->RSSetViewports(1, &viewport);
 }
