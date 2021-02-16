@@ -82,6 +82,20 @@ void Renderer::Resize(uint32 width, uint32 height)
     SetViewport(0.f, 0.f, (float)width, (float)height);
 }
 
+void Renderer::SetRasterState(D3D11_RASTERIZER_DESC rasterizerDesc)
+{
+	if (m_pRasterizerState)
+	{
+		m_pRasterizerState->Release();
+		m_pRasterizerState = nullptr;
+	}
+
+	HRESULT result = m_pDevice->CreateRasterizerState(&rasterizerDesc, &m_pRasterizerState);
+	RS_D311_ASSERT_CHECK(result, "Failed to create the rasterizer state!");
+
+	m_pContext->RSSetState(m_pRasterizerState);
+}
+
 void Renderer::BeginScene(float r, float g, float b, float a)
 {
 	float color[4] = { r, g, b, a };
@@ -253,8 +267,5 @@ void Renderer::CreateRasterizer()
 	rasterizerDesc.MultisampleEnable = false;
 	rasterizerDesc.ScissorEnable = false;
 	rasterizerDesc.SlopeScaledDepthBias = 0.0f;
-
-	// Create the rasterizer state from the description we just filled out.
-	HRESULT result = m_pDevice->CreateRasterizerState(&rasterizerDesc, &m_pRasterizerState);
-	RS_D311_ASSERT_CHECK(result, "Could not initiate DirectX11: Failed to create the rasterizer state!");
+	SetRasterState(rasterizerDesc);
 }

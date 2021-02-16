@@ -6,17 +6,7 @@
 #include "Core/Display.h"
 
 #include "Utils/Maths.h"
-
-#pragma warning( push )
-#pragma warning( disable : 6011 )
-#pragma warning( disable : 6262 )
-#pragma warning( disable : 6308 )
-#pragma warning( disable : 6387 )
-#pragma warning( disable : 26451 )
-#pragma warning( disable : 28182 )
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-#pragma warning( pop )
+#include "Core/ResourceManager.h"
 
 using namespace RS;
 
@@ -104,13 +94,11 @@ void SandboxScene::Start()
 	}
 
 	{
-		std::string texturePath = std::string(RS_TEXTURE_PATH) + "Home.jpg";
-		int width, height, channelCount, nChannels = 4;
-		uint8* pixels = (uint8*)stbi_load(texturePath.c_str(), &width, &height, &channelCount, nChannels);
+		ResourceManager::Image* pImage = ResourceManager::Get()->LoadTexture("Home.jpg", 4);
 
 		D3D11_TEXTURE2D_DESC textureDesc = {};
-		textureDesc.Width = (uint32)width;
-		textureDesc.Height = (uint32)height;
+		textureDesc.Width = pImage->Width;
+		textureDesc.Height = pImage->Height;
 		textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		textureDesc.MipLevels = 1;
 		textureDesc.ArraySize = 1;
@@ -122,15 +110,15 @@ void SandboxScene::Start()
 		textureDesc.MiscFlags = 0;
 
 		D3D11_SUBRESOURCE_DATA data = {};
-		data.pSysMem = pixels;
-		data.SysMemPitch = (uint32)width*4;
+		data.pSysMem = pImage->Data;
+		data.SysMemPitch = pImage->Width * 4;
 		data.SysMemSlicePitch = 0;
 
 		HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, &data, &m_pTexture);
 		RS_D311_ASSERT_CHECK(result, "Failed to create texture!");
 
-		stbi_image_free(pixels);
-		pixels = nullptr;
+		ResourceManager::Get()->FreeTexture(pImage);
+		pImage = nullptr;
 
 		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Format = textureDesc.Format;
@@ -158,6 +146,19 @@ void SandboxScene::Start()
 		result = RenderAPI::Get()->GetDevice()->CreateSamplerState(&samplerDesc, &m_pSampler);
 		RS_D311_ASSERT_CHECK(result, "Failed to create sampler!");
 	}
+
+	D3D11_RASTERIZER_DESC rasterizerDesc = {};
+	rasterizerDesc.AntialiasedLineEnable = false;
+	rasterizerDesc.CullMode = D3D11_CULL_NONE;
+	rasterizerDesc.DepthBias = 0;
+	rasterizerDesc.DepthBiasClamp = 0.0f;
+	rasterizerDesc.DepthClipEnable = true;
+	rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+	rasterizerDesc.FrontCounterClockwise = false;
+	rasterizerDesc.MultisampleEnable = false;
+	rasterizerDesc.ScissorEnable = false;
+	rasterizerDesc.SlopeScaledDepthBias = 0.0f;
+	Renderer::Get()->SetRasterState(rasterizerDesc);
 }
 
 void SandboxScene::Selected()

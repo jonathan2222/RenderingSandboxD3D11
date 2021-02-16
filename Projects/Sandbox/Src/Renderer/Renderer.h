@@ -17,6 +17,8 @@ namespace RS
 
 		void Resize(uint32 width, uint32 height);
 
+		void SetRasterState(D3D11_RASTERIZER_DESC rasterizerDesc);
+
 		void BeginScene(float r, float g, float b, float a);
 		void SetViewport(float x, float y, float width, float height);
 		void BindWindowRTV();
