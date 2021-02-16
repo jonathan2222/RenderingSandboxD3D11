@@ -14,6 +14,7 @@ namespace RS
 		{
 			glm::vec4 position;
 			glm::vec4 color;
+			glm::vec2 uv;
 		};
 
 		struct FrameData
@@ -43,6 +44,10 @@ namespace RS
 		ID3D11Buffer* m_pVertexBuffer = nullptr;
 		ID3D11Buffer* m_pIndexBuffer = nullptr;
 		ID3D11Buffer* m_pConstantBuffer = nullptr;
+
+		ID3D11Texture2D* m_pTexture = nullptr;
+		ID3D11ShaderResourceView* m_pTextureSRV = nullptr;
+		ID3D11SamplerState* m_pSampler = nullptr;
 
 		FrameData m_FrameData;
 	};

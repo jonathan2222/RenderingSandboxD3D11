@@ -70,8 +70,15 @@ void Renderer::Release()
 void Renderer::Resize(uint32 width, uint32 height)
 {
     ClearRTV();
+	ClearDepthStencil();
     m_pSwapChain->ResizeBuffers(0, (UINT)width, (UINT)height, DXGI_FORMAT_UNKNOWN, 0);
     CreateRTV();
+
+	DisplayDescription& displayDesc = Display::Get()->GetDescription();
+	CreateDepthBuffer(displayDesc);
+	CreateDepthStencilView();
+	m_pContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencilView);
+
     SetViewport(0.f, 0.f, (float)width, (float)height);
 }
 
@@ -101,8 +108,10 @@ void Renderer::BindWindowRTV()
 	m_pContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencilView);
 }
 
-void Renderer::EndScene()
+void Renderer::Present()
 {
+	SetViewport(0.f, 0.f, static_cast<float>(Display::Get()->GetWidth()), static_cast<float>(Display::Get()->GetHeight()));
+
 	DisplayDescription& desc = Display::Get()->GetDescription();
 	if (desc.VSync)
 	{
@@ -213,6 +222,21 @@ void Renderer::CreateDepthStencilView()
 	// Create the depth stencil view.
 	HRESULT result = m_pDevice->CreateDepthStencilView(m_pDepthStencilBuffer, &depthStencilViewDesc, &m_pDepthStencilView);
 	RS_D311_ASSERT_CHECK(result, "Could not initiate DirectX11: Failed to create the depth stencil view!");
+}
+
+void Renderer::ClearDepthStencil()
+{
+	if (m_pDepthStencilBuffer)
+	{
+		m_pDepthStencilBuffer->Release();
+		m_pDepthStencilBuffer = nullptr;
+	}
+
+	if (m_pDepthStencilView)
+	{
+		m_pDepthStencilView->Release();
+		m_pDepthStencilView = nullptr;
+	}
 }
 
 void Renderer::CreateRasterizer()

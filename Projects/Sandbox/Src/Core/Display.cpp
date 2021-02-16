@@ -4,6 +4,8 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
+#include "Renderer/Renderer.h"
+
 using namespace RS;
 
 // TODO: Put this into a input class!
@@ -25,7 +27,7 @@ void RS::Display::Init(const DisplayDescription& description)
 	RS_ASSERT(glfwInit(), "Failed to initialize GLFW!");
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+	glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 
 	glfwSetErrorCallback(Display::ErrorCallback);
 
@@ -129,6 +131,8 @@ void RS::Display::FrameBufferResizeCallback(GLFWwindow* window, int width, int h
 	description.Width = width;
 	description.Height = height;
 	description.Fullscreen = false;
+
+	Renderer::Get()->Resize((uint32)width, (uint32)height);
 }
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode)

@@ -20,7 +20,7 @@ namespace RS
 		void BeginScene(float r, float g, float b, float a);
 		void SetViewport(float x, float y, float width, float height);
 		void BindWindowRTV();
-		void EndScene();
+		void Present();
 
 		ID3D11RenderTargetView* GetRenderTarget();
 
@@ -30,8 +30,8 @@ namespace RS
 		void CreateDepthBuffer(DisplayDescription& displayDescriptor);
 		void CreateDepthStencilState();
 		void CreateDepthStencilView();
+		void ClearDepthStencil();
 		void CreateRasterizer();
-		void CreateAndSetViewport(float width, float height);
 
 	private:
 		ID3D11Device*				m_pDevice				= nullptr;

@@ -234,9 +234,13 @@ bool Shader::InitAndReload(const Descriptor& shaderDescriptor, const AttributeLa
     if (!shaderDescriptor.Domain.empty())
         result &= newShader.CreateAndCompileShaderPart(shaderDescriptor.Domain, ShaderTypeFlag::TESS_DOMAIN, (void**)&newShader.m_pDShader, newShader.m_pDReflector, pBlob, true);
 
-    if (!result) return false;
+    result &= CreateLayout(pVertexShaderBuffer, layout, newShader.m_pLayout);
 
-    CreateLayout(pVertexShaderBuffer, layout, newShader.m_pLayout);
+    if (!result)
+    {
+        newShader.Release();
+        return false;
+    }
 
     pVertexShaderBuffer->Release();
     pVertexShaderBuffer = nullptr;

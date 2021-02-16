@@ -81,7 +81,7 @@ void RS::EngineLoop::Tick(const FrameStats& frameStats)
     m_TickCallback(frameStats.frame.currentDT);
 
     ImGuiRenderer::Render();
-    renderer->EndScene();
+    renderer->Present();
 }
 
 void RS::EngineLoop::DrawFrameStats(const FrameStats& frameStats)
@@ -122,8 +122,8 @@ void RS::EngineLoop::DrawFrameStats(const FrameStats& frameStats)
         const uint32_t height = 305;
 
         // Draw the stats in the top right corner.
-        ImGui::SetNextWindowPos(ImVec2((float)displayWidth - width, 0), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2((float)width, (float)height), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2((float)displayWidth - width, 0));
+        ImGui::SetNextWindowSize(ImVec2((float)width, (float)height));
         ImGui::SetNextWindowBgAlpha(0.5f);
 
         ImGui::PushStyleColor(ImGuiCol_Border, 0);
