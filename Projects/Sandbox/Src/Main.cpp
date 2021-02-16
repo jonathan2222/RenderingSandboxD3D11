@@ -1,6 +1,7 @@
 #include <iostream>
 
-#include "Core/EngineLoop.h"
+#include "Core/Application.h"
+#include "Scenes/SandboxScene.h"
 
 int main(int argc, char* argv[])
 {
@@ -11,10 +12,11 @@ int main(int argc, char* argv[])
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
 
-    RS::EngineLoop engineLoop;
-    engineLoop.Init();
-    engineLoop.Run();
-    engineLoop.Release();
+    RS::Application application;
+    application.Init();
+    application.AddScene(new RS::SandboxScene());
+    application.Run();
+    application.Release();
 
     return 0;
 }

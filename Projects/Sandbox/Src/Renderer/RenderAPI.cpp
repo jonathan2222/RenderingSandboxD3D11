@@ -61,8 +61,6 @@ void RenderAPI::Release()
 	if (m_pDevice)
 	{
 #ifdef RS_CONFIG_DEVELOPMENT
-		m_pDevice->QueryInterface(__uuidof(ID3D11Debug), reinterpret_cast<void**>(&m_pDebug));
-		m_pDebug->ReportLiveDeviceObjects(D3D11_RLDO_FLAGS::D3D11_RLDO_SUMMARY);
 		m_pDebug->Release();
 #endif
 		m_pDevice->Release();
@@ -103,6 +101,11 @@ void RenderAPI::CreateDevice(IDXGIAdapter* adapter, D3D_DRIVER_TYPE driverType)
 	HRESULT result = D3D11CreateDevice(adapter, driverType, NULL, flags,
 		&featureLevel, 1, D3D11_SDK_VERSION, &m_pDevice, NULL, &m_pDeviceContext);
 	RS_D311_ASSERT_CHECK(result, "Could not initiate DirectX11: Failed to create the device and device context!");
+
+#ifdef RS_CONFIG_DEVELOPMENT
+	m_pDevice->QueryInterface(__uuidof(ID3D11Debug), reinterpret_cast<void**>(&m_pDebug));
+	m_pDebug->ReportLiveDeviceObjects(D3D11_RLDO_FLAGS::D3D11_RLDO_SUMMARY);
+#endif
 }
 
 void RenderAPI::CreateSwapChain()

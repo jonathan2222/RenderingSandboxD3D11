@@ -12,9 +12,13 @@
 #include "Renderer/RenderAPI.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/ImGuiRenderer.h"
+#include "Renderer/ShaderHotReloader.h"
 
-void RS::EngineLoop::Init()
+void RS::EngineLoop::Init(std::function<void(void)> fixedTickCallback, std::function<void(float)> tickCallback)
 {
+    m_FixedTickCallback   = fixedTickCallback;
+    m_TickCallback        = tickCallback;
+
     Logger::Init();
     Config::Get()->Init(RS_CONFIG_FILE_PATH);
 
@@ -28,10 +32,13 @@ void RS::EngineLoop::Init()
     RenderAPI::Get()->Init(displayDesc);
     Renderer::Get()->Init(displayDesc);
     ImGuiRenderer::Init(Display::Get().get());
+
+    ShaderHotReloader::Init();
 }
 
 void RS::EngineLoop::Release()
 {
+    ShaderHotReloader::Release();
     ImGuiRenderer::Release();
     Renderer::Get()->Release();
     RenderAPI::Get()->Release();
@@ -51,7 +58,7 @@ void RS::EngineLoop::Run()
 
         pDisplay->PollEvents();
 
-        frameTimer.FixedTick([&]() { EngineLoop(); });
+        frameTimer.FixedTick([&]() { FixedTick(); });
         Tick(frameStats);
 
         frameTimer.End();
@@ -60,14 +67,19 @@ void RS::EngineLoop::Run()
 
 void RS::EngineLoop::FixedTick()
 {
+    m_FixedTickCallback();
 }
 
 void RS::EngineLoop::Tick(const FrameStats& frameStats)
 {
     DrawFrameStats(frameStats);
 
+    ShaderHotReloader::Update();
+
     std::shared_ptr<Renderer> renderer = Renderer::Get();
     renderer->BeginScene(0.f, 0.f, 0.f, 1.f);
+
+    m_TickCallback(frameStats.frame.currentDT);
 
     ImGuiRenderer::Render();
     renderer->EndScene();

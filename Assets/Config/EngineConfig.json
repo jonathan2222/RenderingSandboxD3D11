@@ -3,7 +3,7 @@
     "DefaultWidth": 1920,
     "DefaultHeight": 1080,
     "Fullscreen": false,
-    "VSync": true,
+    "VSync": false,
     "Title": "Rendering Sandbox D3D11"
   }
 }

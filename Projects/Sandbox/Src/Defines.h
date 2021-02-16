@@ -23,6 +23,8 @@
 
 #define RS_UNREFERENCED_VARIABLE(v) (void)v
 #define FLAG(x) (1 << x)
+#define NameToStr(n) #n
+#define ValueToStr(v) NameToStr(v)
 
 #include "ClassTemplates.h"
 

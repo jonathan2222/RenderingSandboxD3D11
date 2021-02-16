@@ -80,8 +80,25 @@ void Renderer::BeginScene(float r, float g, float b, float a)
 	float color[4] = { r, g, b, a };
 	// Clear back buffer.
 	m_pContext->ClearRenderTargetView(m_pRenderTargetView, color);
-	// Clear depth buffer.
-	m_pContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	// Clear depth and stencil buffer.
+	m_pContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+}
+
+void Renderer::SetViewport(float x, float y, float width, float height)
+{
+	D3D11_VIEWPORT viewport = {};
+	viewport.TopLeftX = x;
+	viewport.TopLeftY = y;
+	viewport.Width = width;
+	viewport.Height = height;
+	viewport.MaxDepth = 1.f;
+	viewport.MinDepth = 0.f;
+	m_pContext->RSSetViewports(1, &viewport);
+}
+
+void Renderer::BindWindowRTV()
+{
+	m_pContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencilView);
 }
 
 void Renderer::EndScene()
