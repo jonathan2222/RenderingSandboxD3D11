@@ -20,6 +20,7 @@
 #define RS_CONFIG_FILE_PATH "../../Assets/Config/EngineConfig.json"
 #define RS_SHADER_PATH "../../Assets/Shaders/"
 #define RS_TEXTURE_PATH "../../Assets/Textures/"
+#define RS_MODEL_PATH "../../Assets/Models/"
 
 #define RS_UNREFERENCED_VARIABLE(v) (void)v
 #define FLAG(x) (1 << x)

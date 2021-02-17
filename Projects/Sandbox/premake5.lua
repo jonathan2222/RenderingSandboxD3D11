@@ -34,7 +34,8 @@ project "Sandbox"
 		"%{includeDir.spdlog}",
 		"%{includeDir.stb}",
 		"%{includeDir.json}",
-		"%{includeDir.glfw}"
+		"%{includeDir.glfw}",
+		"%{includeDir.tinyobj}"
 	}
 
 	links

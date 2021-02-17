@@ -11,5 +11,5 @@ SamplerState texSampler;
 float4 main(PSIn input) : SV_TARGET
 {
     float4 textureColor = tex.Sample(texSampler, input.uv);
-	return textureColor * input.color; //float4(textureColor.x*input.color.x, textureColor.y*input.color.y, textureColor.z*input.color.z, textureColor.w*input.color.w);
+	return textureColor + float4(input.color.rgb*0.2f, input.color.a);
 }

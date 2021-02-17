@@ -1,14 +1,14 @@
 struct VSIn
 {
-    float4 position : POSITION;
-    float4 color : COLOR0;
+    float3 position : POSITION;
+    float3 normal : NORMAL;
     float2 uv : TEXCOORD;
 };
 
 struct VSOut
 {
     float4 position : SV_POSITION;
-    float4 color : COLOR0;
+    float4 normal : NORMAL;
     float2 uv : TEXCOORD;
 };
 
@@ -22,10 +22,14 @@ cbuffer FrameData : register(b0)
 VSOut main(VSIn input)
 {
     VSOut output;
-    output.position = mul(worldMat, input.position);
+    output.position = mul(worldMat, float4(input.position, 1.f));
     output.position = mul(viewMat, output.position);
     output.position = mul(projMat, output.position);
-    output.color = input.color;
+
+    output.normal = mul(worldMat, float4(input.normal, 0.f));
+    output.normal = mul(viewMat, output.normal);
+    output.normal = mul(projMat, output.normal);
+
     output.uv = input.uv;
 
 	return output;

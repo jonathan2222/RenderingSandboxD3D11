@@ -87,6 +87,7 @@ includeDir["glm"] 		= "%{wks.location}/Externals/glm/"
 includeDir["spdlog"] 	= "%{wks.location}/Externals/spdlog/include"
 includeDir["stb"] 		= "%{wks.location}/Externals/stb/"
 includeDir["json"] 		= "%{wks.location}/Externals/json/single_include"
+includeDir["tinyobj"] 	= "%{wks.location}/Externals/tinyobj/include"
 
 group "Externals"
 		include "Externals/glfw"
