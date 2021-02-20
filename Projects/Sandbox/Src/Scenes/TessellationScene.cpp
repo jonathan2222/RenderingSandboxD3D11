@@ -152,7 +152,7 @@ void TessellationScene::Start()
 
 	D3D11_RASTERIZER_DESC rasterizerDesc = {};
 	rasterizerDesc.AntialiasedLineEnable = false;
-	rasterizerDesc.CullMode = D3D11_CULL_BACK;
+	rasterizerDesc.CullMode = D3D11_CULL_NONE;
 	rasterizerDesc.DepthBias = 0;
 	rasterizerDesc.DepthBiasClamp = 0.0f;
 	rasterizerDesc.DepthClipEnable = true;
@@ -222,21 +222,16 @@ void TessellationScene::Tick(float dt)
 		memcpy(mappedResource.pData, &world, sizeof(world));
 		pContext->Unmap(m_pVSConstantBuffer, 0);
 
-		m_CameraData.view = m_Camera.GetView();
-		m_CameraData.proj = m_Camera.GetProj();
-		result = pContext->Map(m_pDSConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-		RS_D311_ASSERT_CHECK(result, "Failed to map DS constant buffer!");
-		memcpy(mappedResource.pData, &m_CameraData, sizeof(m_CameraData));
-		pContext->Unmap(m_pDSConstantBuffer, 0);
-
 		static const float s_MaxTessFactor = 50.f;
 		static float s_Outer = s_MaxTessFactor*.5f, s_Inner = s_MaxTessFactor * .5f;
+		static float s_PhongAlpha = 0.f;
 		ImGuiRenderer::Draw([&]()
 		{
 			static bool s_ApplySame = true;
 			static bool s_TessPanelActive = true;
 			if (ImGui::Begin("Tesselation Params", &s_TessPanelActive))
 			{
+				ImGui::SliderFloat("Phong Tessellation", &s_PhongAlpha, 0.0f, 1.0f, "Alpha = %.3f");
 				ImGui::Checkbox("Both", &s_ApplySame);
 
 				if (s_ApplySame)
@@ -252,6 +247,14 @@ void TessellationScene::Tick(float dt)
 			}
 			ImGui::End();
 		});
+
+		m_CameraData.view = m_Camera.GetView();
+		m_CameraData.proj = m_Camera.GetProj();
+		m_CameraData.info = glm::vec4(s_PhongAlpha, 0.f, 0.f, 0.f);
+		result = pContext->Map(m_pDSConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+		RS_D311_ASSERT_CHECK(result, "Failed to map DS constant buffer!");
+		memcpy(mappedResource.pData, &m_CameraData, sizeof(m_CameraData));
+		pContext->Unmap(m_pDSConstantBuffer, 0);
 
 		glm::vec4 v(s_Outer, s_Inner, 0.f, 0.f);
 		result = pContext->Map(m_pHSConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);

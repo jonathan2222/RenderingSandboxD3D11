@@ -17,6 +17,7 @@ namespace RS
 		{
 			glm::mat4 view	= glm::mat4(1.f);
 			glm::mat4 proj	= glm::mat4(1.f);
+			glm::vec4 info	= glm::vec4(0.f); // First element if the alpha value for Phong Tessellation.
 		};
 
 		struct Vertex
