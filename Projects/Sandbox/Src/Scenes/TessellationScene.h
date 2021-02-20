@@ -46,15 +46,19 @@ namespace RS
 		void ToggleWireframe();
 
 	private:
-		Shader m_Shader;
+		Shader m_TriShader;
+		Shader m_QuadShader;
 
 		ID3D11Buffer* m_pVertexBuffer = nullptr;
-		ID3D11Buffer* m_pIndexBuffer = nullptr;
+		ID3D11Buffer* m_pTriIndexBuffer = nullptr;
+		ID3D11Buffer* m_pQuadIndexBuffer = nullptr;
+
 		ID3D11Buffer* m_pVSConstantBuffer = nullptr;
 		ID3D11Buffer* m_pHSConstantBuffer = nullptr;
 		ID3D11Buffer* m_pDSConstantBuffer = nullptr;
 
-		uint32		m_NumIndices = 0;
+		uint32		m_NumTriIndices = 0;
+		uint32		m_NumQuadIndices = 0;
 
 		CameraData	m_CameraData;
 

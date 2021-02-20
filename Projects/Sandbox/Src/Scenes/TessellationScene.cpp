@@ -26,20 +26,30 @@ void TessellationScene::Start()
 	glm::vec3 camDir(0.0, 0.0, -1.0);
 	constexpr float fov = glm::pi<float>() / 4.f;
 	float nearPlane = 0.01f, farPlane = 100.f;
-	//LOG_INFO("w: {}, h: {}, as: {}", display->GetWidth(), display->GetHeight(), aspectRatio);
 	m_Camera.Init(camPos, camDir, glm::vec3{ 0.f, 1.f, 0.f }, nearPlane, farPlane, fov);
 
 	AttributeLayout layout;
 	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "POSITION", 0);
 	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "NORMAL", 0);
 	layout.Push(DXGI_FORMAT_R32G32_FLOAT, "TEXCOORD", 0);
-	Shader::Descriptor shaderDesc = {};
-	shaderDesc.Vertex	= "TessellationScene/TessVert.hlsl";
-	shaderDesc.Hull		= "TessellationScene/TessHull.hlsl";
-	shaderDesc.Domain	= "TessellationScene/TessDomain.hlsl";
-	shaderDesc.Fragment = "TessellationScene/TessFrag.hlsl";
-	m_Shader.Load(shaderDesc, layout);
-	ShaderHotReloader::AddShader(&m_Shader);
+	{
+		Shader::Descriptor shaderDesc = {};
+		shaderDesc.Vertex = "TessellationScene/TessVert.hlsl";
+		shaderDesc.Hull = "TessellationScene/TessTriHull.hlsl";
+		shaderDesc.Domain = "TessellationScene/TessTriDomain.hlsl";
+		shaderDesc.Fragment = "TessellationScene/TessFrag.hlsl";
+		m_TriShader.Load(shaderDesc, layout);
+		ShaderHotReloader::AddShader(&m_TriShader);
+	}
+	{
+		Shader::Descriptor shaderDesc = {};
+		shaderDesc.Vertex = "TessellationScene/TessVert.hlsl";
+		shaderDesc.Hull = "TessellationScene/TessQuadHull.hlsl";
+		shaderDesc.Domain = "TessellationScene/TessQuadDomain.hlsl";
+		shaderDesc.Fragment = "TessellationScene/TessFrag.hlsl";
+		m_QuadShader.Load(shaderDesc, layout);
+		ShaderHotReloader::AddShader(&m_QuadShader);
+	}
 
 	static const float H = 1.f;
 	static const float W = 1.f;
@@ -53,12 +63,19 @@ void TessellationScene::Start()
 		{glm::vec3(W * .5f, 0.f, -D * .5f), glm::normalize(glm::vec3(0.f, 1.f, 1.f))},
 		{glm::vec3(W * .5f, 0.f, D * .5f), glm::vec3(0.f, 1.f, 0.f)},
 	};
-	std::vector<uint32> m_Indices = 
+	std::vector<uint32> m_TriIndices = 
 	{
 		0, 1, 4, 4, 5, 0,
 		1, 2, 3, 3, 4, 1
 	};
-	m_NumIndices = m_Indices.size();
+	m_NumTriIndices = m_TriIndices.size();
+
+	std::vector<uint32> m_QuadIndices =
+	{
+		0, 1, 5, 4,
+		1, 2, 4, 3
+	};
+	m_NumQuadIndices = m_QuadIndices.size();
 
 	{
 		D3D11_BUFFER_DESC bufferDesc = {};
@@ -80,7 +97,7 @@ void TessellationScene::Start()
 
 	{
 		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.ByteWidth = (UINT)(sizeof(uint32) * m_Indices.size());
+		bufferDesc.ByteWidth = (UINT)(sizeof(uint32) * m_TriIndices.size());
 		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 		bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 		bufferDesc.CPUAccessFlags = 0;
@@ -88,12 +105,17 @@ void TessellationScene::Start()
 		bufferDesc.StructureByteStride = 0;
 
 		D3D11_SUBRESOURCE_DATA data;
-		data.pSysMem = m_Indices.data();
+		data.pSysMem = m_TriIndices.data();
 		data.SysMemPitch = 0;
 		data.SysMemSlicePitch = 0;
 
-		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pIndexBuffer);
-		RS_D311_ASSERT_CHECK(result, "Failed to create index buffer!");
+		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pTriIndexBuffer);
+		RS_D311_ASSERT_CHECK(result, "Failed to create triangle index buffer!");
+
+		bufferDesc.ByteWidth = (UINT)(sizeof(uint32) * m_QuadIndices.size());
+		data.pSysMem = m_QuadIndices.data();
+		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pQuadIndexBuffer);
+		RS_D311_ASSERT_CHECK(result, "Failed to create quad index buffer!");
 	}
 
 	{
@@ -158,9 +180,11 @@ void TessellationScene::End()
 {
 	m_Pipeline.Release();
 
-	m_Shader.Release();
+	m_TriShader.Release();
+	m_QuadShader.Release();
 	m_pVertexBuffer->Release();
-	m_pIndexBuffer->Release();
+	m_pTriIndexBuffer->Release();
+	m_pQuadIndexBuffer->Release();
 	m_pVSConstantBuffer->Release();
 	m_pHSConstantBuffer->Release();
 	m_pDSConstantBuffer->Release();
@@ -187,11 +211,10 @@ void TessellationScene::Tick(float dt)
 
 	static uint32 id = DebugRenderer::Get()->GenID();
 
-	m_Shader.Bind();
-
 	// Update data
 	{
-		glm::mat4 world(1.f);
+		// Shift the first model to the right.
+		glm::mat4 world = glm::translate(glm::vec3(0.5f, 0.f, 0.f));
 
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
 		HRESULT result = pContext->Map(m_pVSConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
@@ -206,6 +229,7 @@ void TessellationScene::Tick(float dt)
 		memcpy(mappedResource.pData, &m_CameraData, sizeof(m_CameraData));
 		pContext->Unmap(m_pDSConstantBuffer, 0);
 
+		static const float s_MaxTessFactor = 20.f;
 		static float s_Outer = 1.f, s_Inner = 1.0f;
 		ImGuiRenderer::Draw([&]()
 		{
@@ -217,13 +241,13 @@ void TessellationScene::Tick(float dt)
 				
 				if (s_ApplySame)
 				{
-					ImGui::SliderFloat("Both", &s_Inner, 0.0f, 10.0f, "Factor = %.3f");
+					ImGui::SliderFloat("Both", &s_Inner, 1.0f, s_MaxTessFactor, "Factor = %.3f");
 					s_Outer = s_Inner;
 				}
 				else
 				{
-					ImGui::SliderFloat("OuterTessFactor", &s_Outer, 0.0f, 10.0f, "Factor = %.3f");
-					ImGui::SliderFloat("InnerTessFactor", &s_Inner, 0.0f, 10.0f, "Factor = %.3f");
+					ImGui::SliderFloat("OuterTessFactor", &s_Outer, 1.0f, s_MaxTessFactor, "Factor = %.3f");
+					ImGui::SliderFloat("InnerTessFactor", &s_Inner, 1.0f, s_MaxTessFactor, "Factor = %.3f");
 				}
 			}
 			ImGui::End();
@@ -236,15 +260,39 @@ void TessellationScene::Tick(float dt)
 		pContext->Unmap(m_pHSConstantBuffer, 0);
 	}
 
+	m_TriShader.Bind();
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
-	pContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
-	pContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	pContext->VSSetConstantBuffers(0, 1, &m_pVSConstantBuffer);
-	pContext->HSSetConstantBuffers(0, 1, &m_pHSConstantBuffer);
-	pContext->DSSetConstantBuffers(0, 1, &m_pDSConstantBuffer);
-	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
-	pContext->DrawIndexed((UINT)m_NumIndices, 0, 0);
+	{
+		pContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
+		pContext->IASetIndexBuffer(m_pTriIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		pContext->VSSetConstantBuffers(0, 1, &m_pVSConstantBuffer);
+		pContext->HSSetConstantBuffers(0, 1, &m_pHSConstantBuffer);
+		pContext->DSSetConstantBuffers(0, 1, &m_pDSConstantBuffer);
+		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+		pContext->DrawIndexed((UINT)m_NumTriIndices, 0, 0);
+	}
+	
+	{ // Shift the model to the Left
+		glm::mat4 world = glm::translate(glm::vec3(-0.5f, 0.f, 0.f));
+
+		D3D11_MAPPED_SUBRESOURCE mappedResource;
+		HRESULT result = pContext->Map(m_pVSConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+		RS_D311_ASSERT_CHECK(result, "Failed to map VS constant buffer!");
+		memcpy(mappedResource.pData, &world, sizeof(world));
+		pContext->Unmap(m_pVSConstantBuffer, 0);
+	}
+	
+	m_QuadShader.Bind();
+	{
+		pContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
+		pContext->IASetIndexBuffer(m_pQuadIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		pContext->VSSetConstantBuffers(0, 1, &m_pVSConstantBuffer);
+		pContext->HSSetConstantBuffers(0, 1, &m_pHSConstantBuffer);
+		pContext->DSSetConstantBuffers(0, 1, &m_pDSConstantBuffer);
+		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST);
+		pContext->DrawIndexed((UINT)m_NumQuadIndices, 0, 0);
+	}
 }
 
 void TessellationScene::UpdateCamera(float dt)
