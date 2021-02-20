@@ -24,11 +24,11 @@ void RS::EngineLoop::Init(std::function<void(void)> fixedTickCallback, std::func
     Config::Get()->Init(RS_CONFIG_FILE_PATH);
 
     DisplayDescription displayDesc = {};
-    displayDesc.Title = Config::Get()->Fetch<std::string>("Display/Title", "Arcane Engine");
-    displayDesc.Width = Config::Get()->Fetch<uint32>("Display/DefaultWidth", 1920);
-    displayDesc.Height = Config::Get()->Fetch<uint32>("Display/DefaultHeight", 1080);
-    displayDesc.Fullscreen = Config::Get()->Fetch<bool>("Display/Fullscreen", false);
-    displayDesc.VSync = Config::Get()->Fetch<bool>("Display/VSync", true);
+    displayDesc.Title       = Config::Get()->Fetch<std::string>("Display/Title", "Arcane Engine");
+    displayDesc.Width       = Config::Get()->Fetch<uint32>("Display/DefaultWidth", 1920);
+    displayDesc.Height      = Config::Get()->Fetch<uint32>("Display/DefaultHeight", 1080);
+    displayDesc.Fullscreen  = Config::Get()->Fetch<bool>("Display/Fullscreen", false);
+    displayDesc.VSync       = Config::Get()->Fetch<bool>("Display/VSync", true);
     Display::Get()->Init(displayDesc);
     Input::Get()->Init();
     RenderAPI::Get()->Init(displayDesc);

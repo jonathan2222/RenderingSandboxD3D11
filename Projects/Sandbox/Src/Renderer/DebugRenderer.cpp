@@ -293,6 +293,15 @@ void DebugRenderer::Clear(uint32 id)
 	m_ShouldBakePoints = true;
 }
 
+void DebugRenderer::Clear()
+{
+	m_IDLinesMap.clear();
+	m_IDPointsMap.clear();
+
+	m_ShouldBakeLines = true;
+	m_ShouldBakePoints = true;
+}
+
 void DebugRenderer::Render()
 {
 	if (m_ShouldBakeLines || m_ShouldBakePoints)
@@ -430,21 +439,24 @@ void DebugRenderer::UpdateLinesDrawBuffer()
 {
 	if (m_pLinesVertexBuffer == nullptr)
 	{
-		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.ByteWidth = (UINT)(sizeof(Vertex) * m_LinesToRender.m_Vertices.size());
-		bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-		bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		bufferDesc.MiscFlags = 0;
-		bufferDesc.StructureByteStride = 0;
+		if (m_LinesToRender.m_Vertices.empty() == false)
+		{
+			D3D11_BUFFER_DESC bufferDesc = {};
+			bufferDesc.ByteWidth = (UINT)(sizeof(Vertex) * m_LinesToRender.m_Vertices.size());
+			bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+			bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+			bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			bufferDesc.MiscFlags = 0;
+			bufferDesc.StructureByteStride = 0;
 
-		D3D11_SUBRESOURCE_DATA data;
-		data.pSysMem = m_LinesToRender.m_Vertices.data();
-		data.SysMemPitch = 0;
-		data.SysMemSlicePitch = 0;
+			D3D11_SUBRESOURCE_DATA data;
+			data.pSysMem = m_LinesToRender.m_Vertices.data();
+			data.SysMemPitch = 0;
+			data.SysMemSlicePitch = 0;
 
-		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pLinesVertexBuffer);
-		RS_D311_CHECK(result, "Failed to create lines vertex buffer!");
+			HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pLinesVertexBuffer);
+			RS_D311_CHECK(result, "Failed to create lines vertex buffer!");
+		}
 	}
 	else
 	{
@@ -463,21 +475,24 @@ void RS::DebugRenderer::UpdatePointsDrawBuffer()
 {
 	if (m_pPointsVertexBuffer == nullptr)
 	{
-		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.ByteWidth = (UINT)(sizeof(Vertex) * m_PointsToRender.m_Vertices.size());
-		bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-		bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		bufferDesc.MiscFlags = 0;
-		bufferDesc.StructureByteStride = 0;
+		if (m_PointsToRender.m_Vertices.empty() == false)
+		{
+			D3D11_BUFFER_DESC bufferDesc = {};
+			bufferDesc.ByteWidth = (UINT)(sizeof(Vertex) * m_PointsToRender.m_Vertices.size());
+			bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+			bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+			bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			bufferDesc.MiscFlags = 0;
+			bufferDesc.StructureByteStride = 0;
 
-		D3D11_SUBRESOURCE_DATA data;
-		data.pSysMem = m_PointsToRender.m_Vertices.data();
-		data.SysMemPitch = 0;
-		data.SysMemSlicePitch = 0;
+			D3D11_SUBRESOURCE_DATA data;
+			data.pSysMem = m_PointsToRender.m_Vertices.data();
+			data.SysMemPitch = 0;
+			data.SysMemSlicePitch = 0;
 
-		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pPointsVertexBuffer);
-		RS_D311_CHECK(result, "Failed to create points vertex buffer!");
+			HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pPointsVertexBuffer);
+			RS_D311_CHECK(result, "Failed to create points vertex buffer!");
+		}
 	}
 	else
 	{

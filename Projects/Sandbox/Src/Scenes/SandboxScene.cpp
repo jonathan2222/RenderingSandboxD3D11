@@ -10,7 +10,7 @@
 
 using namespace RS;
 
-SandboxScene::SandboxScene() : Scene("SandboxScene")
+SandboxScene::SandboxScene() : Scene("Sandbox Scene")
 {
 }
 
@@ -164,6 +164,10 @@ void SandboxScene::Start()
 }
 
 void SandboxScene::Selected()
+{
+}
+
+void SandboxScene::Unselected()
 {
 }
 

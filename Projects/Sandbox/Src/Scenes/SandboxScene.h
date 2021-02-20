@@ -34,6 +34,8 @@ namespace RS
 
 		void Selected() override;
 
+		void Unselected() override;
+
 		void End() override;
 
 		void FixedTick() override;

@@ -15,6 +15,10 @@ void TerrainScene::Selected()
 {
 }
 
+void TerrainScene::Unselected()
+{
+}
+
 void TerrainScene::End()
 {
 }

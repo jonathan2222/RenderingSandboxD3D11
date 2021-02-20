@@ -13,13 +13,15 @@ namespace RS
 		void Release();
 
 		void AddScene(Scene* scene);
-		void SelectScene(const std::string& name);
+		void SelectScene(uint32 index);
 
 		void Run();
 
 	private:
 		void FixedTick();
 		void Tick(float dt);
+
+		void DrawSceneSelectionPanel();
 
 	private:
 		bool m_ShowImGuiDemoWindow = false;

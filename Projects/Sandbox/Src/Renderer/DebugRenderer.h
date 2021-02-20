@@ -34,7 +34,15 @@ namespace RS
 		uint32 PushPoint(const glm::vec3& p, const Color& color = Color::RED, uint32 id = 0, bool shouldClear = true);
 		uint32 PushPoints(const std::vector<glm::vec3>& points, const Color& color = Color::RED, uint32 id = 0, bool shouldClear = true);
 
+		/*
+		* Clear the data for a specific id.
+		*/
 		void Clear(uint32 id);
+
+		/*
+		* Clear all data.
+		*/
+		void Clear();
 
 		void Render();
 

@@ -11,6 +11,7 @@ namespace RS
 		virtual void Start() = 0;
 
 		virtual void Selected() = 0;
+		virtual void Unselected() = 0;
 
 		virtual void End() = 0;
 

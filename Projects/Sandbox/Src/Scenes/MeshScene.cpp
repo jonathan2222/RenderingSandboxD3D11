@@ -108,14 +108,17 @@ void MeshScene::Start()
 	rasterizerDesc.ScissorEnable = false;
 	rasterizerDesc.SlopeScaledDepthBias = 0.0f;
 	m_Pipeline.SetRasterState(rasterizerDesc);
+}
 
+void MeshScene::Selected()
+{
 	auto debugRenderer = DebugRenderer::Get();
 	debugRenderer->PushLine(glm::vec3(0.f), glm::vec3(1.f, 0.f, 0.f), Color::RED);
 	debugRenderer->PushLine(glm::vec3(0.f), glm::vec3(0.f, 1.f, 0.f), Color::GREEN);
 	debugRenderer->PushLine(glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f), Color::BLUE);
 }
 
-void MeshScene::Selected()
+void MeshScene::Unselected()
 {
 }
 
