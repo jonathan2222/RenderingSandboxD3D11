@@ -90,9 +90,9 @@ void DebugRenderer::UpdateCamera(const glm::mat4& view, const glm::mat4& proj)
 	context->Unmap(m_pConstantBuffer, 0);
 }
 
-uint32_t DebugRenderer::PushLine(const glm::vec3& p1, const glm::vec3& p2, const Color& color, uint32_t id, bool shouldClear)
+uint32 DebugRenderer::PushLine(const glm::vec3& p1, const glm::vec3& p2, const Color& color, uint32 id, bool shouldClear)
 {
-	uint32_t newID = id == 0 ? GenID() : id;
+	uint32 newID = ProcessID(id, Type::LINES);
 	DataPoints& lines = m_IDLinesMap[newID];
 	if (shouldClear)
 		lines.m_Vertices.clear();
@@ -110,14 +110,14 @@ uint32_t DebugRenderer::PushLine(const glm::vec3& p1, const glm::vec3& p2, const
 	return newID;
 }
 
-uint32_t DebugRenderer::PushLines(const std::vector<glm::vec3>& points, const Color& color, uint32_t id, bool shouldClear)
+uint32 DebugRenderer::PushLines(const std::vector<glm::vec3>& points, const Color& color, uint32 id, bool shouldClear)
 {
-	uint32_t newID = id == 0 ? GenID() : id;
+	uint32 newID = ProcessID(id, Type::LINES);
 	DataPoints& lines = m_IDLinesMap[newID];
 	if (shouldClear)
 		lines.m_Vertices.clear();
 
-	for (uint32_t i = 1; i < points.size(); i++)
+	for (uint32 i = 1; i < points.size(); i++)
 	{
 		glm::vec3 point1 = points[i - 1];
 		Vertex v;
@@ -135,9 +135,9 @@ uint32_t DebugRenderer::PushLines(const std::vector<glm::vec3>& points, const Co
 	return newID;
 }
 
-uint32_t DebugRenderer::PushBox(const glm::vec3& min, const glm::vec3& max, const Color& color, uint32_t id, bool shouldClear)
+uint32 DebugRenderer::PushBox(const glm::vec3& min, const glm::vec3& max, const Color& color, uint32 id, bool shouldClear)
 {
-	uint32_t newID = id == 0 ? GenID() : id;
+	uint32 newID = ProcessID(id, Type::LINES);
 
 	std::vector<glm::vec3> points;
 	points.push_back(glm::vec3(min.x, min.y, min.z));
@@ -163,13 +163,13 @@ uint32_t DebugRenderer::PushBox(const glm::vec3& min, const glm::vec3& max, cons
 	return newID;
 }
 
-uint32_t DebugRenderer::PushMesh(Model* model, const Color& color, glm::vec3 offset, uint32_t id, bool shouldClear)
+uint32 DebugRenderer::PushMesh(Model* model, const Color& color, glm::vec3 offset, uint32 id, bool shouldClear)
 {
-	uint32_t newID = id == 0 ? GenID() : id;
+	uint32 newID = ProcessID(id, Type::LINES);
 
 	std::vector<glm::vec3> points;
 	points.resize(4);
-	for (uint32_t i = 0; i < model->Indices.size(); i += 3)
+	for (uint32 i = 0; i < model->Indices.size(); i += 3)
 	{
 		Model::Vertex v = model->Vertices[model->Indices[i]];
 		points[0] = v.Position + offset;
@@ -184,9 +184,9 @@ uint32_t DebugRenderer::PushMesh(Model* model, const Color& color, glm::vec3 off
 	return newID;
 }
 
-uint32_t DebugRenderer::PushPoint(const glm::vec3& p, const Color& color, uint32_t id, bool shouldClear)
+uint32 DebugRenderer::PushPoint(const glm::vec3& p, const Color& color, uint32 id, bool shouldClear)
 {
-	uint32_t newID = id == 0 ? GenID() : id;
+	uint32 newID = ProcessID(id, Type::POINTS);
 	DataPoints& points = m_IDPointsMap[newID];
 	if (shouldClear)
 		points.m_Vertices.clear();
@@ -202,14 +202,14 @@ uint32_t DebugRenderer::PushPoint(const glm::vec3& p, const Color& color, uint32
 	return newID;
 }
 
-uint32_t DebugRenderer::PushPoints(const std::vector<glm::vec3>& points, const Color& color, uint32_t id, bool shouldClear)
+uint32 DebugRenderer::PushPoints(const std::vector<glm::vec3>& points, const Color& color, uint32 id, bool shouldClear)
 {
-	uint32_t newID = id == 0 ? GenID() : id;
+	uint32 newID = ProcessID(id, Type::POINTS);
 	DataPoints& pointsData = m_IDPointsMap[newID];
 	if (shouldClear)
 		pointsData.m_Vertices.clear();
 
-	for (uint32_t i = 0; i < points.size(); i++)
+	for (uint32 i = 0; i < points.size(); i++)
 	{
 		Vertex v;
 		v.Position = points[i];
@@ -222,7 +222,7 @@ uint32_t DebugRenderer::PushPoints(const std::vector<glm::vec3>& points, const C
 	return newID;
 }
 
-void DebugRenderer::Clear(uint32_t id)
+void DebugRenderer::Clear(uint32 id)
 {
 	// Clear all points and colors from the list of lines.
 	{
@@ -248,6 +248,11 @@ void DebugRenderer::Render()
 		BakeLines();
 		BakePoints();
 		m_ShouldBake = false;
+
+		// Update stats
+		m_Stats.NumberOfLineVertices	= m_PreviousLinesBufferSize;
+		m_Stats.NumberOfPointVertices	= m_PreviousPointsBufferSize;
+		m_Stats.NumberOfIDs				= s_IDGenerator;
 	}
 	
 	// Only bind the raster state, use the default depth state and view. Same for the RTV
@@ -261,10 +266,35 @@ void DebugRenderer::Render()
 	DrawPoints(pContext);
 }
 
-uint32_t DebugRenderer::GenID()
+uint32 DebugRenderer::GenID()
 {
-	static uint32_t s_ID = 0;
-	return ++s_ID;
+	return ++s_IDGenerator;
+}
+
+const DebugRenderer::Stats& DebugRenderer::GetStats() const
+{
+	return m_Stats;
+}
+
+uint32 DebugRenderer::ProcessID(uint32 id, Type type)
+{
+	uint32 newID = id;
+	if (newID == 0)
+	{
+		switch (type)
+		{
+		case RS::DebugRenderer::LINES:
+			newID = s_DefaultLinesID;
+			break;
+		case RS::DebugRenderer::POINTS:
+			newID = s_DefaultPointsID;
+			break;
+		default:
+			LOG_WARNING("Debug rendering type is not supported!");
+			break;
+		}
+	}
+	return newID;
 }
 
 void DebugRenderer::DrawLines(ID3D11DeviceContext* pContext)
@@ -298,8 +328,8 @@ void DebugRenderer::BakeLines()
 	for (auto it = m_IDLinesMap.begin(); it != m_IDLinesMap.end(); it++)
 	{
 		DataPoints& lines = it->second;
-		uint32_t nPoints = (uint32_t)lines.m_Vertices.size();
-		for (uint32_t i = 0; i < nPoints; i++)
+		uint32 nPoints = (uint32)lines.m_Vertices.size();
+		for (uint32 i = 0; i < nPoints; i++)
 			m_LinesToRender.m_Vertices.push_back(lines.m_Vertices[i]);
 	}
 
@@ -313,8 +343,8 @@ void DebugRenderer::BakePoints()
 	for (auto it = m_IDPointsMap.begin(); it != m_IDPointsMap.end(); it++)
 	{
 		DataPoints& points = it->second;
-		uint32_t nPoints = (uint32_t)points.m_Vertices.size();
-		for (uint32_t i = 0; i < nPoints; i++)
+		uint32 nPoints = (uint32)points.m_Vertices.size();
+		for (uint32 i = 0; i < nPoints; i++)
 			m_PointsToRender.m_Vertices.push_back(points.m_Vertices[i]);
 	}
 

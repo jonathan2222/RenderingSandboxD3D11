@@ -130,7 +130,7 @@ void RS::EngineLoop::DrawFrameStats(const FrameStats& frameStats)
 
         uint32_t displayWidth = Display::Get()->GetWidth();
         const uint32_t width = 260;
-        const uint32_t height = 305;
+        const uint32_t height = 405;
 
         // Draw the stats in the top right corner.
         ImGui::SetNextWindowPos(ImVec2((float)displayWidth - width, 0));
@@ -197,6 +197,17 @@ void RS::EngineLoop::DrawFrameStats(const FrameStats& frameStats)
                 ImGui::Text("Config: %s", configStr);
                 RenderAPI::VideoCardInfo& videoCardInfo = RenderAPI::Get()->GetVideoCardInfo();
                 ImGui::Text("%s", videoCardInfo.Name.c_str());
+                ImGui::Unindent();
+            }
+
+            ImGui::NewLine();
+            ImGui::Text("Debug Renderer");
+            {
+                const DebugRenderer::Stats& stats = DebugRenderer::Get()->GetStats();
+                ImGui::Indent();
+                ImGui::Text("Num line vertices: %d", stats.NumberOfLineVertices);
+                ImGui::Text("Num point vertices: %d", stats.NumberOfPointVertices);
+                ImGui::Text("Num IDs: %d", stats.NumberOfIDs);
                 ImGui::Unindent();
             }
 
