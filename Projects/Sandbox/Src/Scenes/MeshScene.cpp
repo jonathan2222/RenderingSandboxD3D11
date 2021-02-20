@@ -110,10 +110,9 @@ void MeshScene::Start()
 	m_Pipeline.SetRasterState(rasterizerDesc);
 
 	auto debugRenderer = DebugRenderer::Get();
-	uint32 id = debugRenderer->GenID();
-	debugRenderer->PushLine(glm::vec3(0.f), glm::vec3(1.f, 0.f, 0.f), Color::RED, id, true);
-	debugRenderer->PushLine(glm::vec3(0.f), glm::vec3(0.f, 1.f, 0.f), Color::GREEN, id, false);
-	debugRenderer->PushLine(glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f), Color::BLUE, id, false);
+	debugRenderer->PushLine(glm::vec3(0.f), glm::vec3(1.f, 0.f, 0.f), Color::RED);
+	debugRenderer->PushLine(glm::vec3(0.f), glm::vec3(0.f, 1.f, 0.f), Color::GREEN);
+	debugRenderer->PushLine(glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f), Color::BLUE);
 }
 
 void MeshScene::Selected()
@@ -172,6 +171,7 @@ void MeshScene::Tick(float dt)
 		m_FrameData.world = glm::rotate(glm::scale(glm::vec3(0.2f)), t, glm::vec3(0.f, 1.f, 0.f));
 		m_FrameData.view = m_Camera.GetView();// glm::lookAtRH(camPos, camPos + camDir, glm::vec3(0.f, 1.f, 0.f));
 		m_FrameData.proj = m_Camera.GetProj();// glm::perspectiveRH(fov, aspectRatio, nearPlane, farPlane);
+
 
 		glm::vec3 v = glm::rotate(glm::vec3(0.3f, 0.6f, 0.f), -t, glm::vec3(0.f, 1.f, 0.f));
 		DebugRenderer::Get()->PushPoint(v, Color::BLUE, id);
