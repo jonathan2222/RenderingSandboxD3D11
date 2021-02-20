@@ -138,8 +138,6 @@ std::string Input::KeyStateToStr(KeyState state)
 
 void Input::KeyCallback(GLFWwindow* wnd, int key, int scancode, int action, int mods)
 {
-    //ImGuiImpl* imGuiImpl = Display::get()->getImGuiImpl();
-    //if (imGuiImpl == nullptr || (imGuiImpl != nullptr && imGuiImpl->needInput() == false))
     if(!ImGuiRenderer::WantKeyInput())
     {
         Key ymKey = (Key)key;
@@ -152,8 +150,6 @@ void Input::KeyCallback(GLFWwindow* wnd, int key, int scancode, int action, int 
 
 void Input::CursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
 {
-    //ImGuiImpl* imGuiImpl = Display::get()->getImGuiImpl();
-    //if (imGuiImpl == nullptr || (imGuiImpl != nullptr && imGuiImpl->needInput() == false))
     {
         s_MousePos.x = (float)xpos;
         s_MousePos.y = (float)ypos;
@@ -162,8 +158,6 @@ void Input::CursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
 
 void Input::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
-    //ImGuiImpl* imGuiImpl = Display::get()->getImGuiImpl();
-    //if (imGuiImpl == nullptr || (imGuiImpl != nullptr && imGuiImpl->needInput() == false))
     if (!ImGuiRenderer::WantKeyInput())
     {
         MB ymButton = (MB)button;
@@ -176,6 +170,9 @@ void Input::MouseButtonCallback(GLFWwindow* window, int button, int action, int 
 
 void Input::MouseScrollCallback(GLFWwindow* window, double xOffset, double yOffset)
 {
-    s_ScrollDelta.x = (float)xOffset;
-    s_ScrollDelta.y = (float)yOffset;
+    if (!ImGuiRenderer::WantKeyInput())
+    {
+        s_ScrollDelta.x = (float)xOffset;
+        s_ScrollDelta.y = (float)yOffset;
+    }
 }

@@ -209,11 +209,22 @@ void TessellationScene::Tick(float dt)
 		static float s_Outer = 1.f, s_Inner = 1.0f;
 		ImGuiRenderer::Draw([&]()
 		{
+			static bool s_ApplySame = false;
 			static bool s_TessPanelActive = true;
 			if (ImGui::Begin("Tesselation Params", &s_TessPanelActive))
 			{
-				ImGui::SliderFloat("OuterTessFactor", &s_Outer, 0.0f, 10.0f, "Factor = %.3f");
-				ImGui::SliderFloat("InnerTessFactor", &s_Inner, 0.0f, 10.0f, "Factor = %.3f");
+				ImGui::Checkbox("Both", &s_ApplySame);
+				
+				if (s_ApplySame)
+				{
+					ImGui::SliderFloat("Both", &s_Inner, 0.0f, 10.0f, "Factor = %.3f");
+					s_Outer = s_Inner;
+				}
+				else
+				{
+					ImGui::SliderFloat("OuterTessFactor", &s_Outer, 0.0f, 10.0f, "Factor = %.3f");
+					ImGui::SliderFloat("InnerTessFactor", &s_Inner, 0.0f, 10.0f, "Factor = %.3f");
+				}
 			}
 			ImGui::End();
 		});
@@ -238,21 +249,66 @@ void TessellationScene::Tick(float dt)
 
 void TessellationScene::UpdateCamera(float dt)
 {
+	/*
+	*	Camera
+	*	Type: Orbit
+	*	Controlls:
+	*		Pan:			Hold L_SHIFT and drag with the LMB.
+	*		Zoom:			Hold L_CTL and drag with the LBM up and down.
+	*		Orbit			Drag with the LMB.
+	*		Reset target:	Press the 'C' key.
+	*/
+
 	auto input = Input::Get();
 	glm::vec2 delta = input->GetCursorDelta();
 
+	static const glm::vec3 s_StartingTarget = glm::vec3(0.f, 0.5f, 0.f);
+	static glm::vec3 s_Target = s_StartingTarget;
+	uint32 s_CameraState = 0;
+	if (input->IsKeyPressed(Key::LEFT_CONTROL))		s_CameraState = 1;
+	else if (input->IsKeyPressed(Key::LEFT_SHIFT))	s_CameraState = 2;
+	else											s_CameraState = 0;
+
+	if (input->IsKeyPressed(Key::C))
+	{
+		s_Target = s_StartingTarget;
+		glm::vec3 pos = s_StartingTarget + glm::vec3(0.f, 0.f, 2.0f);
+		m_Camera.LookAt(pos, s_Target);
+	}
+
 	if (input->IsMBPressed(MB::LEFT))
 	{
+
 		float mouseSensitivity = 5.f * dt;
-		//m_Camera.SetOrientaion(delta.x* mouseSensitivity, delta.y * mouseSensitivity);
+		float zoomFactor = 2.f;
 
-		glm::vec3 target(0.f, 0.5f, 0.f);
 		glm::vec3 pos = m_Camera.GetPos();
-		pos = glm::rotate(pos, -delta.x * mouseSensitivity, glm::vec3(0.f, 1.f, 0.f));
-		pos = glm::rotate(pos, -delta.y * mouseSensitivity, m_Camera.GetRight());
-		m_Camera.LookAt(pos, target);
+		if (s_CameraState == 0) // Orbit
+		{
+			glm::vec3 v = pos - s_Target;
+			v = glm::rotate(v, -delta.x * mouseSensitivity, glm::vec3(0.f, 1.f, 0.f));
+			v = glm::rotate(v, -delta.y * mouseSensitivity, m_Camera.GetRight());
+			pos = s_Target + v;
+		}
+		else if (s_CameraState == 1) // Zoom
+		{
+			float zoom = delta.y * mouseSensitivity * zoomFactor;
+			glm::vec3 dir = glm::normalize(s_Target - pos);
+			dir *= zoom;
+			pos += dir;
+		}
+		else if (s_CameraState == 2) // Pan
+		{
+			glm::vec3 right = m_Camera.GetRight();
+			glm::vec3 up = m_Camera.GetUp();
+			glm::vec3 offset = right * -delta.x + up * delta.y;
+			offset *= mouseSensitivity;
+			pos += offset;
+			s_Target += offset;
+		}
+		m_Camera.LookAt(pos, s_Target);
 
-		// If the screen changes, update the projection.
+		// Update the projection for the possibility that the screen size has been changed.
 		m_Camera.UpdateProj();
 	}
 }
