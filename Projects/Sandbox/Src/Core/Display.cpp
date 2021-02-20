@@ -28,21 +28,25 @@ void RS::Display::Init(const DisplayDescription& description)
 
 	glfwSetErrorCallback(Display::ErrorCallback);
 
-	GLFWmonitor* monitor = nullptr;
+	m_PreWidth = m_Description.Width;
+	m_PreHeight = m_Description.Height;
+
+	GLFWmonitor* pMonitor = nullptr;
 	if (m_Description.Fullscreen)
 	{
-		monitor = glfwGetPrimaryMonitor();
+		pMonitor = glfwGetPrimaryMonitor();
 
-		const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+		const GLFWvidmode* mode = glfwGetVideoMode(pMonitor);
 		glfwWindowHint(GLFW_RED_BITS, mode->redBits);
 		glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
 		glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
 		glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+		glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
 		m_Description.Width = mode->width;
 		m_Description.Height = mode->height;
 	}
 
-	m_pWindow = glfwCreateWindow(m_Description.Width, m_Description.Height, m_Description.Title.c_str(), monitor, nullptr);
+	m_pWindow = glfwCreateWindow(m_Description.Width, m_Description.Height, m_Description.Title.c_str(), pMonitor, nullptr);
 	if (m_pWindow == NULL)
 	{
 		glfwTerminate();
@@ -97,6 +101,24 @@ DisplayDescription& Display::GetDescription()
     return m_Description;
 }
 
+void Display::ToggleFullscreen()
+{
+	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+	const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+	if (m_Description.Fullscreen)
+	{
+		int xPos = mode->width / 2 - m_PreWidth / 2;
+		int yPos = mode->height / 2 - m_PreHeight / 2;
+		glfwSetWindowMonitor(m_pWindow, NULL, xPos, yPos, m_PreWidth, m_PreHeight, GLFW_DONT_CARE);
+		m_Description.Fullscreen = false;
+	}
+	else
+	{
+		glfwSetWindowMonitor(m_pWindow, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+		m_Description.Fullscreen = true;
+	}
+}
+
 uint32 Display::GetWidth() const
 {
     return m_Description.Width;
@@ -121,7 +143,6 @@ void RS::Display::ErrorCallback(int error, const char* description)
 void RS::Display::FrameBufferResizeCallback(GLFWwindow* window, int width, int height)
 {
 	RS_UNREFERENCED_VARIABLE(window);
-	// TODO: Call resize on the renderer! (Maybe send an event?)
 
 	// Update display description.
 	DisplayDescription& description = m_pSelf->GetDescription();

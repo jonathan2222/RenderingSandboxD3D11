@@ -31,6 +31,7 @@ void RS::EngineLoop::Init(std::function<void(void)> fixedTickCallback, std::func
     displayDesc.VSync       = Config::Get()->Fetch<bool>("Display/VSync", true);
     Display::Get()->Init(displayDesc);
     Input::Get()->Init();
+    displayDesc = Display::Get()->GetDescription();
     RenderAPI::Get()->Init(displayDesc);
     Renderer::Get()->Init(displayDesc);
     DebugRenderer::Get()->Init();
@@ -62,8 +63,24 @@ void RS::EngineLoop::Run()
 
         pDisplay->PollEvents();
 
-        if (Input::Get()->IsKeyPressed(Key::ESCAPE))
-            pDisplay->Close();
+        // Quit by pressing ESCAPE
+        {
+            if (Input::Get()->IsKeyPressed(Key::ESCAPE))
+                pDisplay->Close();
+        }
+
+        // Toggle fullscreen by pressing F11
+        {
+            static bool s_F11Active = true;
+            KeyState f11State = Input::Get()->GetKeyState(Key::F11);
+            if (f11State == KeyState::PRESSED && s_F11Active)
+            {
+                pDisplay->ToggleFullscreen();
+                s_F11Active = false;
+            }
+            else if (f11State == KeyState::RELEASED)
+                s_F11Active = true;
+        }
 
         Input::Get()->Update();
         

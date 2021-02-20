@@ -34,6 +34,8 @@ namespace RS
 		void SetDescription(const DisplayDescription& description);
 		DisplayDescription& GetDescription();
 
+		void ToggleFullscreen();
+
 		uint32	GetWidth() const;
 		uint32	GetHeight() const;
 		float	GetAspectRatio() const;
@@ -45,6 +47,8 @@ namespace RS
 	private:
 		inline static Display* m_pSelf = nullptr;
 
+		uint32				m_PreWidth = 0;
+		uint32				m_PreHeight = 0;
 		DisplayDescription	m_Description;
 		bool				m_ShouldClose	= false;
 		GLFWwindow*			m_pWindow		= nullptr;

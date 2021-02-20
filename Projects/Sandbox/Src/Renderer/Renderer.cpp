@@ -100,7 +100,6 @@ void Renderer::CreateRTV()
 	ID3D11Texture2D* pBackBufferPtr = 0;
 	result = m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBufferPtr);
 	RS_D311_ASSERT_CHECK(result, "Could not initiate DirectX11: Failed to fetch the back buffer pointer!");
-
 	// Create the render target view with the back buffer pointer.
 	result = m_pDevice->CreateRenderTargetView(pBackBufferPtr, NULL, &m_pRenderTargetView);
 	RS_D311_ASSERT_CHECK(result, "Could not initiate DirectX11: Failed to create the RTV!");
