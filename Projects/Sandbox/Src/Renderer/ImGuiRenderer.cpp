@@ -57,6 +57,12 @@ void ImGuiRenderer::Render()
 	s_DrawCalls.clear();
 }
 
+bool ImGuiRenderer::WantKeyInput()
+{
+	ImGuiIO& io = ImGui::GetIO();
+	return io.WantCaptureKeyboard || io.WantCaptureMouse;
+}
+
 void ImGuiRenderer::BeginFrame()
 {
 	ImGui_ImplDX11_NewFrame();

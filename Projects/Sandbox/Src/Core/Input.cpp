@@ -3,6 +3,8 @@
 
 #include "Core/Display.h"
 
+#include "Renderer/ImGuiRenderer.h"
+
 using namespace RS;
 
 std::shared_ptr<Input> Input::Get()
@@ -138,6 +140,7 @@ void Input::KeyCallback(GLFWwindow* wnd, int key, int scancode, int action, int 
 {
     //ImGuiImpl* imGuiImpl = Display::get()->getImGuiImpl();
     //if (imGuiImpl == nullptr || (imGuiImpl != nullptr && imGuiImpl->needInput() == false))
+    if(!ImGuiRenderer::WantKeyInput())
     {
         Key ymKey = (Key)key;
         if (action == GLFW_PRESS)
@@ -161,6 +164,7 @@ void Input::MouseButtonCallback(GLFWwindow* window, int button, int action, int 
 {
     //ImGuiImpl* imGuiImpl = Display::get()->getImGuiImpl();
     //if (imGuiImpl == nullptr || (imGuiImpl != nullptr && imGuiImpl->needInput() == false))
+    if (!ImGuiRenderer::WantKeyInput())
     {
         MB ymButton = (MB)button;
         if (action == GLFW_PRESS)

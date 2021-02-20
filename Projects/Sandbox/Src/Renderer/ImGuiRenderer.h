@@ -17,6 +17,8 @@ namespace RS
 
 		static void Render();
 
+		static bool WantKeyInput();
+
 	private:
 		static void BeginFrame();
 		static void EndFrame();
