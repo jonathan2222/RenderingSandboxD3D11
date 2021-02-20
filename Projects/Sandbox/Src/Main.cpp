@@ -3,6 +3,7 @@
 #include "Core/Application.h"
 #include "Scenes/SandboxScene.h"
 #include "Scenes/MeshScene.h"
+#include "Scenes/TessellationScene.h"
 
 int main(int argc, char* argv[])
 {
@@ -17,6 +18,7 @@ int main(int argc, char* argv[])
     application.Init();
     application.AddScene(new RS::SandboxScene());
     application.AddScene(new RS::MeshScene());
+    application.AddScene(new RS::TessellationScene());
     application.Run();
     application.Release();
 

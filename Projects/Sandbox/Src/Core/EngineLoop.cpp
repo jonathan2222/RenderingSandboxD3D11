@@ -61,10 +61,11 @@ void RS::EngineLoop::Run()
         frameTimer.Begin();
 
         pDisplay->PollEvents();
-        Input::Get()->Update();
 
         if (Input::Get()->IsKeyPressed(Key::ESCAPE))
             pDisplay->Close();
+
+        Input::Get()->Update();
         
         frameTimer.FixedTick([&]() { FixedTick(); });
         Tick(frameStats);

@@ -19,6 +19,7 @@ namespace RS
 
 		void Resize(uint32 width, uint32 height);
 
+		// TODO: Allow for saving the previous pipeline state and later set it back.
 		void BeginScene(float r, float g, float b, float a);
 		void BindWindowRTV();
 		void Present();
