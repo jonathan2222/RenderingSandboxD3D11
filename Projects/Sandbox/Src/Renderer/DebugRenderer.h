@@ -79,13 +79,17 @@ namespace RS
 		void UpdateLinesDrawBuffer();
 		void UpdatePointsDrawBuffer();
 
+		bool ShouldClearPoints(uint32 id, bool shouldClear);
+		bool ShouldClearLines(uint32 id, bool shouldClear);
+
 	private:
 		// Holds data of the different types.
 		std::unordered_map<uint32, DataPoints>	m_IDLinesMap;
 		std::unordered_map<uint32, DataPoints>	m_IDPointsMap;
 		DataPoints				m_LinesToRender;
 		DataPoints				m_PointsToRender;
-		bool					m_ShouldBake				= false;
+		bool					m_ShouldBakeLines				= false;
+		bool					m_ShouldBakePoints				= false;
 
 		// Rendering objects.
 		Pipeline				m_Pipeline;
@@ -107,6 +111,10 @@ namespace RS
 
 		// Safe guard.
 		bool					m_IsCameraSet				= false;
+
+		// Variables to prevent the default push to clear each time its called.
+		bool					m_LinesFirstCall			= true;
+		bool					m_PointsFirstCall			= true;
 
 		// ID related variables.
 		static const uint32		s_DefaultLinesID			= 1u;

@@ -150,6 +150,11 @@ void MeshScene::Tick(float dt)
 	renderer->BeginScene(0.2f, 0.2f, 0.2f, 1.0f);
 
 	DebugRenderer::Get()->PushPoint(glm::vec3(0.f, 0.6f, 0.f), Color(1.0f, 0.2f, 0.2f));
+	DebugRenderer::Get()->PushPoint(glm::vec3(0.1f, 0.6f, 0.f), Color(1.0f, 1.0f, 0.2f));
+	DebugRenderer::Get()->PushPoint(glm::vec3(0.2f, 0.6f, 0.f), Color(1.0f, 0.2f, 1.0f));
+
+	static uint32 id = DebugRenderer::Get()->GenID();
+
 
 	m_Shader.Bind();
 
@@ -162,9 +167,17 @@ void MeshScene::Tick(float dt)
 		float nearPlane = 0.01f, farPlane = 100.f;
 		float aspectRatio = display->GetAspectRatio();
 		//LOG_INFO("w: {}, h: {}, as: {}", display->GetWidth(), display->GetHeight(), aspectRatio);
-		m_FrameData.world = glm::rotate(glm::scale(glm::vec3(0.2f)), glm::pi<float>() * dt * 0.5f, glm::vec3(0.f, 1.f, 0.f));
+		static float t = 0.f;
+		t += glm::pi<float>() * dt * 0.5f;
+		m_FrameData.world = glm::rotate(glm::scale(glm::vec3(0.2f)), t, glm::vec3(0.f, 1.f, 0.f));
 		m_FrameData.view = m_Camera.GetView();// glm::lookAtRH(camPos, camPos + camDir, glm::vec3(0.f, 1.f, 0.f));
 		m_FrameData.proj = m_Camera.GetProj();// glm::perspectiveRH(fov, aspectRatio, nearPlane, farPlane);
+
+		glm::vec3 v = glm::rotate(glm::vec3(0.3f, 0.6f, 0.f), -t, glm::vec3(0.f, 1.f, 0.f));
+		DebugRenderer::Get()->PushPoint(v, Color::BLUE, id);
+		DebugRenderer::Get()->PushPoint(v - glm::vec3(0.f, 0.1f, 0.f), Color::BLUE, id);
+		DebugRenderer::Get()->PushPoint(v - glm::vec3(0.f, 0.2f, 0.f), Color::BLUE, id, false);
+		DebugRenderer::Get()->PushPoint(v - glm::vec3(0.f, 0.3f, 0.f), Color::BLUE, id, false);
 
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
 		HRESULT result = pContext->Map(m_pConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);

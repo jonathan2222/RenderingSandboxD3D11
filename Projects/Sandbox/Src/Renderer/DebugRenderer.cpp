@@ -4,6 +4,8 @@
 #include "Loaders/ModelLoader.h"
 #include "Core/Display.h"
 
+#include "Renderer/ShaderHotReloader.h"
+
 using namespace RS;
 
 std::shared_ptr<DebugRenderer> DebugRenderer::Get()
@@ -57,6 +59,7 @@ void DebugRenderer::Init()
 		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "POSITION", 0);
 		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "COLOR", 0);
 		m_LineShader.Load(shaderDesc, layout);
+		ShaderHotReloader::AddShader(&m_LineShader);
 	}
 
 	{
@@ -68,6 +71,7 @@ void DebugRenderer::Init()
 		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "POSITION", 0);
 		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "COLOR", 0);
 		m_PointShader.Load(shaderDesc, layout);
+		ShaderHotReloader::AddShader(&m_PointShader);
 	}
 }
 
@@ -141,7 +145,7 @@ uint32 DebugRenderer::PushLine(const glm::vec3& p1, const glm::vec3& p2, const C
 {
 	uint32 newID = ProcessID(id, Type::LINES);
 	DataPoints& lines = m_IDLinesMap[newID];
-	if (shouldClear)
+	if(ShouldClearLines(newID, shouldClear))
 		lines.m_Vertices.clear();
 
 	Vertex v;
@@ -152,7 +156,7 @@ uint32 DebugRenderer::PushLine(const glm::vec3& p1, const glm::vec3& p2, const C
 	lines.m_Vertices.push_back(v);
 	lines.ID = newID;
 
-	m_ShouldBake = true;
+	m_ShouldBakeLines = true;
 
 	return newID;
 }
@@ -161,7 +165,7 @@ uint32 DebugRenderer::PushLines(const std::vector<glm::vec3>& points, const Colo
 {
 	uint32 newID = ProcessID(id, Type::LINES);
 	DataPoints& lines = m_IDLinesMap[newID];
-	if (shouldClear)
+	if (ShouldClearLines(newID, shouldClear))
 		lines.m_Vertices.clear();
 
 	for (uint32 i = 1; i < points.size(); i++)
@@ -177,7 +181,7 @@ uint32 DebugRenderer::PushLines(const std::vector<glm::vec3>& points, const Colo
 		lines.m_Vertices.push_back(v);
 	}
 
-	m_ShouldBake = true;
+	m_ShouldBakeLines = true;
 
 	return newID;
 }
@@ -235,7 +239,7 @@ uint32 DebugRenderer::PushPoint(const glm::vec3& p, const Color& color, uint32 i
 {
 	uint32 newID = ProcessID(id, Type::POINTS);
 	DataPoints& points = m_IDPointsMap[newID];
-	if (shouldClear)
+	if (ShouldClearPoints(newID, shouldClear))
 		points.m_Vertices.clear();
 
 	Vertex v;
@@ -244,7 +248,7 @@ uint32 DebugRenderer::PushPoint(const glm::vec3& p, const Color& color, uint32 i
 	points.m_Vertices.push_back(v);
 	points.ID = newID;
 
-	m_ShouldBake = true;
+	m_ShouldBakePoints = true;
 
 	return newID;
 }
@@ -253,7 +257,7 @@ uint32 DebugRenderer::PushPoints(const std::vector<glm::vec3>& points, const Col
 {
 	uint32 newID = ProcessID(id, Type::POINTS);
 	DataPoints& pointsData = m_IDPointsMap[newID];
-	if (shouldClear)
+	if (ShouldClearPoints(newID, shouldClear))
 		pointsData.m_Vertices.clear();
 
 	for (uint32 i = 0; i < points.size(); i++)
@@ -264,7 +268,7 @@ uint32 DebugRenderer::PushPoints(const std::vector<glm::vec3>& points, const Col
 		pointsData.m_Vertices.push_back(v);
 	}
 
-	m_ShouldBake = true;
+	m_ShouldBakePoints = true;
 
 	return newID;
 }
@@ -285,16 +289,16 @@ void DebugRenderer::Clear(uint32 id)
 			it->second.m_Vertices.clear();
 	}
 
-	m_ShouldBake = true;
+	m_ShouldBakeLines = true;
+	m_ShouldBakePoints = true;
 }
 
 void DebugRenderer::Render()
 {
-	if (m_ShouldBake)
+	if (m_ShouldBakeLines || m_ShouldBakePoints)
 	{
 		BakeLines();
 		BakePoints();
-		m_ShouldBake = false;
 
 		// Update stats
 		m_Stats.NumberOfLineVertices	= m_PreviousLinesBufferSize;
@@ -360,6 +364,8 @@ void DebugRenderer::DrawLines(ID3D11DeviceContext* pContext)
 		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 		pContext->VSSetConstantBuffers(0, 1, &m_pVPBuffer);
 		pContext->Draw((UINT)m_PreviousLinesBufferSize, 0);
+
+		m_LinesFirstCall = true;
 	}
 }
 
@@ -375,107 +381,151 @@ void DebugRenderer::DrawPoints(ID3D11DeviceContext* pContext)
 		pContext->VSSetConstantBuffers(0, 1, &m_pViewBuffer);
 		pContext->GSSetConstantBuffers(0, 1, &m_pGeomBuffer);
 		pContext->Draw((UINT)m_PreviousPointsBufferSize, 0);
+
+		m_PointsFirstCall = true;
 	}
 }
 
 void DebugRenderer::BakeLines()
 {
-	m_LinesToRender.m_Vertices.clear();
-
-	for (auto it = m_IDLinesMap.begin(); it != m_IDLinesMap.end(); it++)
+	if (m_ShouldBakeLines)
 	{
-		DataPoints& lines = it->second;
-		uint32 nPoints = (uint32)lines.m_Vertices.size();
-		for (uint32 i = 0; i < nPoints; i++)
-			m_LinesToRender.m_Vertices.push_back(lines.m_Vertices[i]);
-	}
+		m_LinesToRender.m_Vertices.clear();
 
-	UpdateLinesDrawBuffer();
+		for (auto it = m_IDLinesMap.begin(); it != m_IDLinesMap.end(); it++)
+		{
+			DataPoints& lines = it->second;
+			uint32 nPoints = (uint32)lines.m_Vertices.size();
+			for (uint32 i = 0; i < nPoints; i++)
+				m_LinesToRender.m_Vertices.push_back(lines.m_Vertices[i]);
+		}
+
+		UpdateLinesDrawBuffer();
+
+		m_ShouldBakeLines = false;
+	}
 }
 
 void DebugRenderer::BakePoints()
 {
-	m_PointsToRender.m_Vertices.clear();
-
-	for (auto it = m_IDPointsMap.begin(); it != m_IDPointsMap.end(); it++)
+	if (m_ShouldBakePoints)
 	{
-		DataPoints& points = it->second;
-		uint32 nPoints = (uint32)points.m_Vertices.size();
-		for (uint32 i = 0; i < nPoints; i++)
-			m_PointsToRender.m_Vertices.push_back(points.m_Vertices[i]);
-	}
+		m_PointsToRender.m_Vertices.clear();
 
-	UpdatePointsDrawBuffer();
+		for (auto it = m_IDPointsMap.begin(); it != m_IDPointsMap.end(); it++)
+		{
+			DataPoints& points = it->second;
+			uint32 nPoints = (uint32)points.m_Vertices.size();
+			for (uint32 i = 0; i < nPoints; i++)
+				m_PointsToRender.m_Vertices.push_back(points.m_Vertices[i]);
+		}
+
+		UpdatePointsDrawBuffer();
+
+		m_ShouldBakePoints = false;
+	}
 }
 
 void DebugRenderer::UpdateLinesDrawBuffer()
 {
-	if(m_PreviousLinesBufferSize != m_LinesToRender.m_Vertices.size())
+	if (m_pLinesVertexBuffer == nullptr)
 	{
-		if (m_pLinesVertexBuffer == nullptr)
-		{
-			D3D11_BUFFER_DESC bufferDesc = {};
-			bufferDesc.ByteWidth = (UINT)(sizeof(Vertex) * m_LinesToRender.m_Vertices.size());
-			bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-			bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-			bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-			bufferDesc.MiscFlags = 0;
-			bufferDesc.StructureByteStride = 0;
+		D3D11_BUFFER_DESC bufferDesc = {};
+		bufferDesc.ByteWidth = (UINT)(sizeof(Vertex) * m_LinesToRender.m_Vertices.size());
+		bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+		bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		bufferDesc.MiscFlags = 0;
+		bufferDesc.StructureByteStride = 0;
 
-			D3D11_SUBRESOURCE_DATA data;
-			data.pSysMem = m_LinesToRender.m_Vertices.data();
-			data.SysMemPitch = 0;
-			data.SysMemSlicePitch = 0;
+		D3D11_SUBRESOURCE_DATA data;
+		data.pSysMem = m_LinesToRender.m_Vertices.data();
+		data.SysMemPitch = 0;
+		data.SysMemSlicePitch = 0;
 
-			HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pLinesVertexBuffer);
-			RS_D311_CHECK(result, "Failed to create lines vertex buffer!");
-		}
-		else
-		{
-			auto context = RenderAPI::Get()->GetDeviceContext();
-			D3D11_MAPPED_SUBRESOURCE resource;
-			context->Map(m_pLinesVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
-			size_t size = sizeof(Vertex) * m_LinesToRender.m_Vertices.size();
-			memcpy(resource.pData, m_LinesToRender.m_Vertices.data(), size);
-			context->Unmap(m_pLinesVertexBuffer, 0);
-		}
-
-		m_PreviousLinesBufferSize = m_LinesToRender.m_Vertices.size();
+		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pLinesVertexBuffer);
+		RS_D311_CHECK(result, "Failed to create lines vertex buffer!");
 	}
+	else
+	{
+		auto context = RenderAPI::Get()->GetDeviceContext();
+		D3D11_MAPPED_SUBRESOURCE resource;
+		context->Map(m_pLinesVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
+		size_t size = sizeof(Vertex) * m_LinesToRender.m_Vertices.size();
+		memcpy(resource.pData, m_LinesToRender.m_Vertices.data(), size);
+		context->Unmap(m_pLinesVertexBuffer, 0);
+	}
+
+	m_PreviousLinesBufferSize = m_LinesToRender.m_Vertices.size();
 }
 
 void RS::DebugRenderer::UpdatePointsDrawBuffer()
 {
-	if (m_PreviousPointsBufferSize != m_PointsToRender.m_Vertices.size())
+	if (m_pPointsVertexBuffer == nullptr)
 	{
-		if (m_pPointsVertexBuffer == nullptr)
+		D3D11_BUFFER_DESC bufferDesc = {};
+		bufferDesc.ByteWidth = (UINT)(sizeof(Vertex) * m_PointsToRender.m_Vertices.size());
+		bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+		bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		bufferDesc.MiscFlags = 0;
+		bufferDesc.StructureByteStride = 0;
+
+		D3D11_SUBRESOURCE_DATA data;
+		data.pSysMem = m_PointsToRender.m_Vertices.data();
+		data.SysMemPitch = 0;
+		data.SysMemSlicePitch = 0;
+
+		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pPointsVertexBuffer);
+		RS_D311_CHECK(result, "Failed to create points vertex buffer!");
+	}
+	else
+	{
+		auto context = RenderAPI::Get()->GetDeviceContext();
+		D3D11_MAPPED_SUBRESOURCE resource;
+		context->Map(m_pPointsVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
+		size_t size = sizeof(Vertex) * m_PointsToRender.m_Vertices.size();
+		memcpy(resource.pData, m_PointsToRender.m_Vertices.data(), size);
+		context->Unmap(m_pPointsVertexBuffer, 0);
+	}
+
+	m_PreviousPointsBufferSize = m_PointsToRender.m_Vertices.size();
+}
+
+bool DebugRenderer::ShouldClearPoints(uint32 id, bool shouldClear)
+{
+	bool res = shouldClear;
+	if (id == s_DefaultPointsID)
+	{
+		if (m_PointsFirstCall)
 		{
-			D3D11_BUFFER_DESC bufferDesc = {};
-			bufferDesc.ByteWidth = (UINT)(sizeof(Vertex) * m_PointsToRender.m_Vertices.size());
-			bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-			bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-			bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-			bufferDesc.MiscFlags = 0;
-			bufferDesc.StructureByteStride = 0;
-
-			D3D11_SUBRESOURCE_DATA data;
-			data.pSysMem = m_PointsToRender.m_Vertices.data();
-			data.SysMemPitch = 0;
-			data.SysMemSlicePitch = 0;
-
-			HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pPointsVertexBuffer);
-			RS_D311_CHECK(result, "Failed to create points vertex buffer!");
+			res = true;
+			m_PointsFirstCall = false;
 		}
 		else
 		{
-			auto context = RenderAPI::Get()->GetDeviceContext();
-			D3D11_MAPPED_SUBRESOURCE resource;
-			context->Map(m_pPointsVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
-			size_t size = sizeof(Vertex) * m_PointsToRender.m_Vertices.size();
-			memcpy(resource.pData, m_PointsToRender.m_Vertices.data(), size);
-			context->Unmap(m_pPointsVertexBuffer, 0);
+			res = false;
 		}
-
-		m_PreviousPointsBufferSize = m_PointsToRender.m_Vertices.size();
 	}
+	
+	return res;
+}
+
+bool RS::DebugRenderer::ShouldClearLines(uint32 id, bool shouldClear)
+{
+	bool res = shouldClear;
+	if (id == s_DefaultLinesID)
+	{
+		if (m_LinesFirstCall)
+		{
+			res = true;
+			m_LinesFirstCall = false;
+		}
+		else
+		{
+			res = false;
+		}
+	}
+
+	return res;
 }
