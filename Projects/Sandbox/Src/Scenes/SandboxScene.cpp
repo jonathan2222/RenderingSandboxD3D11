@@ -41,7 +41,7 @@ void SandboxScene::Start()
 
 	{
 		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.ByteWidth = sizeof(Vertex)*vertices.size();
+		bufferDesc.ByteWidth = (UINT)(sizeof(Vertex)*vertices.size());
 		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 		bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bufferDesc.CPUAccessFlags = 0;
@@ -147,6 +147,8 @@ void SandboxScene::Start()
 		RS_D311_ASSERT_CHECK(result, "Failed to create sampler!");
 	}
 
+	m_Pipeline.Init();
+
 	D3D11_RASTERIZER_DESC rasterizerDesc = {};
 	rasterizerDesc.AntialiasedLineEnable = false;
 	rasterizerDesc.CullMode = D3D11_CULL_NONE;
@@ -158,7 +160,7 @@ void SandboxScene::Start()
 	rasterizerDesc.MultisampleEnable = false;
 	rasterizerDesc.ScissorEnable = false;
 	rasterizerDesc.SlopeScaledDepthBias = 0.0f;
-	Renderer::Get()->SetRasterState(rasterizerDesc);
+	m_Pipeline.SetRasterState(rasterizerDesc);
 }
 
 void SandboxScene::Selected()
@@ -167,6 +169,8 @@ void SandboxScene::Selected()
 
 void SandboxScene::End()
 {
+	m_Pipeline.Release();
+
 	m_Shader.Release();
 	m_pVertexBuffer->Release();
 	m_pIndexBuffer->Release();
@@ -183,12 +187,13 @@ void SandboxScene::FixedTick()
 
 void SandboxScene::Tick(float dt)
 {
+	m_Pipeline.Bind();
+
 	auto display = Display::Get();
 	auto renderer = Renderer::Get();
 	auto renderAPI = RenderAPI::Get();
 	ID3D11DeviceContext* pContext = renderAPI->GetDeviceContext();
 	renderer->BeginScene(0.2f, 0.2f, 0.2f, 1.0f);
-	
 	m_Shader.Bind();
 
 	// Update data

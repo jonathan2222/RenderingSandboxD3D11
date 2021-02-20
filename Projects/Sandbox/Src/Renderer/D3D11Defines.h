@@ -10,7 +10,7 @@
 		char str[SIZE]; \
 		strcpy_s(str, "[Error: "); \
 		strcat_s(str, SIZE, errMsg); \
-		strcat_s(str, SIZE, "  (0x{x})] "); \
+		strcat_s(str, SIZE, "  (0x{})] "); \
 		strcat_s(str, SIZE, msg); \
 		RS_ASSERT(SUCCEEDED(hr), str, (unsigned int)hr, __VA_ARGS__); \
 	}
@@ -23,7 +23,7 @@
 		char str[SIZE]; \
 		strcpy_s(str, "[Error: "); \
 		strcat_s(str, SIZE, errMsg); \
-		strcat_s(str, SIZE, "  (0x{x})] "); \
+		strcat_s(str, SIZE, "  (0x{})] "); \
 		strcat_s(str, SIZE, msg); \
 		if(FAILED(hr)) \
 			LOG_ERROR(str, (unsigned int)hr); \

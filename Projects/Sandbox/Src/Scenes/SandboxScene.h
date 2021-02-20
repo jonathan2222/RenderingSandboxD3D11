@@ -5,6 +5,8 @@
 
 #include "Utils/Maths.h"
 
+#include "Renderer/Pipeline.h"
+
 namespace RS
 {
 	class SandboxScene : public Scene
@@ -50,5 +52,7 @@ namespace RS
 		ID3D11SamplerState* m_pSampler = nullptr;
 
 		FrameData m_FrameData;
+
+		Pipeline m_Pipeline;
 	};
 }

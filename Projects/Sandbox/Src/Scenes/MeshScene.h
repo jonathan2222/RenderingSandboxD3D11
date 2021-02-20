@@ -6,6 +6,10 @@
 #include "Renderer/Shader.h"
 #include "Utils/Maths.h"
 
+#include "Scenes/Camera.h"
+
+#include "Renderer/Pipeline.h"
+
 namespace RS
 {
 	class MeshScene : public Scene
@@ -33,6 +37,9 @@ namespace RS
 		void Tick(float dt) override;
 
 	private:
+		void UpdateCamera(float dt);
+
+	private:
 		Shader m_Shader;
 
 		ID3D11Buffer* m_pVertexBuffer = nullptr;
@@ -42,5 +49,9 @@ namespace RS
 		FrameData m_FrameData;
 
 		Model* m_pModel = nullptr;
+
+		Camera m_Camera;
+
+		Pipeline m_Pipeline;
 	};
 }

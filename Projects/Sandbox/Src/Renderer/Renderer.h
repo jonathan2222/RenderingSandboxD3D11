@@ -2,6 +2,8 @@
 
 #include "Renderer/RenderAPI.h"
 
+#include "Renderer/Pipeline.h"
+
 namespace RS
 {
 	struct DisplayDescription;
@@ -17,22 +19,19 @@ namespace RS
 
 		void Resize(uint32 width, uint32 height);
 
-		void SetRasterState(D3D11_RASTERIZER_DESC rasterizerDesc);
-
 		void BeginScene(float r, float g, float b, float a);
-		void SetViewport(float x, float y, float width, float height);
 		void BindWindowRTV();
 		void Present();
 
 		ID3D11RenderTargetView* GetRenderTarget();
 
+		Pipeline* GetDefaultPipeline();
+
 	private:
 		void CreateRTV();
 		void ClearRTV();
-		void CreateDepthBuffer(DisplayDescription& displayDescriptor);
-		void CreateDepthStencilState();
+		void CreateDepthStencilState(DisplayDescription& displayDescriptor);
 		void CreateDepthStencilView();
-		void ClearDepthStencil();
 		void CreateRasterizer();
 
 	private:
@@ -43,12 +42,6 @@ namespace RS
 		// Color buffer
 		ID3D11RenderTargetView*		m_pRenderTargetView		= nullptr;
 
-		// Depth and Stencil buffer
-		ID3D11Texture2D*			m_pDepthStencilBuffer	= nullptr;
-		ID3D11DepthStencilState*	m_pDepthStencilState	= nullptr;
-		ID3D11DepthStencilView*		m_pDepthStencilView		= nullptr;
-
-		// Rasterizer
-		ID3D11RasterizerState*		m_pRasterizerState		= nullptr;
+		Pipeline					m_DefaultPipeline;
 	};
 }

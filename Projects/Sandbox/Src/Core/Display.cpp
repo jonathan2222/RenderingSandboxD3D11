@@ -8,9 +8,6 @@
 
 using namespace RS;
 
-// TODO: Put this into a input class!
-void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
-
 std::shared_ptr<Display> Display::Get()
 {
     static std::shared_ptr<Display> s_Display = std::make_shared<Display>();
@@ -56,7 +53,7 @@ void RS::Display::Init(const DisplayDescription& description)
 	glfwSetFramebufferSizeCallback(m_pWindow, Display::FrameBufferResizeCallback);
 
 	glfwSetInputMode(m_pWindow, GLFW_STICKY_KEYS, 1);
-	glfwSetKeyCallback(m_pWindow, KeyCallback);
+	//glfwSetKeyCallback(m_pWindow, KeyCallback);
 }
 
 void RS::Display::Release()
@@ -133,15 +130,4 @@ void RS::Display::FrameBufferResizeCallback(GLFWwindow* window, int width, int h
 	description.Fullscreen = false;
 
 	Renderer::Get()->Resize((uint32)width, (uint32)height);
-}
-
-void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode)
-{
-	using namespace RS;
-	RS_UNREFERENCED_VARIABLE(mode);
-	RS_UNREFERENCED_VARIABLE(scancode);
-
-	LOG_INFO("Pressed key: {}", key);
-	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-		glfwSetWindowShouldClose(window, GL_TRUE);
 }

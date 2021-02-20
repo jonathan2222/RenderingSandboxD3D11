@@ -6,10 +6,12 @@
 #include "Utils/Maths.h"
 #include "FrameTimer.h"
 
-#include "Display.h"
+#include "Core/Display.h"
+#include "Core/Input.h"
 
 #include "Renderer/RenderAPI.h"
 #include "Renderer/Renderer.h"
+#include "Renderer/DebugRenderer.h"
 #include "Renderer/ImGuiRenderer.h"
 #include "Renderer/ShaderHotReloader.h"
 
@@ -28,8 +30,10 @@ void RS::EngineLoop::Init(std::function<void(void)> fixedTickCallback, std::func
     displayDesc.Fullscreen = Config::Get()->Fetch<bool>("Display/Fullscreen", false);
     displayDesc.VSync = Config::Get()->Fetch<bool>("Display/VSync", true);
     Display::Get()->Init(displayDesc);
+    Input::Get()->Init();
     RenderAPI::Get()->Init(displayDesc);
     Renderer::Get()->Init(displayDesc);
+    DebugRenderer::Get()->Init();
     ImGuiRenderer::Init(Display::Get().get());
 
     ShaderHotReloader::Init();
@@ -39,6 +43,7 @@ void RS::EngineLoop::Release()
 {
     ShaderHotReloader::Release();
     ImGuiRenderer::Release();
+    DebugRenderer::Get()->Release();
     Renderer::Get()->Release();
     RenderAPI::Get()->Release();
     Display::Get()->Release();
@@ -56,7 +61,11 @@ void RS::EngineLoop::Run()
         frameTimer.Begin();
 
         pDisplay->PollEvents();
+        Input::Get()->Update();
 
+        if (Input::Get()->IsKeyPressed(Key::ESCAPE))
+            pDisplay->Close();
+        
         frameTimer.FixedTick([&]() { FixedTick(); });
         Tick(frameStats);
 
@@ -79,6 +88,8 @@ void RS::EngineLoop::Tick(const FrameStats& frameStats)
     renderer->BeginScene(0.f, 0.f, 0.f, 1.f);
 
     m_TickCallback(frameStats.frame.currentDT);
+
+    DebugRenderer::Get()->Render();
 
     ImGuiRenderer::Render();
     renderer->Present();
