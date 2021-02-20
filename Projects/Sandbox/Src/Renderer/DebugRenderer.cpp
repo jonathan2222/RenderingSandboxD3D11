@@ -78,10 +78,14 @@ void DebugRenderer::Release()
 
 	m_Shader.Release();
 	m_Pipeline.Release();
+
+	m_IsCameraSet = false;
 }
 
 void DebugRenderer::UpdateCamera(const glm::mat4& view, const glm::mat4& proj)
 {
+	m_IsCameraSet = true;
+
 	glm::mat4 data = proj * view;
 	auto context = RenderAPI::Get()->GetDeviceContext();
 	D3D11_MAPPED_SUBRESOURCE resource;
@@ -255,15 +259,22 @@ void DebugRenderer::Render()
 		m_Stats.NumberOfIDs				= s_IDGenerator;
 	}
 	
-	// Only bind the raster state, use the default depth state and view. Same for the RTV
-	m_Pipeline.BindRasterState();
+	if (m_IsCameraSet)
+	{
+		// Only bind the raster state, use the default depth state and view. Same for the RTV
+		m_Pipeline.BindRasterState();
 
-	auto renderAPI = RenderAPI::Get();
-	ID3D11DeviceContext* pContext = renderAPI->GetDeviceContext();
-	m_Shader.Bind();
-	pContext->VSSetConstantBuffers(0, 1, &m_pConstantBuffer);
-	DrawLines(pContext);
-	DrawPoints(pContext);
+		auto renderAPI = RenderAPI::Get();
+		ID3D11DeviceContext* pContext = renderAPI->GetDeviceContext();
+		m_Shader.Bind();
+		pContext->VSSetConstantBuffers(0, 1, &m_pConstantBuffer);
+		DrawLines(pContext);
+		DrawPoints(pContext);
+	}
+	else
+	{
+		LOG_WARNING("Camera data was not updated for the Debug Renderer!");
+	}
 }
 
 uint32 DebugRenderer::GenID()

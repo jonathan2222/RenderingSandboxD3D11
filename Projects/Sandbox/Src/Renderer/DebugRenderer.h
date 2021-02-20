@@ -73,27 +73,32 @@ namespace RS
 		void UpdatePointsDrawBuffer();
 
 	private:
+		// Holds data of the different types.
 		std::unordered_map<uint32, DataPoints>	m_IDLinesMap;
 		std::unordered_map<uint32, DataPoints>	m_IDPointsMap;
-		DataPoints	m_LinesToRender;
-		DataPoints	m_PointsToRender;
-		bool		m_ShouldBake = false;
-		Pipeline	m_Pipeline;
+		DataPoints				m_LinesToRender;
+		DataPoints				m_PointsToRender;
+		bool					m_ShouldBake				= false;
 
-		ID3D11Buffer*	m_pLinesVertexBuffer		= nullptr;
-		uint32			m_PreviousLinesBufferSize	= 0u;
-
-		ID3D11Buffer*	m_pPointsVertexBuffer		= nullptr;
-		uint32			m_PreviousPointsBufferSize	= 0u;
-
+		// Rendering objects.
+		Pipeline				m_Pipeline;
+		ID3D11Buffer*			m_pLinesVertexBuffer		= nullptr;
+		uint32					m_PreviousLinesBufferSize	= 0u;
+		ID3D11Buffer*			m_pPointsVertexBuffer		= nullptr;
+		uint32					m_PreviousPointsBufferSize	= 0u;
 		// Holds data of view and projection matrices.
-		ID3D11Buffer*	m_pConstantBuffer			= nullptr;
+		ID3D11Buffer*			m_pConstantBuffer			= nullptr;
+		Shader					m_Shader;
 
-		static const uint32		s_DefaultLinesID	= 1u;
-		static const uint32		s_DefaultPointsID	= s_DefaultLinesID+1;
-		inline static uint32	s_IDGenerator		= s_DefaultPointsID;
+		// Statistics for debugging.
+		Stats					m_Stats;
 
-		Shader			m_Shader;
-		Stats			m_Stats;
+		// Safe guard.
+		bool					m_IsCameraSet				= false;
+
+		// ID related variables.
+		static const uint32		s_DefaultLinesID			= 1u;
+		static const uint32		s_DefaultPointsID			= s_DefaultLinesID+1;
+		inline static uint32	s_IDGenerator				= s_DefaultPointsID;
 	};
 }
