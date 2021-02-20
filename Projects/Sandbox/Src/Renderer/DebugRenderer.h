@@ -55,6 +55,13 @@ namespace RS
 			uint32 ID = 0u;
 		};
 
+		struct GFrameData
+		{
+			glm::mat4	Proj		= glm::mat4(1.f);
+			float		PointSize	= 0.1f;
+			glm::vec3	_Padding	= glm::vec3(0.f);
+		};
+
 		enum Type
 		{
 			LINES,
@@ -87,8 +94,13 @@ namespace RS
 		ID3D11Buffer*			m_pPointsVertexBuffer		= nullptr;
 		uint32					m_PreviousPointsBufferSize	= 0u;
 		// Holds data of view and projection matrices.
-		ID3D11Buffer*			m_pConstantBuffer			= nullptr;
-		Shader					m_Shader;
+		ID3D11Buffer*			m_pVPBuffer					= nullptr;
+		ID3D11Buffer*			m_pViewBuffer				= nullptr;
+		ID3D11Buffer*			m_pGeomBuffer				= nullptr;
+		Shader					m_LineShader;
+		Shader					m_PointShader;
+
+		GFrameData				m_GeomFrameData;
 
 		// Statistics for debugging.
 		Stats					m_Stats;

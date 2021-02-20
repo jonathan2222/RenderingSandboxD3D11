@@ -2,6 +2,7 @@
 #include "DebugRenderer.h"
 
 #include "Loaders/ModelLoader.h"
+#include "Core/Display.h"
 
 using namespace RS;
 
@@ -37,23 +38,37 @@ void DebugRenderer::Init()
 		bufferDesc.MiscFlags = 0;
 		bufferDesc.StructureByteStride = 0;
 
-		glm::mat4 identity(1.f);
-		D3D11_SUBRESOURCE_DATA data;
-		data.pSysMem = &identity;
-		data.SysMemPitch = 0;
-		data.SysMemSlicePitch = 0;
+		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, nullptr, &m_pVPBuffer);
+		RS_D311_ASSERT_CHECK(result, "Failed to create constant buffer for the VP!");
 
-		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, nullptr, &m_pConstantBuffer);
-		RS_D311_ASSERT_CHECK(result, "Failed to create constant buffer!");
+		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, nullptr, &m_pViewBuffer);
+		RS_D311_ASSERT_CHECK(result, "Failed to create constant buffer for the View!");
+
+		bufferDesc.ByteWidth = sizeof(GFrameData);
+		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, nullptr, &m_pGeomBuffer);
+		RS_D311_ASSERT_CHECK(result, "Failed to create constant buffer for the Proj!");
 	}
 
-	Shader::Descriptor shaderDesc;
-	shaderDesc.Fragment = "DebugRenderer/Frag.hlsl";
-	shaderDesc.Vertex = "DebugRenderer/Vert.hlsl";
-	AttributeLayout layout;
-	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "POSITION", 0);
-	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "COLOR", 0);
-	m_Shader.Load(shaderDesc, layout);
+	{
+		Shader::Descriptor shaderDesc;
+		shaderDesc.Fragment		= "DebugRenderer/Frag.hlsl";
+		shaderDesc.Vertex		= "DebugRenderer/Vert.hlsl";
+		AttributeLayout layout;
+		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "POSITION", 0);
+		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "COLOR", 0);
+		m_LineShader.Load(shaderDesc, layout);
+	}
+
+	{
+		Shader::Descriptor shaderDesc;
+		shaderDesc.Fragment		= "DebugRenderer/Frag.hlsl";
+		shaderDesc.Vertex		= "DebugRenderer/GVert.hlsl";
+		shaderDesc.Geometry		= "DebugRenderer/Geom.hlsl";
+		AttributeLayout layout;
+		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "POSITION", 0);
+		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "COLOR", 0);
+		m_PointShader.Load(shaderDesc, layout);
+	}
 }
 
 void DebugRenderer::Release()
@@ -70,13 +85,26 @@ void DebugRenderer::Release()
 		m_pPointsVertexBuffer = nullptr;
 	}
 
-	if (m_pConstantBuffer)
+	if (m_pVPBuffer)
 	{
-		m_pConstantBuffer->Release();
-		m_pConstantBuffer = nullptr;
+		m_pVPBuffer->Release();
+		m_pVPBuffer = nullptr;
 	}
 
-	m_Shader.Release();
+	if (m_pViewBuffer)
+	{
+		m_pViewBuffer->Release();
+		m_pViewBuffer = nullptr;
+	}
+
+	if (m_pGeomBuffer)
+	{
+		m_pGeomBuffer->Release();
+		m_pGeomBuffer = nullptr;
+	}
+
+	m_LineShader.Release();
+	m_PointShader.Release();
 	m_Pipeline.Release();
 
 	m_IsCameraSet = false;
@@ -89,9 +117,24 @@ void DebugRenderer::UpdateCamera(const glm::mat4& view, const glm::mat4& proj)
 	glm::mat4 data = proj * view;
 	auto context = RenderAPI::Get()->GetDeviceContext();
 	D3D11_MAPPED_SUBRESOURCE resource;
-	context->Map(m_pConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
+
+	// Proj * View
+	context->Map(m_pVPBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
 	memcpy(resource.pData, &data, sizeof(glm::mat4));
-	context->Unmap(m_pConstantBuffer, 0);
+	context->Unmap(m_pVPBuffer, 0);
+
+	// View
+	context->Map(m_pViewBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
+	memcpy(resource.pData, &view, sizeof(glm::mat4));
+	context->Unmap(m_pViewBuffer, 0);
+
+	// Geometry Frame data
+	float w = (float)Display::Get()->GetWidth();
+	m_GeomFrameData.PointSize = 50.f/w; // 50 pixels in width.
+	m_GeomFrameData.Proj = proj;
+	context->Map(m_pGeomBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
+	memcpy(resource.pData, &m_GeomFrameData, sizeof(GFrameData));
+	context->Unmap(m_pGeomBuffer, 0);
 }
 
 uint32 DebugRenderer::PushLine(const glm::vec3& p1, const glm::vec3& p2, const Color& color, uint32 id, bool shouldClear)
@@ -266,8 +309,6 @@ void DebugRenderer::Render()
 
 		auto renderAPI = RenderAPI::Get();
 		ID3D11DeviceContext* pContext = renderAPI->GetDeviceContext();
-		m_Shader.Bind();
-		pContext->VSSetConstantBuffers(0, 1, &m_pConstantBuffer);
 		DrawLines(pContext);
 		DrawPoints(pContext);
 	}
@@ -312,10 +353,12 @@ void DebugRenderer::DrawLines(ID3D11DeviceContext* pContext)
 {
 	if (m_pLinesVertexBuffer)
 	{
+		m_LineShader.Bind();
 		UINT stride = sizeof(Vertex);
 		UINT offset = 0;
 		pContext->IASetVertexBuffers(0, 1, &m_pLinesVertexBuffer, &stride, &offset);
 		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+		pContext->VSSetConstantBuffers(0, 1, &m_pVPBuffer);
 		pContext->Draw((UINT)m_PreviousLinesBufferSize, 0);
 	}
 }
@@ -324,10 +367,13 @@ void DebugRenderer::DrawPoints(ID3D11DeviceContext* pContext)
 {
 	if (m_pPointsVertexBuffer)
 	{
+		m_PointShader.Bind();
 		UINT stride = sizeof(Vertex);
 		UINT offset = 0;
 		pContext->IASetVertexBuffers(0, 1, &m_pPointsVertexBuffer, &stride, &offset);
 		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+		pContext->VSSetConstantBuffers(0, 1, &m_pViewBuffer);
+		pContext->GSSetConstantBuffers(0, 1, &m_pGeomBuffer);
 		pContext->Draw((UINT)m_PreviousPointsBufferSize, 0);
 	}
 }

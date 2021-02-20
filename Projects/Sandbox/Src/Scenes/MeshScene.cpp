@@ -149,6 +149,8 @@ void MeshScene::Tick(float dt)
 	ID3D11DeviceContext* pContext = renderAPI->GetDeviceContext();
 	renderer->BeginScene(0.2f, 0.2f, 0.2f, 1.0f);
 
+	DebugRenderer::Get()->PushPoint(glm::vec3(0.f, 0.6f, 0.f), Color(1.0f, 0.2f, 0.2f));
+
 	m_Shader.Bind();
 
 	// Update data

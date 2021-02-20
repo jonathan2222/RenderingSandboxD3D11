@@ -186,21 +186,33 @@ void Shader::Bind()
 
     if (m_ShaderTypes & ShaderTypeFlag::VERTEX)
         pContext->VSSetShader(m_pVShader, nullptr, 0);
+    else
+        pContext->VSSetShader(nullptr, nullptr, 0);
 
     if (m_ShaderTypes & ShaderTypeFlag::FRAGMENT)
         pContext->PSSetShader(m_pPShader, nullptr, 0);
+    else
+        pContext->PSSetShader(nullptr, nullptr, 0);
 
     if (m_ShaderTypes & ShaderTypeFlag::COMPUTE)
         pContext->CSSetShader(m_pCShader, nullptr, 0);
+    else
+        pContext->CSSetShader(nullptr, nullptr, 0);
 
     if (m_ShaderTypes & ShaderTypeFlag::GEOMETRY)
         pContext->GSSetShader(m_pGShader, nullptr, 0);
+    else
+        pContext->GSSetShader(nullptr, nullptr, 0);
 
     if (m_ShaderTypes & ShaderTypeFlag::TESS_HULL)
         pContext->HSSetShader(m_pHShader, nullptr, 0);
+    else
+        pContext->HSSetShader(nullptr, nullptr, 0);
 
     if (m_ShaderTypes & ShaderTypeFlag::TESS_DOMAIN)
         pContext->DSSetShader(m_pDShader, nullptr, 0);
+    else
+        pContext->DSSetShader(nullptr, nullptr, 0);
 }
 
 const std::vector<std::string>& Shader::GetFiles()
