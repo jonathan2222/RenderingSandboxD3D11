@@ -90,31 +90,6 @@ void Application::DrawSceneSelectionPanel()
 {
     ImGuiRenderer::Draw([&]()
 	{
-        auto Lerp = [](ImVec4 c1, ImVec4 c2, float x)-> ImVec4
-        {
-            ImVec4 res;
-            res.x = (1.f - x) * c1.x + x * c2.x;
-            res.y = (1.f - x) * c1.y + x * c2.y;
-            res.z = (1.f - x) * c1.z + x * c2.z;
-            res.w = (1.f - x) * c1.w + x * c2.w;
-            return res;
-        };
-
-        auto CLerp = [&](float x)->ImVec4
-        {
-            return Lerp(ImVec4(0.f, 1.f, 0.f, 1.f), ImVec4(1.f, 0.f, 0.f, 1.f), x);
-        };
-
-        auto Norm = [](float min, float max, float x)->float
-        {
-            return (x - min) / (max - min);
-        };
-
-        auto OnOffText = [](bool state, const std::string& on, const std::string& off)
-        {
-            ImGui::TextColored(state ? ImVec4(0.f, 1.f, 0.f, 1.f) : ImVec4(1.f, 0.f, 0.f, 1.f), "%s", state ? on.c_str() : off.c_str());
-        };
-
 		static bool s_IsSceneSelectorActive = true;
         if (ImGui::Begin("Scene Selector", &s_IsSceneSelectorActive))
         {

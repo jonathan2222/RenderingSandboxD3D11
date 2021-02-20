@@ -51,6 +51,7 @@ namespace RS
 		ID3D11Buffer* m_pVertexBuffer = nullptr;
 		ID3D11Buffer* m_pIndexBuffer = nullptr;
 		ID3D11Buffer* m_pVSConstantBuffer = nullptr;
+		ID3D11Buffer* m_pHSConstantBuffer = nullptr;
 		ID3D11Buffer* m_pDSConstantBuffer = nullptr;
 
 		uint32		m_NumIndices = 0;

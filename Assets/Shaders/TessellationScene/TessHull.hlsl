@@ -16,6 +16,11 @@ struct HullPatchOut
     float insideTesselation[1] : SV_InsideTessFactor;
 };
 
+cbuffer FrameData : register(b0)
+{
+    float4 tessFactors;
+}
+
 // Specifies the 'domain' of the primitive being tessellated.
 [domain("tri")]
 
@@ -44,11 +49,11 @@ HullPatchOut HSPerPatch(InputPatch<HullIn, 3> ip, uint patchID : SV_PrimitiveID)
 {
     HullPatchOut output;
 
-    output.edgeTesselation[0] = 2.0f;
-    output.edgeTesselation[1] = 2.0f;
-    output.edgeTesselation[2] = 2.0f;
+    output.edgeTesselation[0] = tessFactors.x;
+    output.edgeTesselation[1] = tessFactors.x;
+    output.edgeTesselation[2] = tessFactors.x;
 
-    output.insideTesselation[0] = 2.f;
+    output.insideTesselation[0] = tessFactors.y;
 
     return output;
 }

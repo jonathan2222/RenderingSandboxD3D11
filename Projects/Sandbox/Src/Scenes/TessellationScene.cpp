@@ -4,6 +4,7 @@
 #include "Renderer/DebugRenderer.h"
 #include "Renderer/ShaderHotReloader.h"
 #include "Renderer/Renderer.h"
+#include "Renderer/ImGuiRenderer.h"
 
 #include "Core/Display.h"
 #include "Core/Input.h"
@@ -11,6 +12,7 @@
 #include "Utils/Maths.h"
 
 #include <glm/gtx/rotate_vector.hpp>
+
 
 using namespace RS;
 
@@ -116,6 +118,12 @@ void TessellationScene::Start()
 		data.pSysMem = &m_CameraData;
 		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pDSConstantBuffer);
 		RS_D311_ASSERT_CHECK(result, "Failed to DS create constant buffer!");
+
+		glm::vec4 v(1.f);
+		bufferDesc.ByteWidth = sizeof(glm::vec4);
+		data.pSysMem = &v;
+		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pHSConstantBuffer);
+		RS_D311_ASSERT_CHECK(result, "Failed to HS create constant buffer!");
 	}
 
 	m_Pipeline.Init();
@@ -154,6 +162,7 @@ void TessellationScene::End()
 	m_pVertexBuffer->Release();
 	m_pIndexBuffer->Release();
 	m_pVSConstantBuffer->Release();
+	m_pHSConstantBuffer->Release();
 	m_pDSConstantBuffer->Release();
 }
 
@@ -196,6 +205,24 @@ void TessellationScene::Tick(float dt)
 		RS_D311_ASSERT_CHECK(result, "Failed to map DS constant buffer!");
 		memcpy(mappedResource.pData, &m_CameraData, sizeof(m_CameraData));
 		pContext->Unmap(m_pDSConstantBuffer, 0);
+
+		static float s_Outer = 1.f, s_Inner = 1.0f;
+		ImGuiRenderer::Draw([&]()
+		{
+			static bool s_TessPanelActive = true;
+			if (ImGui::Begin("Tesselation Params", &s_TessPanelActive))
+			{
+				ImGui::SliderFloat("OuterTessFactor", &s_Outer, 0.0f, 10.0f, "Factor = %.3f");
+				ImGui::SliderFloat("InnerTessFactor", &s_Inner, 0.0f, 10.0f, "Factor = %.3f");
+			}
+			ImGui::End();
+		});
+
+		glm::vec4 v(s_Outer, s_Inner, 0.f, 0.f);
+		result = pContext->Map(m_pHSConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+		RS_D311_ASSERT_CHECK(result, "Failed to map HS constant buffer!");
+		memcpy(mappedResource.pData, &v, sizeof(v));
+		pContext->Unmap(m_pHSConstantBuffer, 0);
 	}
 
 	UINT stride = sizeof(Vertex);
@@ -203,6 +230,7 @@ void TessellationScene::Tick(float dt)
 	pContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
 	pContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 	pContext->VSSetConstantBuffers(0, 1, &m_pVSConstantBuffer);
+	pContext->HSSetConstantBuffers(0, 1, &m_pHSConstantBuffer);
 	pContext->DSSetConstantBuffers(0, 1, &m_pDSConstantBuffer);
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
 	pContext->DrawIndexed((UINT)m_NumIndices, 0, 0);
