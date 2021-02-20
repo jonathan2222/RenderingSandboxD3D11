@@ -156,7 +156,7 @@ void TessellationScene::Start()
 	rasterizerDesc.DepthBias = 0;
 	rasterizerDesc.DepthBiasClamp = 0.0f;
 	rasterizerDesc.DepthClipEnable = true;
-	rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+	rasterizerDesc.FillMode = D3D11_FILL_WIREFRAME;
 	rasterizerDesc.FrontCounterClockwise = false;
 	rasterizerDesc.MultisampleEnable = false;
 	rasterizerDesc.ScissorEnable = false;
@@ -229,16 +229,16 @@ void TessellationScene::Tick(float dt)
 		memcpy(mappedResource.pData, &m_CameraData, sizeof(m_CameraData));
 		pContext->Unmap(m_pDSConstantBuffer, 0);
 
-		static const float s_MaxTessFactor = 20.f;
-		static float s_Outer = 1.f, s_Inner = 1.0f;
+		static const float s_MaxTessFactor = 50.f;
+		static float s_Outer = s_MaxTessFactor*.5f, s_Inner = s_MaxTessFactor * .5f;
 		ImGuiRenderer::Draw([&]()
 		{
-			static bool s_ApplySame = false;
+			static bool s_ApplySame = true;
 			static bool s_TessPanelActive = true;
 			if (ImGui::Begin("Tesselation Params", &s_TessPanelActive))
 			{
 				ImGui::Checkbox("Both", &s_ApplySame);
-				
+
 				if (s_ApplySame)
 				{
 					ImGui::SliderFloat("Both", &s_Inner, 1.0f, s_MaxTessFactor, "Factor = %.3f");
@@ -363,7 +363,7 @@ void TessellationScene::UpdateCamera(float dt)
 
 void TessellationScene::ToggleWireframe()
 {
-	static bool stateW = false;
+	static bool stateW = true;
 	static bool first = true;
 	KeyState state = Input::Get()->GetKeyState(Key::W);
 	if (state == KeyState::PRESSED && first)
