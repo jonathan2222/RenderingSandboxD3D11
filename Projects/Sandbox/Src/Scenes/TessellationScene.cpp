@@ -33,6 +33,8 @@ void TessellationScene::Start()
 	layout.Push(DXGI_FORMAT_R32G32_FLOAT, "TEXCOORD", 0);
 	Shader::Descriptor shaderDesc = {};
 	shaderDesc.Vertex	= "TessellationScene/TessVert.hlsl";
+	shaderDesc.Hull		= "TessellationScene/TessHull.hlsl";
+	shaderDesc.Domain	= "TessellationScene/TessDomain.hlsl";
 	shaderDesc.Fragment = "TessellationScene/TessFrag.hlsl";
 	m_Shader.Load(shaderDesc, layout);
 	ShaderHotReloader::AddShader(&m_Shader);
@@ -43,10 +45,10 @@ void TessellationScene::Start()
 	std::vector<Vertex> m_Vertices = 
 	{
 		{glm::vec3(-W * .5f, 0.f, D * .5f), glm::vec3(0.f, 1.f, 0.f)},
-		{glm::vec3(-W * .5f, 0.f, -D * .5f), glm::normalize(glm::vec3(0.f, 1.f, -1.f))},
-		{glm::vec3(-W * .5f, H, -D * .5f), glm::vec3(0.f, 0.f, -1.f)},
-		{glm::vec3(W * .5f, H, -D * .5f), glm::vec3(0.f, 0.f, -1.f)},
-		{glm::vec3(W * .5f, 0.f, -D * .5f), glm::normalize(glm::vec3(0.f, 1.f, -1.f))},
+		{glm::vec3(-W * .5f, 0.f, -D * .5f), glm::normalize(glm::vec3(0.f, 1.f, 1.f))},
+		{glm::vec3(-W * .5f, H, -D * .5f), glm::vec3(0.f, 0.f, 1.f)},
+		{glm::vec3(W * .5f, H, -D * .5f), glm::vec3(0.f, 0.f, 1.f)},
+		{glm::vec3(W * .5f, 0.f, -D * .5f), glm::normalize(glm::vec3(0.f, 1.f, 1.f))},
 		{glm::vec3(W * .5f, 0.f, D * .5f), glm::vec3(0.f, 1.f, 0.f)},
 	};
 	std::vector<uint32> m_Indices = 
@@ -94,20 +96,26 @@ void TessellationScene::Start()
 
 	{
 		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.ByteWidth = sizeof(FrameData);
+		bufferDesc.ByteWidth = sizeof(glm::mat4);
 		bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 		bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 		bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 		bufferDesc.MiscFlags = 0;
 		bufferDesc.StructureByteStride = 0;
 
+		glm::mat4 identity(1.f);
 		D3D11_SUBRESOURCE_DATA data;
-		data.pSysMem = &m_FrameData;
+		data.pSysMem = &identity;
 		data.SysMemPitch = 0;
 		data.SysMemSlicePitch = 0;
 
-		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pConstantBuffer);
-		RS_D311_ASSERT_CHECK(result, "Failed to create constant buffer!");
+		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pVSConstantBuffer);
+		RS_D311_ASSERT_CHECK(result, "Failed to VS create constant buffer!");
+
+		bufferDesc.ByteWidth = sizeof(CameraData);
+		data.pSysMem = &m_CameraData;
+		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pDSConstantBuffer);
+		RS_D311_ASSERT_CHECK(result, "Failed to DS create constant buffer!");
 	}
 
 	m_Pipeline.Init();
@@ -145,7 +153,8 @@ void TessellationScene::End()
 	m_Shader.Release();
 	m_pVertexBuffer->Release();
 	m_pIndexBuffer->Release();
-	m_pConstantBuffer->Release();
+	m_pVSConstantBuffer->Release();
+	m_pDSConstantBuffer->Release();
 }
 
 void TessellationScene::FixedTick()
@@ -169,31 +178,33 @@ void TessellationScene::Tick(float dt)
 
 	static uint32 id = DebugRenderer::Get()->GenID();
 
-
 	m_Shader.Bind();
 
 	// Update data
 	{
-		m_FrameData.world = glm::mat4(1.f);
-		m_FrameData.view = m_Camera.GetView();
-		m_FrameData.proj = m_Camera.GetProj();
+		glm::mat4 world(1.f);
 
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
-		HRESULT result = pContext->Map(m_pConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-		RS_D311_ASSERT_CHECK(result, "Failed to map constant buffer!");
+		HRESULT result = pContext->Map(m_pVSConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+		RS_D311_ASSERT_CHECK(result, "Failed to map VS constant buffer!");
+		memcpy(mappedResource.pData, &world, sizeof(world));
+		pContext->Unmap(m_pVSConstantBuffer, 0);
 
-		FrameData* data = (FrameData*)mappedResource.pData;
-		memcpy(data, &m_FrameData, sizeof(FrameData));
-
-		pContext->Unmap(m_pConstantBuffer, 0);
+		m_CameraData.view = m_Camera.GetView();
+		m_CameraData.proj = m_Camera.GetProj();
+		result = pContext->Map(m_pDSConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+		RS_D311_ASSERT_CHECK(result, "Failed to map DS constant buffer!");
+		memcpy(mappedResource.pData, &m_CameraData, sizeof(m_CameraData));
+		pContext->Unmap(m_pDSConstantBuffer, 0);
 	}
 
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 	pContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
 	pContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	pContext->VSSetConstantBuffers(0, 1, &m_pConstantBuffer);
-	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	pContext->VSSetConstantBuffers(0, 1, &m_pVSConstantBuffer);
+	pContext->DSSetConstantBuffers(0, 1, &m_pDSConstantBuffer);
+	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
 	pContext->DrawIndexed((UINT)m_NumIndices, 0, 0);
 }
 
@@ -228,19 +239,23 @@ void TessellationScene::ToggleWireframe()
 		first = false;
 		D3D11_RASTERIZER_DESC rasterizerDesc = {};
 		rasterizerDesc.AntialiasedLineEnable = false;
-		rasterizerDesc.CullMode = D3D11_CULL_BACK;
 		rasterizerDesc.DepthBias = 0;
 		rasterizerDesc.DepthBiasClamp = 0.0f;
 		rasterizerDesc.DepthClipEnable = true;
-		rasterizerDesc.FillMode = D3D11_FILL_WIREFRAME;
 		rasterizerDesc.FrontCounterClockwise = false;
 		rasterizerDesc.MultisampleEnable = false;
 		rasterizerDesc.ScissorEnable = false;
 		rasterizerDesc.SlopeScaledDepthBias = 0.0f;
 		if (stateW)
+		{
+			rasterizerDesc.CullMode = D3D11_CULL_BACK;
 			rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+		}
 		else
+		{
+			rasterizerDesc.CullMode = D3D11_CULL_NONE;
 			rasterizerDesc.FillMode = D3D11_FILL_WIREFRAME;
+		}
 		m_Pipeline.SetRasterState(rasterizerDesc);
 
 		stateW = !stateW;

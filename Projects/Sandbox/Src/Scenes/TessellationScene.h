@@ -13,9 +13,8 @@ namespace RS
 	class TessellationScene : public Scene
 	{
 	public:
-		struct FrameData
+		struct CameraData
 		{
-			glm::mat4 world = glm::mat4(1.f);
 			glm::mat4 view	= glm::mat4(1.f);
 			glm::mat4 proj	= glm::mat4(1.f);
 		};
@@ -51,11 +50,12 @@ namespace RS
 
 		ID3D11Buffer* m_pVertexBuffer = nullptr;
 		ID3D11Buffer* m_pIndexBuffer = nullptr;
-		ID3D11Buffer* m_pConstantBuffer = nullptr;
+		ID3D11Buffer* m_pVSConstantBuffer = nullptr;
+		ID3D11Buffer* m_pDSConstantBuffer = nullptr;
 
 		uint32		m_NumIndices = 0;
 
-		FrameData	m_FrameData;
+		CameraData	m_CameraData;
 
 		Camera		m_Camera;
 
