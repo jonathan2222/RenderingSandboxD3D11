@@ -13,6 +13,8 @@
 
 #include <glm/gtx/rotate_vector.hpp>
 
+#include "Core/ResourceManager.h"
+
 
 using namespace RS;
 
@@ -56,12 +58,12 @@ void TessellationScene::Start()
 	static const float D = 1.f;
 	std::vector<Vertex> m_Vertices = 
 	{
-		{glm::vec3(-W * .5f, 0.f, D * .5f), glm::vec3(0.f, 1.f, 0.f)},
-		{glm::vec3(-W * .5f, 0.f, -D * .5f), glm::normalize(glm::vec3(0.f, 1.f, 1.f))},
-		{glm::vec3(-W * .5f, H, -D * .5f), glm::vec3(0.f, 0.f, 1.f)},
-		{glm::vec3(W * .5f, H, -D * .5f), glm::vec3(0.f, 0.f, 1.f)},
-		{glm::vec3(W * .5f, 0.f, -D * .5f), glm::normalize(glm::vec3(0.f, 1.f, 1.f))},
-		{glm::vec3(W * .5f, 0.f, D * .5f), glm::vec3(0.f, 1.f, 0.f)},
+		{glm::vec3(-W * .5f, 0.f, D * .5f), glm::vec3(0.f, 1.f, 0.f), glm::vec2(0.f, 1.f)},
+		{glm::vec3(-W * .5f, 0.f, -D * .5f), glm::normalize(glm::vec3(0.f, 1.f, 1.f)), glm::vec2(0.f, 0.f)},
+		{glm::vec3(-W * .5f, H, -D * .5f), glm::vec3(0.f, 0.f, 1.f), glm::vec2(0.f, -1.f)},
+		{glm::vec3(W * .5f, H, -D * .5f), glm::vec3(0.f, 0.f, 1.f), glm::vec2(1.f, -1.f)},
+		{glm::vec3(W * .5f, 0.f, -D * .5f), glm::normalize(glm::vec3(0.f, 1.f, 1.f)), glm::vec2(1.f, 0.f)},
+		{glm::vec3(W * .5f, 0.f, D * .5f), glm::vec3(0.f, 1.f, 0.f), glm::vec2(1.f, 1.f)},
 	};
 	std::vector<uint32> m_TriIndices = 
 	{
@@ -148,6 +150,30 @@ void TessellationScene::Start()
 		RS_D311_ASSERT_CHECK(result, "Failed to HS create constant buffer!");
 	}
 
+	{
+		CreateTexture("HexagonRocks/Rocks_Hexagons_001_basecolor.jpg", m_pAlbedoTexture, m_pAlbedoTextureView);
+		CreateTexture("HexagonRocks/Rocks_Hexagons_001_height.png", m_pDisplacementTexture, m_pDisplacementTextureView);
+		CreateTexture("HexagonRocks/Rocks_Hexagons_001_normal.jpg", m_pNormalTexture, m_pNormalTextureView);
+
+		D3D11_SAMPLER_DESC samplerDesc = {};
+		samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+		samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+		samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+		samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+		samplerDesc.MipLODBias = 0.f;
+		samplerDesc.MaxAnisotropy = 16.f;
+		samplerDesc.ComparisonFunc = D3D11_COMPARISON_GREATER_EQUAL;
+		samplerDesc.MinLOD = 0.f;
+		samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+		samplerDesc.BorderColor[0] = 0.f;
+		samplerDesc.BorderColor[1] = 0.f;
+		samplerDesc.BorderColor[2] = 0.f;
+		samplerDesc.BorderColor[3] = 0.f;
+
+		HRESULT result = RenderAPI::Get()->GetDevice()->CreateSamplerState(&samplerDesc, &m_pSampler);
+		RS_D311_ASSERT_CHECK(result, "Failed to create sampler!");
+	}
+
 	m_Pipeline.Init();
 
 	D3D11_RASTERIZER_DESC rasterizerDesc = {};
@@ -188,6 +214,16 @@ void TessellationScene::End()
 	m_pVSConstantBuffer->Release();
 	m_pHSConstantBuffer->Release();
 	m_pDSConstantBuffer->Release();
+
+	m_pAlbedoTexture->Release();
+	m_pAlbedoTextureView->Release();
+	m_pNormalTexture->Release();
+	m_pNormalTextureView->Release();
+	m_pDisplacementTexture->Release();
+	m_pDisplacementTextureView->Release();
+	m_pSampler->Release();
+
+	// TODO: Release the other textures and their views!
 }
 
 void TessellationScene::FixedTick()
@@ -224,13 +260,14 @@ void TessellationScene::Tick(float dt)
 
 		static const float s_MaxTessFactor = 50.f;
 		static float s_Outer = s_MaxTessFactor*.5f, s_Inner = s_MaxTessFactor * .5f;
-		static float s_PhongAlpha = 0.f;
+		static float s_PhongAlpha = 0.f, s_Height = 0.05f;
 		ImGuiRenderer::Draw([&]()
 		{
 			static bool s_ApplySame = true;
 			static bool s_TessPanelActive = true;
 			if (ImGui::Begin("Tesselation Params", &s_TessPanelActive))
 			{
+				ImGui::SliderFloat("Displacement Factor", &s_Height, 0.f, 1.f, "Height = %.3f");
 				ImGui::SliderFloat("Phong Tessellation", &s_PhongAlpha, 0.0f, 1.0f, "Alpha = %.3f");
 				ImGui::Checkbox("Both", &s_ApplySame);
 
@@ -250,7 +287,7 @@ void TessellationScene::Tick(float dt)
 
 		m_CameraData.view = m_Camera.GetView();
 		m_CameraData.proj = m_Camera.GetProj();
-		m_CameraData.info = glm::vec4(s_PhongAlpha, 0.f, 0.f, 0.f);
+		m_CameraData.info = glm::vec4(s_PhongAlpha, s_Height, 0.f, 0.f);
 		result = pContext->Map(m_pDSConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 		RS_D311_ASSERT_CHECK(result, "Failed to map DS constant buffer!");
 		memcpy(mappedResource.pData, &m_CameraData, sizeof(m_CameraData));
@@ -272,7 +309,12 @@ void TessellationScene::Tick(float dt)
 		pContext->VSSetConstantBuffers(0, 1, &m_pVSConstantBuffer);
 		pContext->HSSetConstantBuffers(0, 1, &m_pHSConstantBuffer);
 		pContext->DSSetConstantBuffers(0, 1, &m_pDSConstantBuffer);
+		pContext->DSSetSamplers(0, 1, &m_pSampler);
+		pContext->DSSetShaderResources(0, 1, &m_pNormalTextureView);
+		pContext->DSSetShaderResources(1, 1, &m_pDisplacementTextureView);
 		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+		pContext->PSSetSamplers(0, 1, &m_pSampler);
+		pContext->PSSetShaderResources(0, 1, &m_pAlbedoTextureView);
 		pContext->DrawIndexed((UINT)m_NumTriIndices, 0, 0);
 	}
 	
@@ -293,7 +335,12 @@ void TessellationScene::Tick(float dt)
 		pContext->VSSetConstantBuffers(0, 1, &m_pVSConstantBuffer);
 		pContext->HSSetConstantBuffers(0, 1, &m_pHSConstantBuffer);
 		pContext->DSSetConstantBuffers(0, 1, &m_pDSConstantBuffer);
+		pContext->DSSetSamplers(0, 1, &m_pSampler);
+		pContext->DSSetShaderResources(0, 1, &m_pNormalTextureView);
+		pContext->DSSetShaderResources(1, 1, &m_pDisplacementTextureView);
 		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST);
+		pContext->PSSetSamplers(0, 1, &m_pSampler);
+		pContext->PSSetShaderResources(0, 1, &m_pAlbedoTextureView);
 		pContext->DrawIndexed((UINT)m_NumQuadIndices, 0, 0);
 	}
 }
@@ -399,4 +446,41 @@ void TessellationScene::ToggleWireframe()
 	{
 		first = true;
 	}
+}
+
+void TessellationScene::CreateTexture(const std::string& fileName, ID3D11Texture2D*& pTexture, ID3D11ShaderResourceView*& pTextureView)
+{
+	ResourceManager::Image* pImage = ResourceManager::Get()->LoadTexture(fileName, 4);
+
+	D3D11_TEXTURE2D_DESC textureDesc = {};
+	textureDesc.Width = pImage->Width;
+	textureDesc.Height = pImage->Height;
+	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	textureDesc.MipLevels = 1;
+	textureDesc.ArraySize = 1;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.SampleDesc.Quality = 0;
+	textureDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	textureDesc.CPUAccessFlags = 0;
+	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	textureDesc.MiscFlags = 0;
+
+	D3D11_SUBRESOURCE_DATA data = {};
+	data.pSysMem = pImage->Data;
+	data.SysMemPitch = pImage->Width * 4;
+	data.SysMemSlicePitch = 0;
+
+	HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, &data, &pTexture);
+	RS_D311_ASSERT_CHECK(result, "Failed to create the albedo texture!");
+
+	ResourceManager::Get()->FreeTexture(pImage);
+	pImage = nullptr;
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = textureDesc.Format;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = 1;
+	result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture, &srvDesc, &pTextureView);
+	RS_D311_ASSERT_CHECK(result, "Failed to create texture RSV!");
 }
