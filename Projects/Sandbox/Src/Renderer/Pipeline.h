@@ -75,6 +75,8 @@ namespace RS
 		ID3D11RasterizerState* GetRasterState();
 		ID3D11DepthStencilState* GetDepthStencilState();
 
+		uint32 GetID() const;
+
 	private:
 		struct DepthStencilSave
 		{
@@ -83,8 +85,18 @@ namespace RS
 			D3D11_TEXTURE2D_DESC			depthBufferDesc;
 		};
 
+		struct Binded
+		{
+			uint32 RasterizerID			= 0;
+			uint32 DepthStencilStateID	= 0;
+			uint32 DepthStencilViewID	= 0;
+			uint32 RTVsID				= 0;
+		};
+
 		void CreateDepthState();
 		void CreateDepthStencilView();
+
+		uint32 GenID();
 
 	private:
 		ID3D11Device*				m_pDevice				= nullptr;
@@ -101,5 +113,13 @@ namespace RS
 		ID3D11DepthStencilView*		m_pDepthStencilView		= nullptr;
 
 		DepthStencilSave			m_DepthStencilSave;
+
+		// Used for binding.
+		bool						m_ShouldBindRasterizerState		= true;
+		bool						m_ShouldBindDepthStencilState	= true;
+		bool						m_ShouldBindDepthStencilView	= true;
+		bool						m_ShouldBindRTVs				= true;
+		uint32						m_ID							= 0;
+		inline static Binded		s_CurrentBindedStates;
 	};
 }
