@@ -178,11 +178,11 @@ void TessellationScene::Start()
 
 	D3D11_RASTERIZER_DESC rasterizerDesc = {};
 	rasterizerDesc.AntialiasedLineEnable = false;
-	rasterizerDesc.CullMode = D3D11_CULL_NONE;
+	rasterizerDesc.CullMode = m_IsWireframeEnabled ? D3D11_CULL_NONE : D3D11_CULL_BACK;
 	rasterizerDesc.DepthBias = 0;
 	rasterizerDesc.DepthBiasClamp = 0.0f;
 	rasterizerDesc.DepthClipEnable = true;
-	rasterizerDesc.FillMode = D3D11_FILL_WIREFRAME;
+	rasterizerDesc.FillMode = m_IsWireframeEnabled ? D3D11_FILL_WIREFRAME : D3D11_FILL_SOLID;
 	rasterizerDesc.FrontCounterClockwise = false;
 	rasterizerDesc.MultisampleEnable = false;
 	rasterizerDesc.ScissorEnable = false;
@@ -232,7 +232,7 @@ void TessellationScene::FixedTick()
 
 void TessellationScene::Tick(float dt)
 {
-	ToggleWireframe();
+	ToggleWireframe(false);
 
 	UpdateCamera(dt);
 	DebugRenderer::Get()->UpdateCamera(m_Camera.GetView(), m_Camera.GetProj());
@@ -261,6 +261,9 @@ void TessellationScene::Tick(float dt)
 		static const float s_MaxTessFactor = 50.f;
 		static float s_Outer = s_MaxTessFactor*.5f, s_Inner = s_MaxTessFactor * .5f;
 		static float s_PhongAlpha = 0.f, s_Height = 0.05f;
+		static bool s_ToggleWireframe = false;
+		static bool s_IsWireframeEnabled = false;
+		s_IsWireframeEnabled = m_IsWireframeEnabled;
 		ImGuiRenderer::Draw([&]()
 		{
 			static bool s_ApplySame = true;
@@ -269,6 +272,7 @@ void TessellationScene::Tick(float dt)
 			{
 				ImGui::SliderFloat("Displacement Factor", &s_Height, 0.f, 1.f, "Height = %.3f");
 				ImGui::SliderFloat("Phong Tessellation", &s_PhongAlpha, 0.0f, 1.0f, "Alpha = %.3f");
+				s_ToggleWireframe = ImGui::Checkbox("Wireframe", &s_IsWireframeEnabled);
 				ImGui::Checkbox("Both", &s_ApplySame);
 
 				if (s_ApplySame)
@@ -284,6 +288,12 @@ void TessellationScene::Tick(float dt)
 			}
 			ImGui::End();
 		});
+
+		if (s_ToggleWireframe)
+		{
+			s_ToggleWireframe = false;
+			ToggleWireframe(true);
+		}
 
 		m_CameraData.view = m_Camera.GetView();
 		m_CameraData.proj = m_Camera.GetProj();
@@ -411,12 +421,11 @@ void TessellationScene::UpdateCamera(float dt)
 	}
 }
 
-void TessellationScene::ToggleWireframe()
+void TessellationScene::ToggleWireframe(bool forceToggle)
 {
-	static bool stateW = true;
 	static bool first = true;
 	KeyState state = Input::Get()->GetKeyState(Key::W);
-	if (state == KeyState::PRESSED && first)
+	if (state == KeyState::PRESSED && first || forceToggle)
 	{
 		first = false;
 		D3D11_RASTERIZER_DESC rasterizerDesc = {};
@@ -428,7 +437,7 @@ void TessellationScene::ToggleWireframe()
 		rasterizerDesc.MultisampleEnable = false;
 		rasterizerDesc.ScissorEnable = false;
 		rasterizerDesc.SlopeScaledDepthBias = 0.0f;
-		if (stateW)
+		if (m_IsWireframeEnabled)
 		{
 			rasterizerDesc.CullMode = D3D11_CULL_BACK;
 			rasterizerDesc.FillMode = D3D11_FILL_SOLID;
@@ -440,7 +449,7 @@ void TessellationScene::ToggleWireframe()
 		}
 		m_Pipeline.SetRasterState(rasterizerDesc);
 
-		stateW = !stateW;
+		m_IsWireframeEnabled = !m_IsWireframeEnabled;
 	}
 	else if (state == KeyState::RELEASED)
 	{

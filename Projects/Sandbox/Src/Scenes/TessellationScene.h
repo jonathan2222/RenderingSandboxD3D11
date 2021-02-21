@@ -45,7 +45,7 @@ namespace RS
 
 	private:
 		void UpdateCamera(float dt);
-		void ToggleWireframe();
+		void ToggleWireframe(bool forceToggle);
 		void CreateTexture(const std::string& fileName, ID3D11Texture2D*& pTexture, ID3D11ShaderResourceView*& pTextureView);
 
 	private:
@@ -67,6 +67,7 @@ namespace RS
 
 		Camera						m_Camera;
 
+		bool						m_IsWireframeEnabled		= true;
 		Pipeline					m_Pipeline;
 
 		ID3D11Texture2D*			m_pAlbedoTexture			= nullptr;
