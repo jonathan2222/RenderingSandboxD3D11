@@ -2,6 +2,7 @@ struct HullIn
 {
     float4 position : SV_POSITION;
     float4 normal : NORMAL;
+    float4 tangent : TANGENT;
     float2 uv : TEXCOORD;
 };
 
@@ -9,6 +10,7 @@ struct HullOut
 {
     float4 position : SV_POSITION;
     float4 normal : NORMAL;
+    float4 tangent : TANGENT;
     float2 uv : TEXCOORD;
 };
 
@@ -42,9 +44,10 @@ cbuffer FrameData : register(b0)
 HullOut main(InputPatch<HullIn, 4> ip, uint i : SV_OutputControlPointID)
 {
     HullOut output;
-    output.position = ip[i].position;
-    output.normal   = ip[i].normal;
-    output.uv       = ip[i].uv;
+    output.position     = ip[i].position;
+    output.normal       = ip[i].normal;
+    output.tangent      = ip[i].tangent;
+    output.uv           = ip[i].uv;
     return output;
 }
 

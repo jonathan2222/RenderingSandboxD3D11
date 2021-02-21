@@ -15,15 +15,24 @@ namespace RS
 	public:
 		struct CameraData
 		{
+			glm::mat4 world = glm::mat4(1.f);
 			glm::mat4 view	= glm::mat4(1.f);
 			glm::mat4 proj	= glm::mat4(1.f);
 			glm::vec4 info	= glm::vec4(0.f); // First element if the alpha value for Phong Tessellation.
+		};
+
+		struct PSData
+		{
+			glm::vec4 cameraPos = glm::vec4(0.f);
+			glm::vec4 cameraDir = glm::vec4(0.f);
+			glm::vec4 lightPos	= glm::vec4(0.f);
 		};
 
 		struct Vertex
 		{
 			glm::vec3 Position;
 			glm::vec3 Normal;
+			glm::vec3 Tangent;
 			glm::vec2 UV;
 		};
 
@@ -47,6 +56,7 @@ namespace RS
 		void UpdateCamera(float dt);
 		void ToggleWireframe(bool forceToggle);
 		void CreateTexture(const std::string& fileName, ID3D11Texture2D*& pTexture, ID3D11ShaderResourceView*& pTextureView);
+		void CalcTangents(std::vector<Vertex>& vertices, const std::vector<uint32>& indices);
 
 	private:
 		Shader						m_TriShader;
@@ -59,10 +69,12 @@ namespace RS
 		ID3D11Buffer*				m_pVSConstantBuffer			= nullptr;
 		ID3D11Buffer*				m_pHSConstantBuffer			= nullptr;
 		ID3D11Buffer*				m_pDSConstantBuffer			= nullptr;
+		ID3D11Buffer*				m_pPSConstantBuffer			= nullptr;
 
 		uint32						m_NumTriIndices				= 0;
 		uint32						m_NumQuadIndices			= 0;
 
+		PSData						m_PSData;
 		CameraData					m_CameraData;
 
 		Camera						m_Camera;

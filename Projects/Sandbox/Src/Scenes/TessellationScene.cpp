@@ -33,6 +33,7 @@ void TessellationScene::Start()
 	AttributeLayout layout;
 	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "POSITION", 0);
 	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "NORMAL", 0);
+	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "TANGENT", 0);
 	layout.Push(DXGI_FORMAT_R32G32_FLOAT, "TEXCOORD", 0);
 	{
 		Shader::Descriptor shaderDesc = {};
@@ -58,18 +59,19 @@ void TessellationScene::Start()
 	static const float D = 1.f;
 	std::vector<Vertex> m_Vertices = 
 	{
-		{glm::vec3(-W * .5f, 0.f, D * .5f), glm::vec3(0.f, 1.f, 0.f), glm::vec2(0.f, 1.f)},
-		{glm::vec3(-W * .5f, 0.f, -D * .5f), glm::normalize(glm::vec3(0.f, 1.f, 1.f)), glm::vec2(0.f, 0.f)},
-		{glm::vec3(-W * .5f, H, -D * .5f), glm::vec3(0.f, 0.f, 1.f), glm::vec2(0.f, -1.f)},
-		{glm::vec3(W * .5f, H, -D * .5f), glm::vec3(0.f, 0.f, 1.f), glm::vec2(1.f, -1.f)},
-		{glm::vec3(W * .5f, 0.f, -D * .5f), glm::normalize(glm::vec3(0.f, 1.f, 1.f)), glm::vec2(1.f, 0.f)},
-		{glm::vec3(W * .5f, 0.f, D * .5f), glm::vec3(0.f, 1.f, 0.f), glm::vec2(1.f, 1.f)},
+		{glm::vec3(-W * .5f, 0.f, D * .5f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f), glm::vec2(0.f, 1.f)},
+		{glm::vec3(-W * .5f, 0.f, -D * .5f), glm::normalize(glm::vec3(0.f, 1.f, 1.f)), glm::vec3(0.f), glm::vec2(0.f, 0.f)},
+		{glm::vec3(-W * .5f, H, -D * .5f), glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f), glm::vec2(0.f, -1.f)},
+		{glm::vec3(W * .5f, H, -D * .5f), glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f), glm::vec2(1.f, -1.f)},
+		{glm::vec3(W * .5f, 0.f, -D * .5f), glm::normalize(glm::vec3(0.f, 1.f, 1.f)), glm::vec3(0.f), glm::vec2(1.f, 0.f)},
+		{glm::vec3(W * .5f, 0.f, D * .5f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f), glm::vec2(1.f, 1.f)},
 	};
 	std::vector<uint32> m_TriIndices = 
 	{
 		0, 1, 4, 4, 5, 0,
 		1, 2, 3, 3, 4, 1
 	};
+	CalcTangents(m_Vertices, m_TriIndices);
 	m_NumTriIndices = m_TriIndices.size();
 
 	std::vector<uint32> m_QuadIndices =
@@ -136,18 +138,23 @@ void TessellationScene::Start()
 		data.SysMemSlicePitch = 0;
 
 		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pVSConstantBuffer);
-		RS_D311_ASSERT_CHECK(result, "Failed to VS create constant buffer!");
+		RS_D311_ASSERT_CHECK(result, "Failed to create VS constant buffer!");
 
 		bufferDesc.ByteWidth = sizeof(CameraData);
 		data.pSysMem = &m_CameraData;
 		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pDSConstantBuffer);
-		RS_D311_ASSERT_CHECK(result, "Failed to DS create constant buffer!");
+		RS_D311_ASSERT_CHECK(result, "Failed to create DS constant buffer!");
 
 		glm::vec4 v(1.f);
 		bufferDesc.ByteWidth = sizeof(glm::vec4);
 		data.pSysMem = &v;
 		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pHSConstantBuffer);
-		RS_D311_ASSERT_CHECK(result, "Failed to HS create constant buffer!");
+		RS_D311_ASSERT_CHECK(result, "Failed to create HS constant buffer!");
+
+		bufferDesc.ByteWidth = sizeof(PSData);
+		data.pSysMem = &m_PSData;
+		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pPSConstantBuffer);
+		RS_D311_ASSERT_CHECK(result, "Failed to create PS constant buffer!");
 	}
 
 	{
@@ -214,6 +221,7 @@ void TessellationScene::End()
 	m_pVSConstantBuffer->Release();
 	m_pHSConstantBuffer->Release();
 	m_pDSConstantBuffer->Release();
+	m_pPSConstantBuffer->Release();
 
 	m_pAlbedoTexture->Release();
 	m_pAlbedoTextureView->Release();
@@ -258,9 +266,9 @@ void TessellationScene::Tick(float dt)
 		memcpy(mappedResource.pData, &world, sizeof(world));
 		pContext->Unmap(m_pVSConstantBuffer, 0);
 
-		static const float s_MaxTessFactor = 50.f;
+		static const float s_MaxTessFactor = 64.f;
 		static float s_Outer = s_MaxTessFactor*.5f, s_Inner = s_MaxTessFactor * .5f;
-		static float s_PhongAlpha = 0.f, s_Height = 0.05f;
+		static float s_PhongAlpha = 0.75f, s_Height = 0.05f;
 		static bool s_ToggleWireframe = false;
 		static bool s_IsWireframeEnabled = false;
 		s_IsWireframeEnabled = m_IsWireframeEnabled;
@@ -295,6 +303,7 @@ void TessellationScene::Tick(float dt)
 			ToggleWireframe(true);
 		}
 
+		m_CameraData.world = world;
 		m_CameraData.view = m_Camera.GetView();
 		m_CameraData.proj = m_Camera.GetProj();
 		m_CameraData.info = glm::vec4(s_PhongAlpha, s_Height, 0.f, 0.f);
@@ -308,6 +317,19 @@ void TessellationScene::Tick(float dt)
 		RS_D311_ASSERT_CHECK(result, "Failed to map HS constant buffer!");
 		memcpy(mappedResource.pData, &v, sizeof(v));
 		pContext->Unmap(m_pHSConstantBuffer, 0);
+
+		static glm::vec3 s_LightPos = glm::vec3(0.2f, 0.1f, 0.f);
+		glm::vec3 target(0.f, 0.1f, 0.f);
+		s_LightPos = target + glm::rotate(s_LightPos - target, dt, glm::vec3(0.f, 1.f, 0.f));
+		DebugRenderer::Get()->PushPoint(s_LightPos, Color::WHITE, id);
+
+		m_PSData.cameraPos = glm::vec4(m_Camera.GetPos(), 1.f);
+		m_PSData.cameraDir = glm::vec4(m_Camera.GetDir(), 0.f);
+		m_PSData.lightPos = glm::vec4(s_LightPos, 1.f);
+		result = pContext->Map(m_pPSConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+		RS_D311_ASSERT_CHECK(result, "Failed to map PS constant buffer!");
+		memcpy(mappedResource.pData, &m_PSData, sizeof(m_PSData));
+		pContext->Unmap(m_pPSConstantBuffer, 0);
 	}
 
 	m_TriShader.Bind();
@@ -320,11 +342,12 @@ void TessellationScene::Tick(float dt)
 		pContext->HSSetConstantBuffers(0, 1, &m_pHSConstantBuffer);
 		pContext->DSSetConstantBuffers(0, 1, &m_pDSConstantBuffer);
 		pContext->DSSetSamplers(0, 1, &m_pSampler);
-		pContext->DSSetShaderResources(0, 1, &m_pNormalTextureView);
-		pContext->DSSetShaderResources(1, 1, &m_pDisplacementTextureView);
+		pContext->DSSetShaderResources(0, 1, &m_pDisplacementTextureView);
 		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
 		pContext->PSSetSamplers(0, 1, &m_pSampler);
-		pContext->PSSetShaderResources(0, 1, &m_pAlbedoTextureView);
+		pContext->PSSetShaderResources(0, 1, &m_pNormalTextureView);
+		pContext->PSSetShaderResources(1, 1, &m_pAlbedoTextureView);
+		pContext->PSSetConstantBuffers(0, 1, &m_pPSConstantBuffer);
 		pContext->DrawIndexed((UINT)m_NumTriIndices, 0, 0);
 	}
 	
@@ -336,6 +359,12 @@ void TessellationScene::Tick(float dt)
 		RS_D311_ASSERT_CHECK(result, "Failed to map VS constant buffer!");
 		memcpy(mappedResource.pData, &world, sizeof(world));
 		pContext->Unmap(m_pVSConstantBuffer, 0);
+
+		m_CameraData.world = world;
+		result = pContext->Map(m_pDSConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+		RS_D311_ASSERT_CHECK(result, "Failed to map DS constant buffer!");
+		memcpy(mappedResource.pData, &m_CameraData, sizeof(m_CameraData));
+		pContext->Unmap(m_pDSConstantBuffer, 0);
 	}
 	
 	m_QuadShader.Bind();
@@ -346,11 +375,12 @@ void TessellationScene::Tick(float dt)
 		pContext->HSSetConstantBuffers(0, 1, &m_pHSConstantBuffer);
 		pContext->DSSetConstantBuffers(0, 1, &m_pDSConstantBuffer);
 		pContext->DSSetSamplers(0, 1, &m_pSampler);
-		pContext->DSSetShaderResources(0, 1, &m_pNormalTextureView);
-		pContext->DSSetShaderResources(1, 1, &m_pDisplacementTextureView);
+		pContext->DSSetShaderResources(0, 1, &m_pDisplacementTextureView);
 		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST);
 		pContext->PSSetSamplers(0, 1, &m_pSampler);
-		pContext->PSSetShaderResources(0, 1, &m_pAlbedoTextureView);
+		pContext->PSSetShaderResources(0, 1, &m_pNormalTextureView);
+		pContext->PSSetShaderResources(1, 1, &m_pAlbedoTextureView);
+		pContext->PSSetConstantBuffers(0, 1, &m_pPSConstantBuffer);
 		pContext->DrawIndexed((UINT)m_NumQuadIndices, 0, 0);
 	}
 }
@@ -492,4 +522,29 @@ void TessellationScene::CreateTexture(const std::string& fileName, ID3D11Texture
 	srvDesc.Texture2D.MipLevels = 1;
 	result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture, &srvDesc, &pTextureView);
 	RS_D311_ASSERT_CHECK(result, "Failed to create texture RSV!");
+}
+
+void TessellationScene::CalcTangents(std::vector<Vertex>& vertices, const std::vector<uint32>& indices)
+{
+	const uint32 size = indices.size();
+	for (uint32 i = 0; i < size; i += 3)
+	{
+		Vertex& v0 = vertices[(size_t)indices[(size_t)i+0]];
+		Vertex& v1 = vertices[(size_t)indices[(size_t)i+1]];
+		Vertex& v2 = vertices[(size_t)indices[(size_t)i+2]];
+
+		glm::vec3 edge1 = v1.Position - v0.Position;
+		glm::vec3 edge2 = v2.Position - v0.Position;
+		glm::vec2 uv1 = v1.UV - v0.UV;
+		glm::vec2 uv2 = v2.UV - v0.UV;
+
+		float invDet = 1.f / (uv1.x * uv2.y - uv2.x * uv1.y);
+		glm::mat2x3 edgeMat2x3(edge1, edge2);
+		glm::mat3x2 edgeMat = glm::transpose(edgeMat2x3);
+		glm::vec3 tangent = invDet * glm::vec2(uv2.y, -uv1.y) * edgeMat;
+
+		v0.Tangent = tangent;
+		v1.Tangent = tangent;
+		v2.Tangent = tangent;
+	}
 }
