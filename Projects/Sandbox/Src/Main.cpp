@@ -19,6 +19,7 @@ int main(int argc, char* argv[])
     application.AddScene(new RS::SandboxScene());
     application.AddScene(new RS::MeshScene());
     application.AddScene(new RS::TessellationScene());
+    application.SelectScene(1);
     application.Run();
     application.Release();
 

@@ -214,7 +214,7 @@ uint32 DebugRenderer::PushBox(const glm::vec3& min, const glm::vec3& max, const 
 	return newID;
 }
 
-uint32 DebugRenderer::PushMesh(Model* model, const Color& color, glm::vec3 offset, uint32 id, bool shouldClear)
+uint32 DebugRenderer::PushMesh(ModelResource* model, const Color& color, glm::vec3 offset, uint32 id, bool shouldClear)
 {
 	uint32 newID = ProcessID(id, Type::LINES);
 
@@ -222,7 +222,7 @@ uint32 DebugRenderer::PushMesh(Model* model, const Color& color, glm::vec3 offse
 	points.resize(4);
 	for (uint32 i = 0; i < model->Indices.size(); i += 3)
 	{
-		Model::Vertex v = model->Vertices[model->Indices[i]];
+		ModelResource::Vertex v = model->Vertices[model->Indices[i]];
 		points[0] = v.Position + offset;
 		v = model->Vertices[model->Indices[(size_t)i + 1]];
 		points[1] = v.Position + offset;

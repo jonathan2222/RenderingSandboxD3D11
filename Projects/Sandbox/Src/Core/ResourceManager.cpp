@@ -12,6 +12,8 @@
 #include <stb_image.h>
 #pragma warning( pop )
 
+#include "Loaders/ModelLoader.h"
+
 using namespace RS;
 
 std::shared_ptr<ResourceManager> ResourceManager::Get()
@@ -37,8 +39,7 @@ void ResourceManager::Release()
 
 TextureResource* ResourceManager::LoadTextureResource(const std::string& fileName, int nChannels)
 {
-	auto [pResource, isNew] = AddResource(fileName, Resource::Type::TEXTURE);
-	TextureResource* pTexture = dynamic_cast<TextureResource*>(pResource);
+	auto [pTexture, isNew] = AddResource<TextureResource>(fileName, Resource::Type::TEXTURE);
 
 	// Only load the texture if it has not been loaded.
 	if (isNew)
@@ -66,6 +67,19 @@ TextureResource* ResourceManager::LoadTextureResource(const std::string& fileNam
 	return pTexture;
 }
 
+ModelResource* ResourceManager::LoadModelResource(const std::string& filePath)
+{
+	auto [pModel, isNew] = AddResource<ModelResource>(filePath, Resource::Type::MODEL);
+
+	// Only load the texture if it has not been loaded.
+	if (isNew)
+	{
+		ModelLoader::Load(filePath, pModel);
+	}
+
+	return pModel;
+}
+
 void ResourceManager::FreeResource(Resource* pResource)
 {
 	pResource->RemoveRef();
@@ -88,35 +102,6 @@ ResourceManager::Stats ResourceManager::GetStats()
 	return stats;
 }
 
-std::pair<Resource*, bool> ResourceManager::AddResource(const std::string& key, Resource::Type type)
-{
-	bool isNew = false;
-	TextureResource* pResource = nullptr;
-
-	std::string fullKey = key + Resource::TypeToString(type);
-	auto it = m_Resources.find(fullKey);
-	if (it == m_Resources.end())
-	{
-		if (type == Resource::Type::TEXTURE)
-		{
-			pResource = new TextureResource();
-		}
-		else
-		{
-			RS_ASSERT(false, "Could not add resource! Type not supported!");
-		}
-		
-		pResource->type = type;
-		pResource->key = fullKey;
-		m_Resources[fullKey] = pResource;
-		isNew = true;
-	}
-
-	pResource->AddRef();
-	UpdateStats(pResource);
-	return { pResource, isNew };
-}
-
 bool ResourceManager::RemoveResource(Resource* pResource)
 {
 	auto it = m_Resources.find(pResource->key);
@@ -129,6 +114,13 @@ bool ResourceManager::RemoveResource(Resource* pResource)
 		{
 			TextureResource* pTexture = dynamic_cast<TextureResource*>(pResource);
 			FreeTexture(pTexture);
+		}
+		break;
+		case RS::Resource::Type::MODEL:
+		{
+			ModelResource* pModel = dynamic_cast<ModelResource*>(pResource);
+			pModel->Vertices.clear();
+			pModel->Indices.clear();
 		}
 		break;
 		default:

@@ -8,7 +8,7 @@
 
 namespace RS
 {
-	struct Model;
+	struct ModelResource;
 	class DebugRenderer
 	{
 	public:
@@ -30,7 +30,7 @@ namespace RS
 		uint32 PushLine(const glm::vec3& p1, const glm::vec3& p2, const Color& color = Color::RED, uint32 id = 0, bool shouldClear = true);
 		uint32 PushLines(const std::vector<glm::vec3>& points, const Color& color = Color::RED, uint32 id = 0, bool shouldClear = true);
 		uint32 PushBox(const glm::vec3& min, const glm::vec3& max, const Color& color = Color::RED, uint32 id = 0, bool shouldClear = true);
-		uint32 PushMesh(Model* model, const Color& color = Color::RED, glm::vec3 offset = glm::vec3(0.f), uint32 id = 0, bool shouldClear = true);
+		uint32 PushMesh(ModelResource* model, const Color& color = Color::RED, glm::vec3 offset = glm::vec3(0.f), uint32 id = 0, bool shouldClear = true);
 		uint32 PushPoint(const glm::vec3& p, const Color& color = Color::RED, uint32 id = 0, bool shouldClear = true);
 		uint32 PushPoints(const std::vector<glm::vec3>& points, const Color& color = Color::RED, uint32 id = 0, bool shouldClear = true);
 

@@ -33,6 +33,8 @@ namespace RS
 		*/
 		TextureResource* LoadTextureResource(const std::string& fileName, int nChannels);
 
+		ModelResource* LoadModelResource(const std::string& filePath);
+
 		/*
 		* Give the resource back to the system. If it was the last reference, it will destroy it.
 		*/
@@ -44,7 +46,9 @@ namespace RS
 		/*
 		* Will add a new resource if it does not exist, else it will return the already existing resource.
 		*/
-		std::pair<Resource*, bool> AddResource(const std::string& key, Resource::Type type);
+		template<typename ResourceT>
+		std::pair<ResourceT*, bool> AddResource(const std::string& key, Resource::Type type);
+
 		bool RemoveResource(Resource* pResource);
 
 		/*
@@ -64,4 +68,26 @@ namespace RS
 		// Stats
 		std::unordered_map<Resource::Type, uint32> m_ResourcesRefCount;
 	};
+
+	template<typename ResourceT>
+	inline std::pair<ResourceT*, bool> ResourceManager::AddResource(const std::string& key, Resource::Type type)
+	{
+		bool isNew = false;
+		ResourceT* pResource = nullptr;
+
+		std::string fullKey = key + Resource::TypeToString(type);
+		auto it = m_Resources.find(fullKey);
+		if (it == m_Resources.end())
+		{
+			pResource = new ResourceT();
+			pResource->type = type;
+			pResource->key = fullKey;
+			m_Resources[fullKey] = pResource;
+			isNew = true;
+		}
+
+		pResource->AddRef();
+		UpdateStats(pResource);
+		return { pResource, isNew };
+	}
 }

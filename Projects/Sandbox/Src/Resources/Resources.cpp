@@ -11,6 +11,9 @@ std::string Resource::TypeToString(Type type)
 	case Type::TEXTURE:
 		res = "TEXTURE";
 		break;
+	case Type::MODEL:
+		res = "MODEL";
+		break;
 	default:
 		LOG_WARNING("Resource type is not supported!");
 		res = "NULL";

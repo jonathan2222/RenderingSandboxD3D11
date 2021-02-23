@@ -50,7 +50,7 @@ namespace RS
 
 		FrameData m_FrameData;
 
-		Model* m_pModel = nullptr;
+		ModelResource* m_pModel = nullptr;
 
 		Camera m_Camera;
 

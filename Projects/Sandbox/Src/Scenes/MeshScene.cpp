@@ -36,13 +36,13 @@ void MeshScene::Start()
 	m_Shader.Load(shaderDesc, layout);
 	ShaderHotReloader::AddShader(&m_Shader);
 
-	m_pModel = ModelLoader::Load("Test.obj");
+	m_pModel = ResourceManager::Get()->LoadModelResource("Test.obj");
 
 	RS_ASSERT(m_pModel != nullptr, "Could not load model!");
 
 	{
 		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.ByteWidth = (UINT)(sizeof(Model::Vertex) * m_pModel->Vertices.size());
+		bufferDesc.ByteWidth = (UINT)(sizeof(ModelResource::Vertex) * m_pModel->Vertices.size());
 		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 		bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bufferDesc.CPUAccessFlags = 0;
@@ -130,8 +130,6 @@ void MeshScene::End()
 	m_pVertexBuffer->Release();
 	m_pIndexBuffer->Release();
 	m_pConstantBuffer->Release();
-
-	delete m_pModel;
 }
 
 void MeshScene::FixedTick()
@@ -193,7 +191,7 @@ void MeshScene::Tick(float dt)
 		pContext->Unmap(m_pConstantBuffer, 0);
 	}
 
-	UINT stride = sizeof(Model::Vertex);
+	UINT stride = sizeof(ModelResource::Vertex);
 	UINT offset = 0;
 	pContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
 	pContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);

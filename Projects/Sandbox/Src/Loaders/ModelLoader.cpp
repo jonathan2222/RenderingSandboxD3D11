@@ -6,7 +6,7 @@
 
 using namespace RS;
 
-Model* ModelLoader::Load(const std::string& filePath)
+bool ModelLoader::Load(const std::string& filePath, ModelResource*& outModel)
 {
     std::string path = std::string(RS_MODEL_PATH) + filePath;
     tinyobj::ObjReaderConfig reader_config;
@@ -20,7 +20,7 @@ Model* ModelLoader::Load(const std::string& filePath)
             LOG_ERROR("TinyObjReader: %s", reader.Error());
         else
             LOG_ERROR("TinyObjReader: Failed to parse file!");
-        return nullptr;
+        return false;
     }
 
     if (!reader.Warning().empty())
@@ -29,8 +29,6 @@ Model* ModelLoader::Load(const std::string& filePath)
     auto& attrib = reader.GetAttrib();
     auto& shapes = reader.GetShapes();
     auto& materials = reader.GetMaterials();
-
-    Model* pModel = new Model();
     
     // Loop over shapes
     for (size_t s = 0; s < shapes.size(); s++)
@@ -56,12 +54,12 @@ Model* ModelLoader::Load(const std::string& filePath)
                 tinyobj::real_t ty = attrib.texcoords[(size_t)2 * idx.texcoord_index + 1];
 
                 // Naive implementation.
-                Model::Vertex vertex = {};
+                ModelResource::Vertex vertex = {};
                 vertex.Position = glm::vec3(vx, vy, vz);
                 vertex.Normal = glm::vec3(nx, ny, nz);
                 vertex.UV = glm::vec2(tx, ty);
-                pModel->Indices.push_back(pModel->Vertices.size());
-                pModel->Vertices.push_back(vertex);
+                outModel->Indices.push_back(outModel->Vertices.size());
+                outModel->Vertices.push_back(vertex);
             }
             index_offset += fv;
 
@@ -70,5 +68,5 @@ Model* ModelLoader::Load(const std::string& filePath)
         }
     }
 
-    return pModel;
+    return true;
 }
