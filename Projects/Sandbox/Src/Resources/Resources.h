@@ -9,9 +9,9 @@ namespace RS
 	{
 		virtual ~Resource() = default;
 
-		enum class Type
+		enum Type : uint32
 		{
-			TEXTURE
+			TEXTURE = 0
 		};
 
 		static std::string TypeToString(Type type);

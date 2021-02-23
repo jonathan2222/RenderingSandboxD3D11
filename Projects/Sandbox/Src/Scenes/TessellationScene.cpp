@@ -72,14 +72,14 @@ void TessellationScene::Start()
 		1, 2, 3, 3, 4, 1
 	};
 	CalcTangents(m_Vertices, m_TriIndices);
-	m_NumTriIndices = m_TriIndices.size();
+	m_NumTriIndices = (uint32)m_TriIndices.size();
 
 	std::vector<uint32> m_QuadIndices =
 	{
 		0, 1, 5, 4,
 		1, 2, 4, 3
 	};
-	m_NumQuadIndices = m_QuadIndices.size();
+	m_NumQuadIndices = (uint32)m_QuadIndices.size();
 
 	{
 		D3D11_BUFFER_DESC bufferDesc = {};
@@ -163,19 +163,19 @@ void TessellationScene::Start()
 		CreateTexture("HexagonRocks/Rocks_Hexagons_001_normal.jpg", m_pNormalTexture, m_pNormalTextureView);
 
 		D3D11_SAMPLER_DESC samplerDesc = {};
-		samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
-		samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-		samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-		samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-		samplerDesc.MipLODBias = 0.f;
-		samplerDesc.MaxAnisotropy = 16.f;
-		samplerDesc.ComparisonFunc = D3D11_COMPARISON_GREATER_EQUAL;
-		samplerDesc.MinLOD = 0.f;
-		samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
-		samplerDesc.BorderColor[0] = 0.f;
-		samplerDesc.BorderColor[1] = 0.f;
-		samplerDesc.BorderColor[2] = 0.f;
-		samplerDesc.BorderColor[3] = 0.f;
+		samplerDesc.Filter			= D3D11_FILTER_ANISOTROPIC;
+		samplerDesc.AddressU		= D3D11_TEXTURE_ADDRESS_WRAP;
+		samplerDesc.AddressV		= D3D11_TEXTURE_ADDRESS_WRAP;
+		samplerDesc.AddressW		= D3D11_TEXTURE_ADDRESS_WRAP;
+		samplerDesc.MipLODBias		= 0.f;
+		samplerDesc.MaxAnisotropy	= 16;
+		samplerDesc.ComparisonFunc	= D3D11_COMPARISON_GREATER_EQUAL;
+		samplerDesc.MinLOD			= 0.f;
+		samplerDesc.MaxLOD			= D3D11_FLOAT32_MAX;
+		samplerDesc.BorderColor[0]	= 0.f;
+		samplerDesc.BorderColor[1]	= 0.f;
+		samplerDesc.BorderColor[2]	= 0.f;
+		samplerDesc.BorderColor[3]	= 0.f;
 
 		HRESULT result = RenderAPI::Get()->GetDevice()->CreateSamplerState(&samplerDesc, &m_pSampler);
 		RS_D311_ASSERT_CHECK(result, "Failed to create sampler!");
@@ -512,6 +512,8 @@ void TessellationScene::CreateTexture(const std::string& fileName, ID3D11Texture
 	HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, &data, &pTexture);
 	RS_D311_ASSERT_CHECK(result, "Failed to create the albedo texture!");
 
+	ResourceManager::Get()->FreeResource(pTextureResource);
+
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Format = textureDesc.Format;
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
@@ -523,7 +525,7 @@ void TessellationScene::CreateTexture(const std::string& fileName, ID3D11Texture
 
 void TessellationScene::CalcTangents(std::vector<Vertex>& vertices, const std::vector<uint32>& indices)
 {
-	const uint32 size = indices.size();
+	const uint32 size = (uint32)indices.size();
 	for (uint32 i = 0; i < size; i += 3)
 	{
 		Vertex& v0 = vertices[(size_t)indices[(size_t)i+0]];

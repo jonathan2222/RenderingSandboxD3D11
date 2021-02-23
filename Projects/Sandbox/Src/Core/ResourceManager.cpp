@@ -69,6 +69,7 @@ TextureResource* ResourceManager::LoadTextureResource(const std::string& fileNam
 void ResourceManager::FreeResource(Resource* pResource)
 {
 	pResource->RemoveRef();
+	UpdateStats(pResource);
 	if (pResource->GetRefCount() == 0)
 	{
 		// Remove resource if it is the last pointer.
@@ -80,24 +81,40 @@ void ResourceManager::FreeResource(Resource* pResource)
 	}
 }
 
+ResourceManager::Stats ResourceManager::GetStats()
+{
+	Stats stats;
+	stats.pResourcesRefCount = &m_ResourcesRefCount;
+	return stats;
+}
+
 std::pair<Resource*, bool> ResourceManager::AddResource(const std::string& key, Resource::Type type)
 {
 	bool isNew = false;
-	TextureResource* pTexture = nullptr;
+	TextureResource* pResource = nullptr;
 
 	std::string fullKey = key + Resource::TypeToString(type);
 	auto it = m_Resources.find(fullKey);
 	if (it == m_Resources.end())
 	{
-		pTexture = new TextureResource();
-		pTexture->type = type;
-		pTexture->key = fullKey;
-		m_Resources[fullKey] = pTexture;
+		if (type == Resource::Type::TEXTURE)
+		{
+			pResource = new TextureResource();
+		}
+		else
+		{
+			RS_ASSERT(false, "Could not add resource! Type not supported!");
+		}
+		
+		pResource->type = type;
+		pResource->key = fullKey;
+		m_Resources[fullKey] = pResource;
 		isNew = true;
 	}
 
-	pTexture->AddRef();
-	return { pTexture, isNew };
+	pResource->AddRef();
+	UpdateStats(pResource);
+	return { pResource, isNew };
 }
 
 bool ResourceManager::RemoveResource(Resource* pResource)
@@ -150,5 +167,18 @@ DXGI_FORMAT ResourceManager::GetFormatFromChannelCount(int nChannels) const
 	case 4:
 	default:
 		return DXGI_FORMAT_R8_UNORM; break;
+	}
+}
+
+void ResourceManager::UpdateStats(Resource* pResrouce)
+{
+	auto it = m_ResourcesRefCount.find(pResrouce->type);
+	if (it == m_ResourcesRefCount.end())
+	{
+		m_ResourcesRefCount[pResrouce->type] = pResrouce->GetRefCount();
+	}
+	else
+	{
+		it->second = pResrouce->GetRefCount();
 	}
 }

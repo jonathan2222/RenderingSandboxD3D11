@@ -9,6 +9,12 @@ namespace RS
 	class ResourceManager
 	{
 	public:
+		struct Stats
+		{
+			std::unordered_map<Resource::Type, uint32>* pResourcesRefCount = nullptr;
+		};
+
+	public:
 		RS_DEFAULT_ABSTRACT_CLASS(ResourceManager);
 
 		static std::shared_ptr<ResourceManager> Get();
@@ -32,6 +38,8 @@ namespace RS
 		*/
 		void FreeResource(Resource* pResource);
 
+		Stats GetStats();
+
 	private:
 		/*
 		* Will add a new resource if it does not exist, else it will return the already existing resource.
@@ -48,7 +56,12 @@ namespace RS
 
 		DXGI_FORMAT GetFormatFromChannelCount(int nChannels) const;
 
+		void UpdateStats(Resource* pResrouce);
+
 	private:
 		std::unordered_map<std::string, Resource*> m_Resources;
+
+		// Stats
+		std::unordered_map<Resource::Type, uint32> m_ResourcesRefCount;
 	};
 }

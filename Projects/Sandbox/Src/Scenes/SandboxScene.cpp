@@ -59,12 +59,12 @@ void SandboxScene::Start()
 
 	{
 		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.ByteWidth = sizeof(uint32)*indices.size();
-		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
-		bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-		bufferDesc.CPUAccessFlags = 0;
-		bufferDesc.MiscFlags = 0;
-		bufferDesc.StructureByteStride = 0;
+		bufferDesc.ByteWidth			= (UINT) (sizeof(uint32)*indices.size());
+		bufferDesc.Usage				= D3D11_USAGE_IMMUTABLE;
+		bufferDesc.BindFlags			= D3D11_BIND_INDEX_BUFFER;
+		bufferDesc.CPUAccessFlags		= 0;
+		bufferDesc.MiscFlags			= 0;
+		bufferDesc.StructureByteStride	= 0;
 
 		D3D11_SUBRESOURCE_DATA data;
 		data.pSysMem = indices.data();
@@ -117,6 +117,8 @@ void SandboxScene::Start()
 		HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, &data, &m_pTexture);
 		RS_D311_ASSERT_CHECK(result, "Failed to create texture!");
 
+		ResourceManager::Get()->FreeResource(pTextureResource);
+
 		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Format = textureDesc.Format;
 		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
@@ -126,19 +128,19 @@ void SandboxScene::Start()
 		RS_D311_ASSERT_CHECK(result, "Failed to create texture RSV!");
 
 		D3D11_SAMPLER_DESC samplerDesc = {};
-		samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
-		samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-		samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-		samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-		samplerDesc.MipLODBias = 0.f;
-		samplerDesc.MaxAnisotropy = 16.f;
-		samplerDesc.ComparisonFunc = D3D11_COMPARISON_GREATER_EQUAL;
-		samplerDesc.MinLOD = 0.f;
-		samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
-		samplerDesc.BorderColor[0] = 0.f;
-		samplerDesc.BorderColor[1] = 0.f;
-		samplerDesc.BorderColor[2] = 0.f;
-		samplerDesc.BorderColor[3] = 0.f;
+		samplerDesc.Filter			= D3D11_FILTER_ANISOTROPIC;
+		samplerDesc.AddressU		= D3D11_TEXTURE_ADDRESS_WRAP;
+		samplerDesc.AddressV		= D3D11_TEXTURE_ADDRESS_WRAP;
+		samplerDesc.AddressW		= D3D11_TEXTURE_ADDRESS_WRAP;
+		samplerDesc.MipLODBias		= 0.f;
+		samplerDesc.MaxAnisotropy	= 16;
+		samplerDesc.ComparisonFunc	= D3D11_COMPARISON_GREATER_EQUAL;
+		samplerDesc.MinLOD			= 0.f;
+		samplerDesc.MaxLOD			= D3D11_FLOAT32_MAX;
+		samplerDesc.BorderColor[0]	= 0.f;
+		samplerDesc.BorderColor[1]	= 0.f;
+		samplerDesc.BorderColor[2]	= 0.f;
+		samplerDesc.BorderColor[3]	= 0.f;
 
 		result = RenderAPI::Get()->GetDevice()->CreateSamplerState(&samplerDesc, &m_pSampler);
 		RS_D311_ASSERT_CHECK(result, "Failed to create sampler!");

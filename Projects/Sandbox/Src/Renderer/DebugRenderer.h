@@ -8,7 +8,7 @@
 
 namespace RS
 {
-	class Model;
+	struct Model;
 	class DebugRenderer
 	{
 	public:

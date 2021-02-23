@@ -153,7 +153,7 @@ void RS::EngineLoop::DrawFrameStats(const FrameStats& frameStats)
 
         uint32_t displayWidth = Display::Get()->GetWidth();
         const uint32_t width = 260;
-        const uint32_t height = 405;
+        const uint32_t height = 455;
 
         // Draw the stats in the top right corner.
         ImGui::SetNextWindowPos(ImVec2((float)displayWidth - width, 0));
@@ -231,6 +231,19 @@ void RS::EngineLoop::DrawFrameStats(const FrameStats& frameStats)
                 ImGui::Text("Num line vertices: %d", stats.NumberOfLineVertices);
                 ImGui::Text("Num point vertices: %d", stats.NumberOfPointVertices);
                 ImGui::Text("Num IDs: %d", stats.NumberOfIDs);
+                ImGui::Unindent();
+            }
+
+            ImGui::NewLine();
+            ImGui::Text("Resource Manager");
+            {
+                const ResourceManager::Stats& stats = ResourceManager::Get()->GetStats();
+                ImGui::Indent();
+                for (auto& [type, refCount] : *stats.pResourcesRefCount)
+                {
+                    std::string typeStr = Resource::TypeToString(type);
+                    ImGui::Text("%s: %d", typeStr.c_str(), refCount);
+                }
                 ImGui::Unindent();
             }
 
