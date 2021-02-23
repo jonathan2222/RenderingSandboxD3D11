@@ -94,31 +94,28 @@ void SandboxScene::Start()
 	}
 
 	{
-		ResourceManager::Image* pImage = ResourceManager::Get()->LoadTexture("Home.jpg", 4);
+		TextureResource* pTextureResource = ResourceManager::Get()->LoadTextureResource("Home.jpg", 4);
 
 		D3D11_TEXTURE2D_DESC textureDesc = {};
-		textureDesc.Width = pImage->Width;
-		textureDesc.Height = pImage->Height;
-		textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		textureDesc.MipLevels = 1;
-		textureDesc.ArraySize = 1;
-		textureDesc.SampleDesc.Count = 1;
-		textureDesc.SampleDesc.Quality = 0;
-		textureDesc.Usage = D3D11_USAGE_IMMUTABLE;
-		textureDesc.CPUAccessFlags = 0;
-		textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		textureDesc.MiscFlags = 0;
+		textureDesc.Width				= pTextureResource->Width;
+		textureDesc.Height				= pTextureResource->Height;
+		textureDesc.Format				= DXGI_FORMAT_R8G8B8A8_UNORM;
+		textureDesc.MipLevels			= 1;
+		textureDesc.ArraySize			= 1;
+		textureDesc.SampleDesc.Count	= 1;
+		textureDesc.SampleDesc.Quality	= 0;
+		textureDesc.Usage				= D3D11_USAGE_IMMUTABLE;
+		textureDesc.CPUAccessFlags		= 0;
+		textureDesc.BindFlags			= D3D11_BIND_SHADER_RESOURCE;
+		textureDesc.MiscFlags			= 0;
 
 		D3D11_SUBRESOURCE_DATA data = {};
-		data.pSysMem = pImage->Data;
-		data.SysMemPitch = pImage->Width * 4;
-		data.SysMemSlicePitch = 0;
+		data.pSysMem			= pTextureResource->Data;
+		data.SysMemPitch		= pTextureResource->Width * 4;
+		data.SysMemSlicePitch	= 0;
 
 		HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, &data, &m_pTexture);
 		RS_D311_ASSERT_CHECK(result, "Failed to create texture!");
-
-		ResourceManager::Get()->FreeTexture(pImage);
-		pImage = nullptr;
 
 		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Format = textureDesc.Format;

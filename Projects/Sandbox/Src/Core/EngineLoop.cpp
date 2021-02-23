@@ -8,6 +8,7 @@
 
 #include "Core/Display.h"
 #include "Core/Input.h"
+#include "Core/ResourceManager.h"
 
 #include "Renderer/RenderAPI.h"
 #include "Renderer/Renderer.h"
@@ -38,10 +39,14 @@ void RS::EngineLoop::Init(std::function<void(void)> fixedTickCallback, std::func
     ImGuiRenderer::Init(Display::Get().get());
 
     ShaderHotReloader::Init();
+
+    ResourceManager::Get()->Init();
 }
 
 void RS::EngineLoop::Release()
 {
+    ResourceManager::Get()->Release();
+
     ShaderHotReloader::Release();
     ImGuiRenderer::Release();
     DebugRenderer::Get()->Release();

@@ -20,38 +20,120 @@ std::shared_ptr<ResourceManager> ResourceManager::Get()
     return resourceManager;
 }
 
-ResourceManager::Image* ResourceManager::LoadTexture(const std::string& fileName, int nChannels)
+void ResourceManager::Init()
 {
-	std::string path = std::string(RS_TEXTURE_PATH) + fileName;
-	Image* img = new Image();
-	int width = 0, height = 0, channelCount = 0;
-	if (nChannels < 0 || nChannels > 4)
+}
+
+void ResourceManager::Release()
+{
+	// Remove all resources which was not freed.
+	for (auto [key, pResource] : m_Resources)
 	{
-		img->Data = nullptr;
-		LOG_WARNING("Unable to load texture [{0}]: Requested number of channels is not supported! Requested {1}.", path.c_str(), nChannels);
+		RemoveResource(pResource);
+		delete pResource;
+	}
+	m_Resources.clear();
+}
+
+TextureResource* ResourceManager::LoadTextureResource(const std::string& fileName, int nChannels)
+{
+	auto [pResource, isNew] = AddResource(fileName, Resource::Type::TEXTURE);
+	TextureResource* pTexture = dynamic_cast<TextureResource*>(pResource);
+
+	// Only load the texture if it has not been loaded.
+	if (isNew)
+	{
+		std::string path = std::string(RS_TEXTURE_PATH) + fileName;
+		int width = 0, height = 0, channelCount = 0;
+		if (nChannels < 0 || nChannels > 4)
+		{
+			pTexture->Data = nullptr;
+			LOG_WARNING("Unable to load texture [{0}]: Requested number of channels is not supported! Requested {1}.", path.c_str(), nChannels);
+		}
+		else
+		{
+			pTexture->Data = (void*)stbi_load(path.c_str(), &width, &height, &channelCount, nChannels);
+			pTexture->Format = GetFormatFromChannelCount(nChannels == 0 ? channelCount : nChannels);
+		}
+
+		pTexture->Width = (unsigned int)width;
+		pTexture->Height = (unsigned int)height;
+
+		if (!pTexture->Data)
+			LOG_WARNING("Unable to load texture [{0}]: file not found!", path.c_str());
+	}
+
+	return pTexture;
+}
+
+void ResourceManager::FreeResource(Resource* pResource)
+{
+	pResource->RemoveRef();
+	if (pResource->GetRefCount() == 0)
+	{
+		// Remove resource if it is the last pointer.
+		if (RemoveResource(pResource))
+		{
+			m_Resources.erase(pResource->key);
+			delete pResource;
+		}
+	}
+}
+
+std::pair<Resource*, bool> ResourceManager::AddResource(const std::string& key, Resource::Type type)
+{
+	bool isNew = false;
+	TextureResource* pTexture = nullptr;
+
+	std::string fullKey = key + Resource::TypeToString(type);
+	auto it = m_Resources.find(fullKey);
+	if (it == m_Resources.end())
+	{
+		pTexture = new TextureResource();
+		pTexture->type = type;
+		pTexture->key = fullKey;
+		m_Resources[fullKey] = pTexture;
+		isNew = true;
+	}
+
+	pTexture->AddRef();
+	return { pTexture, isNew };
+}
+
+bool ResourceManager::RemoveResource(Resource* pResource)
+{
+	auto it = m_Resources.find(pResource->key);
+	if (it != m_Resources.end())
+	{
+		Resource::Type type = pResource->type;
+		switch (type)
+		{
+		case RS::Resource::Type::TEXTURE:
+		{
+			TextureResource* pTexture = dynamic_cast<TextureResource*>(pResource);
+			FreeTexture(pTexture);
+		}
+		break;
+		default:
+			LOG_WARNING("Trying to free a resource which has an unsupported type!");
+			break;
+		}
+
+		return true;
 	}
 	else
 	{
-		img->Data = (void*)stbi_load(path.c_str(), &width, &height, &channelCount, nChannels);
-		img->Format = GetFormatFromChannelCount(nChannels == 0 ? channelCount : nChannels);
+		LOG_WARNING("Could not remove resource! Resource was not found!");
+		return false;
 	}
-
-	img->Width = (unsigned int)width;
-	img->Height = (unsigned int)height;
-
-	if (!img->Data)
-		LOG_WARNING("Unable to load texture [{0}]: file not found!", path.c_str());
-
-	return img;
 }
 
-void ResourceManager::FreeTexture(Image* image)
+void ResourceManager::FreeTexture(TextureResource* pTexture)
 {
-	if (image)
+	if (pTexture)
 	{
-		if (image->Data)
-			stbi_image_free(image->Data);
-		delete image;
+		if (pTexture->Data)
+			stbi_image_free(pTexture->Data);
 	}
 	else
 		LOG_WARNING("Trying to free an image pointer which is NULL!");
