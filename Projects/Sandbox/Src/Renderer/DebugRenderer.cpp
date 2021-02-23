@@ -366,13 +366,16 @@ void DebugRenderer::DrawLines(ID3D11DeviceContext* pContext)
 {
 	if (m_pLinesVertexBuffer)
 	{
-		m_LineShader.Bind();
-		UINT stride = sizeof(Vertex);
-		UINT offset = 0;
-		pContext->IASetVertexBuffers(0, 1, &m_pLinesVertexBuffer, &stride, &offset);
-		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-		pContext->VSSetConstantBuffers(0, 1, &m_pVPBuffer);
-		pContext->Draw((UINT)m_PreviousLinesBufferSize, 0);
+		if (m_PreviousLinesBufferSize > 0)
+		{
+			m_LineShader.Bind();
+			UINT stride = sizeof(Vertex);
+			UINT offset = 0;
+			pContext->IASetVertexBuffers(0, 1, &m_pLinesVertexBuffer, &stride, &offset);
+			pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+			pContext->VSSetConstantBuffers(0, 1, &m_pVPBuffer);
+			pContext->Draw((UINT)m_PreviousLinesBufferSize, 0);
+		}
 
 		m_LinesFirstCall = true;
 	}
@@ -382,14 +385,17 @@ void DebugRenderer::DrawPoints(ID3D11DeviceContext* pContext)
 {
 	if (m_pPointsVertexBuffer)
 	{
-		m_PointShader.Bind();
-		UINT stride = sizeof(Vertex);
-		UINT offset = 0;
-		pContext->IASetVertexBuffers(0, 1, &m_pPointsVertexBuffer, &stride, &offset);
-		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
-		pContext->VSSetConstantBuffers(0, 1, &m_pViewBuffer);
-		pContext->GSSetConstantBuffers(0, 1, &m_pGeomBuffer);
-		pContext->Draw((UINT)m_PreviousPointsBufferSize, 0);
+		if (m_PreviousPointsBufferSize > 0)
+		{
+			m_PointShader.Bind();
+			UINT stride = sizeof(Vertex);
+			UINT offset = 0;
+			pContext->IASetVertexBuffers(0, 1, &m_pPointsVertexBuffer, &stride, &offset);
+			pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+			pContext->VSSetConstantBuffers(0, 1, &m_pViewBuffer);
+			pContext->GSSetConstantBuffers(0, 1, &m_pGeomBuffer);
+			pContext->Draw((UINT)m_PreviousPointsBufferSize, 0);
+		}
 
 		m_PointsFirstCall = true;
 	}
@@ -460,6 +466,28 @@ void DebugRenderer::UpdateLinesDrawBuffer()
 	}
 	else
 	{
+		// Recreate the buffer if the size if too small.
+		if (m_PreviousLinesBufferSize < (uint32)m_LinesToRender.m_Vertices.size())
+		{
+			m_pLinesVertexBuffer->Release();
+
+			D3D11_BUFFER_DESC bufferDesc = {};
+			bufferDesc.ByteWidth = (UINT)(sizeof(Vertex) * m_LinesToRender.m_Vertices.size());
+			bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+			bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+			bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			bufferDesc.MiscFlags = 0;
+			bufferDesc.StructureByteStride = 0;
+
+			D3D11_SUBRESOURCE_DATA data;
+			data.pSysMem = m_LinesToRender.m_Vertices.data();
+			data.SysMemPitch = 0;
+			data.SysMemSlicePitch = 0;
+
+			HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pLinesVertexBuffer);
+			RS_D311_CHECK(result, "Failed to recreate lines vertex buffer!");
+		}
+
 		auto context = RenderAPI::Get()->GetDeviceContext();
 		D3D11_MAPPED_SUBRESOURCE resource;
 		context->Map(m_pLinesVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
@@ -468,7 +496,7 @@ void DebugRenderer::UpdateLinesDrawBuffer()
 		context->Unmap(m_pLinesVertexBuffer, 0);
 	}
 
-	m_PreviousLinesBufferSize = m_LinesToRender.m_Vertices.size();
+	m_PreviousLinesBufferSize = (uint32)m_LinesToRender.m_Vertices.size();
 }
 
 void RS::DebugRenderer::UpdatePointsDrawBuffer()
@@ -491,11 +519,33 @@ void RS::DebugRenderer::UpdatePointsDrawBuffer()
 			data.SysMemSlicePitch = 0;
 
 			HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pPointsVertexBuffer);
-			RS_D311_CHECK(result, "Failed to create points vertex buffer!");
+			RS_D311_CHECK(result, "Failed to recreate points vertex buffer!");
 		}
 	}
 	else
 	{
+		// Recreate the buffer if the size if too small.
+		if (m_PreviousPointsBufferSize < (uint32)m_PointsToRender.m_Vertices.size())
+		{
+			m_pPointsVertexBuffer->Release();
+
+			D3D11_BUFFER_DESC bufferDesc = {};
+			bufferDesc.ByteWidth = (UINT)(sizeof(Vertex) * m_PointsToRender.m_Vertices.size());
+			bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+			bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+			bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			bufferDesc.MiscFlags = 0;
+			bufferDesc.StructureByteStride = 0;
+
+			D3D11_SUBRESOURCE_DATA data;
+			data.pSysMem = m_PointsToRender.m_Vertices.data();
+			data.SysMemPitch = 0;
+			data.SysMemSlicePitch = 0;
+
+			HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pPointsVertexBuffer);
+			RS_D311_CHECK(result, "Failed to create points vertex buffer!");
+		}
+
 		auto context = RenderAPI::Get()->GetDeviceContext();
 		D3D11_MAPPED_SUBRESOURCE resource;
 		context->Map(m_pPointsVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
@@ -504,7 +554,7 @@ void RS::DebugRenderer::UpdatePointsDrawBuffer()
 		context->Unmap(m_pPointsVertexBuffer, 0);
 	}
 
-	m_PreviousPointsBufferSize = m_PointsToRender.m_Vertices.size();
+	m_PreviousPointsBufferSize = (uint32)m_PointsToRender.m_Vertices.size();
 }
 
 bool DebugRenderer::ShouldClearPoints(uint32 id, bool shouldClear)
