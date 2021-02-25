@@ -43,31 +43,34 @@ void Pipeline::Release()
 
 void Pipeline::Resize(uint32 width, uint32 height)
 {
-	if (m_pDepthStencilBuffer)
+	if (width != 0 || height != 0)
 	{
-		m_pDepthStencilBuffer->Release();
-		m_pDepthStencilBuffer = nullptr;
+		if (m_pDepthStencilBuffer)
+		{
+			m_pDepthStencilBuffer->Release();
+			m_pDepthStencilBuffer = nullptr;
+		}
+
+		if (m_pDepthStencilView)
+		{
+			m_pDepthStencilView->Release();
+			m_pDepthStencilView = nullptr;
+		}
+
+		m_DepthStencilSave.depthBufferDesc.Width = width;
+		m_DepthStencilSave.depthBufferDesc.Height = height;
+		CreateDepthState();
+		m_ShouldBindDepthStencilState = true;
+		BindDepthStencilState();
+
+		m_ShouldBindDepthStencilView = true;
+		CreateDepthStencilView();
+
+		m_ShouldBindRTVs = true;
+		BindDepthAndRTVs();
+
+		SetViewport(0.f, 0.f, (float)width, (float)height);
 	}
-
-	if (m_pDepthStencilView)
-	{
-		m_pDepthStencilView->Release();
-		m_pDepthStencilView = nullptr;
-	}
-	
-	m_DepthStencilSave.depthBufferDesc.Width = width;
-	m_DepthStencilSave.depthBufferDesc.Height = height;
-	CreateDepthState();
-	m_ShouldBindDepthStencilState = true;
-	BindDepthStencilState();
-
-	m_ShouldBindDepthStencilView = true;
-	CreateDepthStencilView();
-
-	m_ShouldBindRTVs = true;
-	BindDepthAndRTVs();
-
-	SetViewport(0.f, 0.f, (float)width, (float)height);
 }
 
 void Pipeline::Bind()

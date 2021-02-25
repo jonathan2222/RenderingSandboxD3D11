@@ -45,11 +45,14 @@ void Renderer::Release()
 
 void Renderer::Resize(uint32 width, uint32 height)
 {
-    ClearRTV();
-    m_pSwapChain->ResizeBuffers(0, (UINT)width, (UINT)height, DXGI_FORMAT_UNKNOWN, 0);
-    CreateRTV();
+	if (width != 0 || height != 0)
+	{
+		ClearRTV();
+		m_pSwapChain->ResizeBuffers(0, (UINT)width, (UINT)height, DXGI_FORMAT_UNKNOWN, 0);
+		CreateRTV();
 
-	m_DefaultPipeline.Resize(width, height);
+		m_DefaultPipeline.Resize(width, height);
+	}
 }
 
 void Renderer::BeginScene(float r, float g, float b, float a)
