@@ -35,13 +35,43 @@ project "Sandbox"
 		"%{includeDir.stb}",
 		"%{includeDir.json}",
 		"%{includeDir.glfw}",
-		"%{includeDir.tinyobj}"
+		"%{includeDir.tinyobj}",
+		"%{includeDir.assimp}"
 	}
 
-	links
-	{
-		"glfw",
-		"imgui"
-	}
+	--libdirs = 
+	--{
+	--	"%{libDir.assimp}"	
+	--}
+
+	filter "configurations:Debug"
+		links
+		{
+			"glfw",
+			"imgui",
+			"%{libDir.assimp}/assimp-vc142-mtd.lib",
+			"%{libDir.assimp}/zlibstaticd.lib",
+			"%{libDir.assimp}/dracod.lib"
+		}
+
+	filter "configurations:Release"
+		links
+		{
+			"glfw",
+			"imgui",
+			"%{libDir.assimp}/assimp-vc142-mt.lib",
+			"%{libDir.assimp}/zlibstatic.lib",
+			"%{libDir.assimp}/draco.lib"
+		}
+	filter "configurations:Production"
+		links
+		{
+			"glfw",
+			"imgui",
+			"%{libDir.assimp}/assimp-vc142-mt.lib",
+			"%{libDir.assimp}/zlibstatic.lib",
+			"%{libDir.assimp}/draco.lib"
+		}
+	filter {}
 
 project "*"

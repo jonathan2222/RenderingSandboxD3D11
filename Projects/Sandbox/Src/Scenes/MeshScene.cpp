@@ -38,6 +38,12 @@ void MeshScene::Start()
 
 	m_pModel = ResourceManager::Get()->LoadModelResource("Test.obj");
 
+	// Test Assimp
+	{
+		ModelResource* tmp = nullptr;
+		ModelLoader::LoadWithAssimp("test.obj", tmp);
+	}
+
 	RS_ASSERT(m_pModel != nullptr, "Could not load model!");
 
 	{

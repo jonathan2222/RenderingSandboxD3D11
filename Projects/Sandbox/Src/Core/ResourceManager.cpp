@@ -1,6 +1,8 @@
 #include "PreCompiled.h"
 #include "ResourceManager.h"
 
+#include "Loaders/ModelLoader.h"
+
 #pragma warning( push )
 #pragma warning( disable : 6011 )
 #pragma warning( disable : 6262 )
@@ -8,11 +10,10 @@
 #pragma warning( disable : 6387 )
 #pragma warning( disable : 26451 )
 #pragma warning( disable : 28182 )
-#define STB_IMAGE_IMPLEMENTATION
+//#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #pragma warning( pop )
 
-#include "Loaders/ModelLoader.h"
 
 using namespace RS;
 

@@ -4,6 +4,10 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
 using namespace RS;
 
 bool ModelLoader::Load(const std::string& filePath, ModelResource*& outModel)
@@ -66,6 +70,27 @@ bool ModelLoader::Load(const std::string& filePath, ModelResource*& outModel)
             // per-face material
             //shapes[s].mesh.material_ids[f];
         }
+    }
+
+    return true;
+}
+
+bool ModelLoader::LoadWithAssimp(const std::string& filePath, ModelResource*& outModel)
+{
+    std::string path = std::string(RS_MODEL_PATH) + filePath;
+
+    Assimp::Importer importer;
+
+    const aiScene* pScene = importer.ReadFile(path.c_str(),
+        aiProcess_CalcTangentSpace | 
+        aiProcess_Triangulate | 
+        aiProcess_JoinIdenticalVertices | 
+        aiProcess_SortByPType);
+
+    if (!pScene)
+    {
+        LOG_ERROR("Assimp Errror: %s", importer.GetErrorString());
+        return false;
     }
 
     return true;

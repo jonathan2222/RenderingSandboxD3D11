@@ -31,6 +31,23 @@ namespace RS
 		DXGI_FORMAT Format	= DXGI_FORMAT_UNKNOWN;
 	};
 
+	struct MeshResource : public Resource
+	{
+		struct Vertex
+		{
+			glm::vec3 Position;
+			glm::vec3 Normal;
+			glm::vec3 Tangent;
+			glm::vec3 Bitangent;
+			glm::vec2 UV;
+		};
+
+		std::vector<Vertex> Vertices;
+		std::vector<uint32> Indices;
+
+		glm::mat4			Transform;
+	};
+
 	struct ModelResource : public Resource
 	{
 		struct Vertex
