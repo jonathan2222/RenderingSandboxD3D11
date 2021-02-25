@@ -34,9 +34,6 @@ workspace "RenderingSandboxD3D11"
 		{
 			"RS_CONFIG_DEBUG",
 		}
-		assimpLib = "assimp-vc142-mtd.lib"
-		assimpZLibLib2 = "zlibstaticd.lib"
-		assimpDracoLib3 = "dracod.lib"
 	filter "configurations:Release"
 		symbols "on"
 		runtime "Release"
@@ -45,9 +42,6 @@ workspace "RenderingSandboxD3D11"
 		{
 			"RS_CONFIG_RELEASE",
 		}
-		assimpLib = "assimp-vc142-mt.lib"
-		assimpZLibLib2 = "zlibstatic.lib"
-		assimpDracoLib3 = "draco.lib"
 		-- Disable C100 Unused parameter
 		disablewarnings { "4100" }
 	filter "configurations:Production"
@@ -58,9 +52,6 @@ workspace "RenderingSandboxD3D11"
 		{
 			"RS_CONFIG_PRODUCTION",
 		}
-		assimpLib = "assimp-vc142-mt.lib"
-		assimpZLibLib2 = "zlibstatic.lib"
-		assimpDracoLib3 = "draco.lib"
 		-- Disable C100 Unused parameter
 		disablewarnings { "4100" }
 	filter {}
