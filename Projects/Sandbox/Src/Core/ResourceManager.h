@@ -22,8 +22,22 @@ namespace RS
 		void Init();
 		void Release();
 
+		struct ImageLoadDesc
+		{
+			enum class Channels : uint32
+			{
+				DEFAULT = FLAG(0),
+				R = FLAG(1),
+				RG = FLAG(2),
+				RGB = FLAG(3),
+				RGBA = FLAG(4)
+			};
+
+			std::string		FilePath	= "";
+			Channels		NumChannels	= Channels::DEFAULT;
+		};
 		/*
-				Load a texture from memory.
+				Load a image from memory.
 				Arguments:
 					* fileName: The path to the file, including the name of the image file with its extention.
 					* nChannels: How many channels it will use. It can be 0, 1, 2, 3 or 4.
@@ -31,7 +45,7 @@ namespace RS
 				Returns:
 					A pointer to the texture structure.
 		*/
-		TextureResource* LoadTextureResource(const std::string& fileName, int nChannels);
+		ImageResource* LoadImageResource(ImageLoadDesc& imageDescription);
 
 		ModelResource* LoadModelResource(const std::string& filePath);
 
@@ -56,7 +70,7 @@ namespace RS
 			Arguments:
 				* image: A pointer to the image structure.
 		*/
-		void FreeTexture(TextureResource* pTexture);
+		void FreeImage(ImageResource* pTexture);
 
 		DXGI_FORMAT GetFormatFromChannelCount(int nChannels) const;
 

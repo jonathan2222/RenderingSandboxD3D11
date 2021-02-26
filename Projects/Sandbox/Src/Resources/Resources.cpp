@@ -8,8 +8,8 @@ std::string Resource::TypeToString(Type type)
 	std::string res;
 	switch (type)
 	{
-	case Type::TEXTURE:
-		res = "TEXTURE";
+	case Type::IMAGE:
+		res = "IMAGE";
 		break;
 	case Type::MODEL:
 		res = "MODEL";

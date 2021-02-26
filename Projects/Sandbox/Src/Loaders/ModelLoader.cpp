@@ -33,7 +33,10 @@ bool ModelLoader::Load(const std::string& filePath, ModelResource*& outModel)
     auto& attrib = reader.GetAttrib();
     auto& shapes = reader.GetShapes();
     auto& materials = reader.GetMaterials();
-    
+
+    outModel->Meshes.resize(1);
+    MeshResource& mesh = outModel->Meshes[0];
+
     // Loop over shapes
     for (size_t s = 0; s < shapes.size(); s++)
     {
@@ -58,12 +61,14 @@ bool ModelLoader::Load(const std::string& filePath, ModelResource*& outModel)
                 tinyobj::real_t ty = attrib.texcoords[(size_t)2 * idx.texcoord_index + 1];
 
                 // Naive implementation.
-                ModelResource::Vertex vertex = {};
-                vertex.Position = glm::vec3(vx, vy, vz);
-                vertex.Normal = glm::vec3(nx, ny, nz);
-                vertex.UV = glm::vec2(tx, ty);
-                outModel->Indices.push_back(outModel->Vertices.size());
-                outModel->Vertices.push_back(vertex);
+                MeshResource::Vertex vertex = {};
+                vertex.Position     = glm::vec3(vx, vy, vz);
+                vertex.Normal       = glm::vec3(nx, ny, nz);
+                vertex.Tangent      = glm::vec3(0.f);
+                vertex.Bitangent    = glm::vec3(0.f);
+                vertex.UV           = glm::vec2(tx, ty);
+                mesh.Indices.push_back(mesh.Vertices.size());
+                mesh.Vertices.push_back(vertex);
             }
             index_offset += fv;
 
@@ -79,13 +84,16 @@ bool ModelLoader::LoadWithAssimp(const std::string& filePath, ModelResource*& ou
 {
     std::string path = std::string(RS_MODEL_PATH) + filePath;
 
+    bool useCW      = true;
+    bool useLH      = false;
+    bool useUVTL    = false;
     Assimp::Importer importer;
 
-    const aiScene* pScene = importer.ReadFile(path.c_str(),
-        aiProcess_CalcTangentSpace | 
-        aiProcess_Triangulate | 
-        aiProcess_JoinIdenticalVertices | 
-        aiProcess_SortByPType);
+    uint32 flags = aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_SortByPType;
+    if (useCW)      flags |= aiProcess_FlipWindingOrder;
+    if (useLH)      flags |= aiProcess_MakeLeftHanded;
+    if (useUVTL)    flags |= aiProcess_FlipUVs;
+    const aiScene* pScene = importer.ReadFile(path.c_str(), flags);
 
     if (!pScene)
     {

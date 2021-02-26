@@ -220,16 +220,19 @@ uint32 DebugRenderer::PushMesh(ModelResource* model, const Color& color, glm::ve
 
 	std::vector<glm::vec3> points;
 	points.resize(4);
-	for (uint32 i = 0; i < model->Indices.size(); i += 3)
+	for (MeshResource& mesh : model->Meshes)
 	{
-		ModelResource::Vertex v = model->Vertices[model->Indices[i]];
-		points[0] = v.Position + offset;
-		v = model->Vertices[model->Indices[(size_t)i + 1]];
-		points[1] = v.Position + offset;
-		v = model->Vertices[model->Indices[(size_t)i + 2]];
-		points[2] = v.Position + offset;
-		points[3] = points[0];
-		PushLines(points, color, newID, i == 0 ? shouldClear : false);
+		for (uint32 i = 0; i < mesh.Indices.size(); i += 3)
+		{
+			MeshResource::Vertex v = mesh.Vertices[mesh.Indices[i]];
+			points[0] = v.Position + offset;
+			v = mesh.Vertices[mesh.Indices[(size_t)i + 1]];
+			points[1] = v.Position + offset;
+			v = mesh.Vertices[mesh.Indices[(size_t)i + 2]];
+			points[2] = v.Position + offset;
+			points[3] = points[0];
+			PushLines(points, color, newID, i == 0 ? shouldClear : false);
+		}
 	}
 
 	return newID;

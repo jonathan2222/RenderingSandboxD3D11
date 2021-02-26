@@ -13,7 +13,7 @@ namespace RS
 
 		enum class Type
 		{
-			TEXTURE = 0,
+			IMAGE = 0,
 			MODEL
 		};
 
@@ -23,7 +23,7 @@ namespace RS
 		std::string key;
 	};
 
-	struct TextureResource : public Resource
+	struct ImageResource : public Resource
 	{
 		void*		Data	= nullptr;
 		uint32		Width	= 0;
@@ -50,14 +50,6 @@ namespace RS
 
 	struct ModelResource : public Resource
 	{
-		struct Vertex
-		{
-			glm::vec3 Position;
-			glm::vec3 Normal;
-			glm::vec2 UV;
-		};
-
-		std::vector<Vertex> Vertices;
-		std::vector<uint32> Indices;
+		std::vector<MeshResource> Meshes;
 	};
 }
