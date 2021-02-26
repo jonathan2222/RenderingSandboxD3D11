@@ -30,7 +30,7 @@ namespace RS
 		uint32 PushLine(const glm::vec3& p1, const glm::vec3& p2, const Color& color = Color::RED, uint32 id = 0, bool shouldClear = true);
 		uint32 PushLines(const std::vector<glm::vec3>& points, const Color& color = Color::RED, uint32 id = 0, bool shouldClear = true);
 		uint32 PushBox(const glm::vec3& min, const glm::vec3& max, const Color& color = Color::RED, uint32 id = 0, bool shouldClear = true);
-		uint32 PushMesh(ModelResource* model, const Color& color = Color::RED, glm::vec3 offset = glm::vec3(0.f), uint32 id = 0, bool shouldClear = true);
+		uint32 PushMesh(ModelResource* pModel, const Color& color = Color::RED, glm::vec3 offset = glm::vec3(0.f), uint32 id = 0, bool shouldClear = true);
 		uint32 PushPoint(const glm::vec3& p, const Color& color = Color::RED, uint32 id = 0, bool shouldClear = true);
 		uint32 PushPoints(const std::vector<glm::vec3>& points, const Color& color = Color::RED, uint32 id = 0, bool shouldClear = true);
 
@@ -89,6 +89,8 @@ namespace RS
 
 		bool ShouldClearPoints(uint32 id, bool shouldClear);
 		bool ShouldClearLines(uint32 id, bool shouldClear);
+
+		void PushMeshInternal(ModelResource* model, const Color& color, uint32 id, bool shouldClear, const glm::mat4& accTransform);
 
 	private:
 		// Holds data of the different types.

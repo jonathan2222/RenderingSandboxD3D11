@@ -48,7 +48,7 @@ void MeshScene::Start()
 
 	{
 		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.ByteWidth = (UINT)(sizeof(MeshResource::Vertex) * m_pModel->Meshes[0].Vertices.size());
+		bufferDesc.ByteWidth = (UINT)(sizeof(MeshResource::Vertex) * m_pModel->Mesh.Vertices.size());
 		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 		bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bufferDesc.CPUAccessFlags = 0;
@@ -56,7 +56,7 @@ void MeshScene::Start()
 		bufferDesc.StructureByteStride = 0;
 
 		D3D11_SUBRESOURCE_DATA data;
-		data.pSysMem = m_pModel->Meshes[0].Vertices.data();
+		data.pSysMem = m_pModel->Mesh.Vertices.data();
 		data.SysMemPitch = 0;
 		data.SysMemSlicePitch = 0;
 
@@ -66,7 +66,7 @@ void MeshScene::Start()
 
 	{
 		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.ByteWidth = (UINT)(sizeof(uint32) * m_pModel->Meshes[0].Indices.size());
+		bufferDesc.ByteWidth = (UINT)(sizeof(uint32) * m_pModel->Mesh.Indices.size());
 		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 		bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 		bufferDesc.CPUAccessFlags = 0;
@@ -74,7 +74,7 @@ void MeshScene::Start()
 		bufferDesc.StructureByteStride = 0;
 
 		D3D11_SUBRESOURCE_DATA data;
-		data.pSysMem = m_pModel->Meshes[0].Indices.data();
+		data.pSysMem = m_pModel->Mesh.Indices.data();
 		data.SysMemPitch = 0;
 		data.SysMemSlicePitch = 0;
 
@@ -203,7 +203,7 @@ void MeshScene::Tick(float dt)
 	pContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 	pContext->VSSetConstantBuffers(0, 1, &m_pConstantBuffer);
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	pContext->DrawIndexed((UINT)m_pModel->Meshes[0].Indices.size(), 0, 0);
+	pContext->DrawIndexed((UINT)m_pModel->Mesh.Indices.size(), 0, 0);
 }
 
 void MeshScene::UpdateCamera(float dt)

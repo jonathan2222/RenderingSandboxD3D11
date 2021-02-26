@@ -133,7 +133,10 @@ bool ResourceManager::RemoveResource(Resource* pResource)
 		case RS::Resource::Type::MODEL:
 		{
 			ModelResource* pModel = dynamic_cast<ModelResource*>(pResource);
-			pModel->Meshes.clear();
+			pModel->Mesh.Vertices.clear();
+			pModel->Mesh.Indices.clear();
+			pModel->Children.clear();
+			pModel->Transform = glm::mat4(1.f);
 		}
 		break;
 		default:

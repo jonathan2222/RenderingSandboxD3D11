@@ -214,26 +214,12 @@ uint32 DebugRenderer::PushBox(const glm::vec3& min, const glm::vec3& max, const 
 	return newID;
 }
 
-uint32 DebugRenderer::PushMesh(ModelResource* model, const Color& color, glm::vec3 offset, uint32 id, bool shouldClear)
+uint32 DebugRenderer::PushMesh(ModelResource* pModel, const Color& color, glm::vec3 offset, uint32 id, bool shouldClear)
 {
 	uint32 newID = ProcessID(id, Type::LINES);
 
-	std::vector<glm::vec3> points;
-	points.resize(4);
-	for (MeshResource& mesh : model->Meshes)
-	{
-		for (uint32 i = 0; i < mesh.Indices.size(); i += 3)
-		{
-			MeshResource::Vertex v = mesh.Vertices[mesh.Indices[i]];
-			points[0] = v.Position + offset;
-			v = mesh.Vertices[mesh.Indices[(size_t)i + 1]];
-			points[1] = v.Position + offset;
-			v = mesh.Vertices[mesh.Indices[(size_t)i + 2]];
-			points[2] = v.Position + offset;
-			points[3] = points[0];
-			PushLines(points, color, newID, i == 0 ? shouldClear : false);
-		}
-	}
+	glm::mat4 transform = glm::translate(offset);
+	PushMeshInternal(pModel, color, newID, shouldClear, transform);
 
 	return newID;
 }
@@ -596,4 +582,36 @@ bool RS::DebugRenderer::ShouldClearLines(uint32 id, bool shouldClear)
 	}
 
 	return res;
+}
+
+void DebugRenderer::PushMeshInternal(ModelResource* model, const Color& color, uint32 id, bool shouldClear, const glm::mat4& accTransform)
+{
+	glm::mat4 transform(1.f);
+	std::vector<glm::vec3> points;
+	points.resize(4);
+	MeshResource& mesh = model->Mesh;
+	transform = model->Transform * accTransform;
+	for (uint32 i = 0; i < mesh.Indices.size(); i += 3)
+	{
+		MeshResource::Vertex v = mesh.Vertices[mesh.Indices[i]];
+		glm::vec4 transformedPos = glm::vec4(v.Position, 1.f);
+		transformedPos = transformedPos * transform;
+		points[0] = (glm::vec3)transformedPos;
+
+		v = mesh.Vertices[mesh.Indices[(size_t)i + 1]];
+		transformedPos = glm::vec4(v.Position, 1.f);
+		transformedPos = transformedPos * transform;
+		points[1] = (glm::vec3)transformedPos;
+
+		v = mesh.Vertices[mesh.Indices[(size_t)i + 2]];
+		transformedPos = glm::vec4(v.Position, 1.f);
+		transformedPos = transformedPos * transform;
+		points[2] = (glm::vec3)transformedPos;
+
+		points[3] = points[0];
+		PushLines(points, color, id, i == 0 ? shouldClear : false);
+	}
+
+	for (ModelResource& child : model->Children)
+		PushMeshInternal(&child, color, id, shouldClear, transform);
 }

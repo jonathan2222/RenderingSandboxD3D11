@@ -34,8 +34,7 @@ bool ModelLoader::Load(const std::string& filePath, ModelResource*& outModel)
     auto& shapes = reader.GetShapes();
     auto& materials = reader.GetMaterials();
 
-    outModel->Meshes.resize(1);
-    MeshResource& mesh = outModel->Meshes[0];
+    MeshResource& mesh = outModel->Mesh;
 
     // Loop over shapes
     for (size_t s = 0; s < shapes.size(); s++)
@@ -101,5 +100,10 @@ bool ModelLoader::LoadWithAssimp(const std::string& filePath, ModelResource*& ou
         return false;
     }
 
+    return RecursiveLoad(pScene, outModel);
+}
+
+bool ModelLoader::RecursiveLoad(const aiScene*& pScene, ModelResource*& outModel)
+{
     return true;
 }

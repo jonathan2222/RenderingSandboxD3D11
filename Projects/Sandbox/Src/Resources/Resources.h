@@ -44,12 +44,12 @@ namespace RS
 
 		std::vector<Vertex> Vertices;
 		std::vector<uint32> Indices;
-
-		glm::mat4			Transform;
 	};
 
 	struct ModelResource : public Resource
 	{
-		std::vector<MeshResource> Meshes;
+		MeshResource				Mesh;
+		std::vector<ModelResource>	Children;
+		glm::mat4					Transform;
 	};
 }
