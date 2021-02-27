@@ -81,14 +81,18 @@ ImageResource* ResourceManager::LoadImageResource(ImageLoadDesc& imageDescriptio
 	return pImage;
 }
 
-ModelResource* ResourceManager::LoadModelResource(const std::string& filePath)
+ModelResource* ResourceManager::LoadModelResource(ModelLoadDesc& modelDescription)
 {
-	auto [pModel, isNew] = AddResource<ModelResource>(filePath, Resource::Type::MODEL);
+	auto [pModel, isNew] = AddResource<ModelResource>(modelDescription.FilePath, Resource::Type::MODEL);
 
-	// Only load the texture if it has not been loaded.
+	// Only load the model if it has not been loaded.
 	if (isNew)
 	{
-		ModelLoader::Load(filePath, pModel);
+		if(modelDescription.Loader == ModelLoadDesc::Loader::TINYOBJ)
+			ModelLoader::Load(modelDescription.FilePath, pModel, modelDescription.Flags);
+		else if (modelDescription.Loader == ModelLoadDesc::Loader::ASSIMP 
+			|| modelDescription.Loader == ModelLoadDesc::Loader::DEFAULT)
+			ModelLoader::LoadWithAssimp(modelDescription.FilePath, pModel, modelDescription.Flags);
 	}
 
 	return pModel;
@@ -133,8 +137,7 @@ bool ResourceManager::RemoveResource(Resource* pResource)
 		case RS::Resource::Type::MODEL:
 		{
 			ModelResource* pModel = dynamic_cast<ModelResource*>(pResource);
-			pModel->Mesh.Vertices.clear();
-			pModel->Mesh.Indices.clear();
+			pModel->Meshes.clear();
 			pModel->Children.clear();
 			pModel->Transform = glm::mat4(1.f);
 		}

@@ -24,7 +24,6 @@ namespace RS
 		void DrawSceneSelectionPanel();
 
 	private:
-		bool m_ShowImGuiDemoWindow = false;
 		std::vector<Scene*>	m_Scenes;
 		std::unordered_map<std::string, uint32_t> m_NameToSceneMap;
 		int32_t m_CurrentScene = -1;

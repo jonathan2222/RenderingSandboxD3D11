@@ -4,6 +4,7 @@
 #include "Resources/RefObject.h"
 
 #include "Utils/Maths.h"
+#include "Structures/AABB.h"
 
 namespace RS
 {
@@ -35,21 +36,25 @@ namespace RS
 	{
 		struct Vertex
 		{
-			glm::vec3 Position;
-			glm::vec3 Normal;
-			glm::vec3 Tangent;
-			glm::vec3 Bitangent;
-			glm::vec2 UV;
+			glm::vec3 Position	= glm::vec3(0.f);
+			glm::vec3 Normal	= glm::vec3(0.f);
+			glm::vec3 Tangent	= glm::vec3(0.f);
+			glm::vec3 Bitangent = glm::vec3(0.f);
+			glm::vec2 UV		= glm::vec2(0.f);
 		};
 
 		std::vector<Vertex> Vertices;
 		std::vector<uint32> Indices;
+		AABB				BoundingBox;
 	};
 
 	struct ModelResource : public Resource
 	{
-		MeshResource				Mesh;
+		std::string					Name		= "";
+		ModelResource*				pParent		= nullptr;
+		glm::mat4					Transform	= glm::mat4(1.f);
+		AABB						BoundingBox;
+		std::vector<MeshResource>	Meshes;
 		std::vector<ModelResource>	Children;
-		glm::mat4					Transform;
 	};
 }

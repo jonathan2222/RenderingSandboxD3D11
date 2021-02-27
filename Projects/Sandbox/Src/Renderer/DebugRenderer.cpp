@@ -589,27 +589,29 @@ void DebugRenderer::PushMeshInternal(ModelResource* model, const Color& color, u
 	glm::mat4 transform(1.f);
 	std::vector<glm::vec3> points;
 	points.resize(4);
-	MeshResource& mesh = model->Mesh;
 	transform = model->Transform * accTransform;
-	for (uint32 i = 0; i < mesh.Indices.size(); i += 3)
+	for (MeshResource& mesh : model->Meshes)
 	{
-		MeshResource::Vertex v = mesh.Vertices[mesh.Indices[i]];
-		glm::vec4 transformedPos = glm::vec4(v.Position, 1.f);
-		transformedPos = transformedPos * transform;
-		points[0] = (glm::vec3)transformedPos;
+		for (uint32 i = 0; i < mesh.Indices.size(); i += 3)
+		{
+			MeshResource::Vertex v = mesh.Vertices[mesh.Indices[i]];
+			glm::vec4 transformedPos = glm::vec4(v.Position, 1.f);
+			transformedPos = transformedPos * transform;
+			points[0] = (glm::vec3)transformedPos;
 
-		v = mesh.Vertices[mesh.Indices[(size_t)i + 1]];
-		transformedPos = glm::vec4(v.Position, 1.f);
-		transformedPos = transformedPos * transform;
-		points[1] = (glm::vec3)transformedPos;
+			v = mesh.Vertices[mesh.Indices[(size_t)i + 1]];
+			transformedPos = glm::vec4(v.Position, 1.f);
+			transformedPos = transformedPos * transform;
+			points[1] = (glm::vec3)transformedPos;
 
-		v = mesh.Vertices[mesh.Indices[(size_t)i + 2]];
-		transformedPos = glm::vec4(v.Position, 1.f);
-		transformedPos = transformedPos * transform;
-		points[2] = (glm::vec3)transformedPos;
+			v = mesh.Vertices[mesh.Indices[(size_t)i + 2]];
+			transformedPos = glm::vec4(v.Position, 1.f);
+			transformedPos = transformedPos * transform;
+			points[2] = (glm::vec3)transformedPos;
 
-		points[3] = points[0];
-		PushLines(points, color, id, i == 0 ? shouldClear : false);
+			points[3] = points[0];
+			PushLines(points, color, id, i == 0 ? shouldClear : false);
+		}
 	}
 
 	for (ModelResource& child : model->Children)

@@ -4,6 +4,8 @@
 #include "Resources/RefObject.h"
 #include "Resources/Resources.h"
 
+#include "Core/ResourceManagerDefines.h"
+
 namespace RS
 {
 	class ResourceManager
@@ -22,20 +24,6 @@ namespace RS
 		void Init();
 		void Release();
 
-		struct ImageLoadDesc
-		{
-			enum class Channels : uint32
-			{
-				DEFAULT = FLAG(0),
-				R = FLAG(1),
-				RG = FLAG(2),
-				RGB = FLAG(3),
-				RGBA = FLAG(4)
-			};
-
-			std::string		FilePath	= "";
-			Channels		NumChannels	= Channels::DEFAULT;
-		};
 		/*
 				Load a image from memory.
 				Arguments:
@@ -46,8 +34,8 @@ namespace RS
 					A pointer to the texture structure.
 		*/
 		ImageResource* LoadImageResource(ImageLoadDesc& imageDescription);
-
-		ModelResource* LoadModelResource(const std::string& filePath);
+		
+		ModelResource* LoadModelResource(ModelLoadDesc& modelDescription);
 
 		/*
 		* Give the resource back to the system. If it was the last reference, it will destroy it.

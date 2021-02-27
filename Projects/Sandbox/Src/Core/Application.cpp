@@ -77,6 +77,7 @@ void Application::Tick(float dt)
 	if (m_CurrentScene >= 0)
 		m_Scenes[m_CurrentScene]->Tick(dt);
 	
+	static bool m_ShowImGuiDemoWindow = true;
 	ImGuiRenderer::Draw([&]()
 	{
 			if (m_ShowImGuiDemoWindow)

@@ -40,6 +40,8 @@ namespace RS
 
 	private:
 		void UpdateCamera(float dt);
+		void DrawRecursiveImGui(int index, ModelResource& model);
+		void DrawImGuiAABB(int index, const AABB& aabb);
 
 	private:
 		Shader m_Shader;
@@ -51,6 +53,8 @@ namespace RS
 		FrameData m_FrameData;
 
 		ModelResource* m_pModel = nullptr;
+
+		ModelResource* m_pAssimpModel = nullptr;
 
 		Camera m_Camera;
 

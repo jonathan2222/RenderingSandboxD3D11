@@ -4,6 +4,7 @@
 #include "Renderer/ShaderHotReloader.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/DebugRenderer.h"
+#include "Renderer/ImGuiRenderer.h"
 #include "Core/Display.h"
 #include "Core/Input.h"
 
@@ -36,19 +37,28 @@ void MeshScene::Start()
 	m_Shader.Load(shaderDesc, layout);
 	ShaderHotReloader::AddShader(&m_Shader);
 
-	m_pModel = ResourceManager::Get()->LoadModelResource("Test.obj");
-
-	// Test Assimp
+	// Load a model with tinyobj.
 	{
-		ModelResource* tmp = nullptr;
-		ModelLoader::LoadWithAssimp("knight_d_pelegrini.fbx", tmp);
+		ModelLoadDesc modelLoadDesc = {};
+		modelLoadDesc.FilePath = "Test.obj";
+		modelLoadDesc.Loader = ModelLoadDesc::Loader::TINYOBJ;
+		modelLoadDesc.Flags = ModelLoadDesc::LoaderFlag::LOADER_FLAG_GENERATE_BOUNDING_BOX;
+		m_pModel = ResourceManager::Get()->LoadModelResource(modelLoadDesc);
+	}
+
+	// Load a model with assimp.
+	{
+		ModelLoadDesc modelLoadDesc = {};
+		modelLoadDesc.FilePath = "knight_d_pelegrini.fbx";
+		modelLoadDesc.Loader = ModelLoadDesc::Loader::ASSIMP;
+		m_pAssimpModel = ResourceManager::Get()->LoadModelResource(modelLoadDesc);
 	}
 
 	RS_ASSERT(m_pModel != nullptr, "Could not load model!");
 
 	{
 		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.ByteWidth = (UINT)(sizeof(MeshResource::Vertex) * m_pModel->Mesh.Vertices.size());
+		bufferDesc.ByteWidth = (UINT)(sizeof(MeshResource::Vertex) * m_pModel->Meshes[0].Vertices.size());
 		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 		bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bufferDesc.CPUAccessFlags = 0;
@@ -56,7 +66,7 @@ void MeshScene::Start()
 		bufferDesc.StructureByteStride = 0;
 
 		D3D11_SUBRESOURCE_DATA data;
-		data.pSysMem = m_pModel->Mesh.Vertices.data();
+		data.pSysMem = m_pModel->Meshes[0].Vertices.data();
 		data.SysMemPitch = 0;
 		data.SysMemSlicePitch = 0;
 
@@ -66,7 +76,7 @@ void MeshScene::Start()
 
 	{
 		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.ByteWidth = (UINT)(sizeof(uint32) * m_pModel->Mesh.Indices.size());
+		bufferDesc.ByteWidth = (UINT)(sizeof(uint32) * m_pModel->Meshes[0].Indices.size());
 		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 		bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 		bufferDesc.CPUAccessFlags = 0;
@@ -74,7 +84,7 @@ void MeshScene::Start()
 		bufferDesc.StructureByteStride = 0;
 
 		D3D11_SUBRESOURCE_DATA data;
-		data.pSysMem = m_pModel->Mesh.Indices.data();
+		data.pSysMem = m_pModel->Meshes[0].Indices.data();
 		data.SysMemPitch = 0;
 		data.SysMemSlicePitch = 0;
 
@@ -203,7 +213,25 @@ void MeshScene::Tick(float dt)
 	pContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 	pContext->VSSetConstantBuffers(0, 1, &m_pConstantBuffer);
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	pContext->DrawIndexed((UINT)m_pModel->Mesh.Indices.size(), 0, 0);
+	pContext->DrawIndexed((UINT)m_pModel->Meshes[0].Indices.size(), 0, 0);
+
+	// Test Assimp
+	{
+		ImGuiRenderer::Draw([&]()->void
+		{
+			static bool s_IsAssimpInspectorActive = true;
+			if (ImGui::Begin("Model Inspector", &s_IsAssimpInspectorActive))
+			{
+				if (ImGui::TreeNode("Loaded Models"))
+				{
+					DrawRecursiveImGui(0, *m_pModel);
+					DrawRecursiveImGui(1, *m_pAssimpModel);
+					ImGui::TreePop();
+				}
+			}
+			ImGui::End();
+		});
+	}
 }
 
 void MeshScene::UpdateCamera(float dt)
@@ -224,5 +252,65 @@ void MeshScene::UpdateCamera(float dt)
 
 		// If the screen changes, update the projection.
 		m_Camera.UpdateProj();
+	}
+}
+
+void MeshScene::DrawRecursiveImGui(int index, ModelResource& model)
+{
+	if (ImGui::TreeNode((void*)(intptr_t)index, model.Name.c_str()))
+	{
+		ImGui::TextColored(ImVec4(0.f, 1.f, 0.f, 1.f), "Name: %s", model.Name.c_str());
+		if (model.pParent)
+			ImGui::Text("Parent: %s", model.pParent->Name.c_str());
+		else
+			ImGui::Text("Parent: No Parent");
+		DrawImGuiAABB(0, model.BoundingBox);
+		
+		if (model.Meshes.empty() == false)
+		{
+			if (ImGui::TreeNode((void*)(intptr_t)1, "Meshes"))
+			{
+				for (uint32 i = 0; i < (uint32)model.Meshes.size(); i++)
+				{
+					if (ImGui::TreeNode((void*)(intptr_t)i, "Mesh #%d", i))
+					{
+						MeshResource& mesh = model.Meshes[i];
+						ImGui::Text("Num Vertices: %d", mesh.Vertices.size());
+						ImGui::Text("Num Indices: %d", mesh.Indices.size());
+						DrawImGuiAABB(0, mesh.BoundingBox);
+						ImGui::TreePop();
+					}
+				}
+				ImGui::TreePop();
+			}
+		}
+
+		if (model.Children.empty() == false)
+		{
+			index = 1;
+			if (model.Meshes.empty()) index = 2;
+			if (ImGui::TreeNode((void*)(intptr_t)index, "Children"))
+			{
+				for (int i = 0; i < (int)model.Children.size(); i++)
+					DrawRecursiveImGui(i, model.Children[i]);
+				ImGui::TreePop();
+			}
+		}
+
+		ImGui::TreePop();
+	}
+}
+
+void MeshScene::DrawImGuiAABB(int index, const AABB& aabb)
+{
+	if (ImGui::TreeNode((void*)(intptr_t)index, "Bounding Box"))
+	{
+		bool isSame = glm::all(glm::lessThan(glm::abs(aabb.min - aabb.max), glm::vec3(FLT_EPSILON)));
+		ImVec4 color(0.f, 1.f, 0.f, 1.f);
+		if (isSame) color = ImVec4(1.f, 0.f, 0.f, 1.f);
+		ImGui::TextColored(color, "Size: (%f, %f, %f)", aabb.max.x-aabb.min.x, aabb.max.y-aabb.min.y, aabb.max.z-aabb.min.z);
+		ImGui::TextColored(color, "Min: (%f, %f, %f)", aabb.min.x, aabb.min.y, aabb.min.z);
+		ImGui::TextColored(color, "Max: (%f, %f, %f)", aabb.max.x, aabb.max.y, aabb.max.z);
+		ImGui::TreePop();
 	}
 }
