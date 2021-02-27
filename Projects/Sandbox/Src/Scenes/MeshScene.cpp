@@ -108,8 +108,13 @@ void MeshScene::Start()
 		data.SysMemPitch = 0;
 		data.SysMemSlicePitch = 0;
 
-		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pConstantBuffer);
-		RS_D311_ASSERT_CHECK(result, "Failed to create constant buffer!");
+		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pConstantBufferFrame);
+		RS_D311_ASSERT_CHECK(result, "Failed to create frame constant buffer!");
+
+		bufferDesc.ByteWidth = sizeof(MeshResource::MeshData);
+		data.pSysMem = &m_MeshData;
+		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pConstantBufferMesh);
+		RS_D311_ASSERT_CHECK(result, "Failed to create mesh constant buffer!");
 	}
 
 	m_Pipeline.Init();
@@ -147,7 +152,8 @@ void MeshScene::End()
 	m_Shader.Release();
 	m_pVertexBuffer->Release();
 	m_pIndexBuffer->Release();
-	m_pConstantBuffer->Release();
+	m_pConstantBufferFrame->Release();
+	m_pConstantBufferMesh->Release();
 }
 
 void MeshScene::FixedTick()
@@ -181,10 +187,9 @@ void MeshScene::Tick(float dt)
 		static float t = 0.f;
 		t += glm::pi<float>() * dt * 0.5f;
 		glm::mat4 m = glm::scale(glm::vec3(0.2f));
-		m_FrameData.world = glm::rotate(m, t, glm::vec3(0.f, 1.f, 0.f));
+		m_MeshData.world = glm::rotate(m, t, glm::vec3(0.f, 1.f, 0.f));
 		m_FrameData.view = m_Camera.GetView();
 		m_FrameData.proj = m_Camera.GetProj();
-
 
 		glm::vec3 v = glm::rotate(glm::vec3(0.3f, 0.6f, 0.f), -t, glm::vec3(0.f, 1.f, 0.f));
 		DebugRenderer::Get()->PushPoint(v, Color::BLUE, id);
@@ -193,22 +198,38 @@ void MeshScene::Tick(float dt)
 		DebugRenderer::Get()->PushPoint(v - glm::vec3(0.f, 0.3f, 0.f), Color::BLUE, id, false);
 
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
-		HRESULT result = pContext->Map(m_pConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-		RS_D311_ASSERT_CHECK(result, "Failed to map constant buffer!");
-
+		HRESULT result = pContext->Map(m_pConstantBufferFrame, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+		RS_D311_ASSERT_CHECK(result, "Failed to map frame constant buffer!");
 		FrameData* data = (FrameData*)mappedResource.pData;
 		memcpy(data, &m_FrameData, sizeof(FrameData));
+		pContext->Unmap(m_pConstantBufferFrame, 0);
 
-		pContext->Unmap(m_pConstantBuffer, 0);
+		result = pContext->Map(m_pConstantBufferMesh, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+		RS_D311_ASSERT_CHECK(result, "Failed to map mesh constant buffer!");
+		MeshResource::MeshData* dataMesh = (MeshResource::MeshData*)mappedResource.pData;
+		memcpy(dataMesh, &m_MeshData, sizeof(m_MeshData));
+		pContext->Unmap(m_pConstantBufferMesh, 0);
 	}
 
 	UINT stride = sizeof(MeshResource::Vertex);
 	UINT offset = 0;
 	pContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
 	pContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	pContext->VSSetConstantBuffers(0, 1, &m_pConstantBuffer);
+	pContext->VSSetConstantBuffers(0, 1, &m_pConstantBufferMesh);
+	pContext->VSSetConstantBuffers(1, 1, &m_pConstantBufferFrame);
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pContext->DrawIndexed((UINT)m_pModel->Meshes[0].Indices.size(), 0, 0);
+
+	// Draw assimp model
+	{
+		glm::mat4 transform = glm::translate(glm::vec3(1.0f, 0.f, 0.f)) * glm::scale(glm::vec3(0.01f));
+		pContext->VSSetConstantBuffers(1, 1, &m_pConstantBufferFrame);
+		Renderer::DebugInfo debugInfo = {};
+		debugInfo.DrawAABBs = true;
+		static uint32 id = DebugRenderer::Get()->GenID();
+		debugInfo.ID = id;
+		renderer->Render(*m_pAssimpModel, transform, debugInfo);
+	}
 
 	// Test Assimp
 	{
@@ -231,21 +252,66 @@ void MeshScene::Tick(float dt)
 
 void MeshScene::UpdateCamera(float dt)
 {
+	/*
+	*	Camera
+	*	Type: Orbit
+	*	Controlls:
+	*		Pan:			Hold L_SHIFT and drag with the LMB.
+	*		Zoom:			Hold L_CTL and drag with the LBM up and down.
+	*		Orbit			Drag with the LMB.
+	*		Reset target:	Press the 'C' key.
+	*/
+
 	auto input = Input::Get();
 	glm::vec2 delta = input->GetCursorDelta();
 
+	static const glm::vec3 s_StartingTarget = glm::vec3(0.f, 0.5f, 0.f);
+	static glm::vec3 s_Target = s_StartingTarget;
+	uint32 s_CameraState = 0;
+	if (input->IsKeyPressed(Key::LEFT_CONTROL))		s_CameraState = 1;
+	else if (input->IsKeyPressed(Key::LEFT_SHIFT))	s_CameraState = 2;
+	else											s_CameraState = 0;
+
+	if (input->IsKeyPressed(Key::C))
+	{
+		s_Target = s_StartingTarget;
+		glm::vec3 pos = s_StartingTarget + glm::vec3(0.f, 0.f, 2.0f);
+		m_Camera.LookAt(pos, s_Target);
+	}
+
 	if (input->IsMBPressed(MB::LEFT))
 	{
-		float mouseSensitivity = 5.f*dt;
-		//m_Camera.SetOrientaion(delta.x* mouseSensitivity, delta.y * mouseSensitivity);
 
-		glm::vec3 target(0.f, 0.f, 0.f);
+		float mouseSensitivity = 5.f * dt;
+		float zoomFactor = 2.f;
+
 		glm::vec3 pos = m_Camera.GetPos();
-		pos = glm::rotate(pos, -delta.x * mouseSensitivity, glm::vec3(0.f, 1.f, 0.f));
-		pos = glm::rotate(pos, -delta.y * mouseSensitivity, m_Camera.GetRight());
-		m_Camera.LookAt(pos, target);
+		if (s_CameraState == 0) // Orbit
+		{
+			glm::vec3 v = pos - s_Target;
+			v = glm::rotate(v, -delta.x * mouseSensitivity, glm::vec3(0.f, 1.f, 0.f));
+			v = glm::rotate(v, -delta.y * mouseSensitivity, m_Camera.GetRight());
+			pos = s_Target + v;
+		}
+		else if (s_CameraState == 1) // Zoom
+		{
+			float zoom = delta.y * mouseSensitivity * zoomFactor;
+			glm::vec3 dir = glm::normalize(s_Target - pos);
+			dir *= zoom;
+			pos += dir;
+		}
+		else if (s_CameraState == 2) // Pan
+		{
+			glm::vec3 right = m_Camera.GetRight();
+			glm::vec3 up = m_Camera.GetUp();
+			glm::vec3 offset = right * -delta.x + up * delta.y;
+			offset *= mouseSensitivity;
+			pos += offset;
+			s_Target += offset;
+		}
+		m_Camera.LookAt(pos, s_Target);
 
-		// If the screen changes, update the projection.
+		// Update the projection for the possibility that the screen size has been changed.
 		m_Camera.UpdateProj();
 	}
 }
@@ -270,8 +336,16 @@ void MeshScene::DrawRecursiveImGui(int index, ModelResource& model)
 					if (ImGui::TreeNode((void*)(intptr_t)i, "Mesh #%d", i))
 					{
 						MeshResource& mesh = model.Meshes[i];
-						ImGui::Text("Num Vertices: %d", mesh.Vertices.size());
-						ImGui::Text("Num Indices: %d", mesh.Indices.size());
+						ImGui::Text("Is in RAM: ");
+						float on = mesh.Vertices.empty() ? 0.f : 1.f;
+						ImGui::SameLine(); ImGui::TextColored(ImVec4(1.f-on, on, 0.f, 1.f), "%s", on > 0.5f ? "True" : "False");
+
+						ImGui::Text("Is in GPU: ");
+						on = mesh.pVertexBuffer ? 1.f : 0.f;
+						ImGui::SameLine(); ImGui::TextColored(ImVec4(1.f - on, on, 0.f, 1.f), "%s", on > 0.5f ? "True" : "False");
+
+						ImGui::Text("Num Vertices: %d", mesh.NumVertices);
+						ImGui::Text("Num Indices: %d", mesh.NumIndices);
 						DrawImGuiAABB(0, mesh.BoundingBox);
 						ImGui::TreePop();
 					}

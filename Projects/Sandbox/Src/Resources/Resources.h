@@ -6,6 +6,8 @@
 #include "Utils/Maths.h"
 #include "Structures/AABB.h"
 
+#include "Renderer/RenderAPI.h"
+
 namespace RS
 {
 	struct Resource : public RefObject
@@ -34,6 +36,11 @@ namespace RS
 
 	struct MeshResource : public Resource
 	{
+		struct MeshData
+		{
+			glm::mat4 world = glm::mat4(1.f);
+		};
+
 		struct Vertex
 		{
 			glm::vec3 Position	= glm::vec3(0.f);
@@ -45,7 +52,13 @@ namespace RS
 
 		std::vector<Vertex> Vertices;
 		std::vector<uint32> Indices;
+		uint32				NumIndices		= 0;
+		uint32				NumVertices		= 0;
 		AABB				BoundingBox;
+
+		ID3D11Buffer*		pVertexBuffer	= nullptr;
+		ID3D11Buffer*		pIndexBuffer	= nullptr;
+		ID3D11Buffer*		pMeshBuffer		= nullptr;
 	};
 
 	struct ModelResource : public Resource

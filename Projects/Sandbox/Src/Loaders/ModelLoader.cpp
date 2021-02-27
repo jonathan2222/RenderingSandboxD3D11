@@ -155,12 +155,6 @@ bool ModelLoader::LoadWithAssimp(const std::string& filePath, ModelResource* out
         return false;
     }
 
-    if (flags & ModelLoadDesc::LoaderFlag::LOADER_FLAG_UPLOAD_MESH_DATA_TO_GUP)
-    {
-        LOG_ERROR("LOADER_FLAG_UPLOAD_MESH_DATA_TO_GUP is not implemented for Loader:ASSIMP!");
-        return false;
-    }
-
     return RecursiveLoadMeshes(pScene, pScene->mRootNode, outModel, glm::mat4(1.f), flags);
 }
 
@@ -250,8 +244,9 @@ bool ModelLoader::RecursiveLoadMeshes(const aiScene*& pScene, aiNode* pNode, Mod
 void ModelLoader::FillMesh(MeshResource& outMesh, aiMesh*& pMesh, ModelLoadDesc::LoaderFlags flags)
 {
     // Add vertices
-    outMesh.Vertices.resize(pMesh->mNumVertices);
-    for (uint32 v = 0; v < pMesh->mNumVertices; v++)
+    outMesh.NumVertices = pMesh->mNumVertices;
+    outMesh.Vertices.resize((uint64)outMesh.NumVertices);
+    for (uint32 v = 0; v < outMesh.NumVertices; v++)
     {
         MeshResource::Vertex& vertex = outMesh.Vertices[v];
 
@@ -285,7 +280,8 @@ void ModelLoader::FillMesh(MeshResource& outMesh, aiMesh*& pMesh, ModelLoadDesc:
 
     // Add indices
     // The face will always have three vertices because of triangulation and the primitive removal configuration.
-    outMesh.Indices.resize((uint64)pMesh->mNumFaces * 3);
+    outMesh.NumIndices = pMesh->mNumFaces * 3;
+    outMesh.Indices.resize((uint64)outMesh.NumIndices);
     for (uint32 f = 0; f < pMesh->mNumFaces; f++)
     {
         uint32 index = f * 3;
@@ -298,6 +294,68 @@ void ModelLoader::FillMesh(MeshResource& outMesh, aiMesh*& pMesh, ModelLoadDesc:
     // Add bounding box
     outMesh.BoundingBox.min = glm::vec3(pMesh->mAABB.mMin.x, pMesh->mAABB.mMin.y, pMesh->mAABB.mMin.z);
     outMesh.BoundingBox.max = glm::vec3(pMesh->mAABB.mMax.x, pMesh->mAABB.mMax.y, pMesh->mAABB.mMax.z);
+
+    // Upload data to the GUP
+    if (flags & ModelLoadDesc::LoaderFlag::LOADER_FLAG_UPLOAD_MESH_DATA_TO_GUP)
+    {
+        // Create the vertex buffer.
+        {
+            D3D11_BUFFER_DESC bufferDesc = {};
+            bufferDesc.ByteWidth = (UINT)(sizeof(MeshResource::Vertex) * outMesh.Vertices.size());
+            bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+            bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+            bufferDesc.CPUAccessFlags = 0;
+            bufferDesc.MiscFlags = 0;
+            bufferDesc.StructureByteStride = 0;
+
+            D3D11_SUBRESOURCE_DATA data;
+            data.pSysMem = outMesh.Vertices.data();
+            data.SysMemPitch = 0;
+            data.SysMemSlicePitch = 0;
+
+            HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &outMesh.pVertexBuffer);
+            RS_D311_ASSERT_CHECK(result, "Failed to create vertex buffer!");
+        }
+
+        // Create the index buffer.
+        {
+            D3D11_BUFFER_DESC bufferDesc = {};
+            bufferDesc.ByteWidth            = (UINT)(sizeof(uint32) * outMesh.Indices.size());
+            bufferDesc.Usage                = D3D11_USAGE_IMMUTABLE;
+            bufferDesc.BindFlags            = D3D11_BIND_INDEX_BUFFER;
+            bufferDesc.CPUAccessFlags       = 0;
+            bufferDesc.MiscFlags            = 0;
+            bufferDesc.StructureByteStride  = 0;
+
+            D3D11_SUBRESOURCE_DATA data;
+            data.pSysMem            = outMesh.Indices.data();
+            data.SysMemPitch        = 0;
+            data.SysMemSlicePitch   = 0;
+
+            HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &outMesh.pIndexBuffer);
+            RS_D311_ASSERT_CHECK(result, "Failed to create index buffer!");
+        }
+
+        // Create Constant Buffer to hold transform data and other mesh related data.
+        {
+            D3D11_BUFFER_DESC bufferDesc = {};
+            bufferDesc.ByteWidth            = sizeof(MeshResource::MeshData);
+            bufferDesc.Usage                = D3D11_USAGE_DYNAMIC;
+            bufferDesc.BindFlags            = D3D11_BIND_CONSTANT_BUFFER;
+            bufferDesc.CPUAccessFlags       = D3D11_CPU_ACCESS_WRITE;
+            bufferDesc.MiscFlags            = 0;
+            bufferDesc.StructureByteStride  = 0;
+
+            MeshResource::MeshData initialData = {};
+            D3D11_SUBRESOURCE_DATA data;
+            data.pSysMem            = &initialData;
+            data.SysMemPitch        = 0;
+            data.SysMemSlicePitch   = 0;
+
+            HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &outMesh.pMeshBuffer);
+            RS_D311_ASSERT_CHECK(result, "Failed to create constant buffer!");
+        }
+    }
 
     // Clear the vertices and indices buffers if the flag was set.
     if (flags & ModelLoadDesc::LoaderFlag::LOADER_FLAG_NO_MESH_DATA_IN_RAM)

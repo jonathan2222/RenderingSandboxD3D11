@@ -59,6 +59,7 @@ namespace RS
 				* image: A pointer to the image structure.
 		*/
 		void FreeImage(ImageResource* pTexture);
+		void FreeModelRecursive(ModelResource* pModel);
 
 		DXGI_FORMAT GetFormatFromChannelCount(int nChannels) const;
 

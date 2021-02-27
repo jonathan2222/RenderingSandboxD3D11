@@ -7,5 +7,6 @@ struct PSIn
 
 float4 main(PSIn input) : SV_TARGET
 {
-	return float4(input.normal.rgb*0.5f+0.5f, 1.0f);
+    float4 normal = normalize(input.normal);
+	return float4(normal.rgb*0.5f+0.5f, 1.0f);
 }

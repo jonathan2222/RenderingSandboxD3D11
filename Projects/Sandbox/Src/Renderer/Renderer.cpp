@@ -3,6 +3,7 @@
 
 #include "Core/Display.h"
 #include "Renderer/ImGuiRenderer.h"
+#include "Renderer/DebugRenderer.h"
 
 #include "Utils/Config.h"
 
@@ -88,6 +89,14 @@ void Renderer::Present()
 		// This is slow (slower than OpenGL, glfwSwapBuffers is ~2x faster), for some reason.
 		m_pSwapChain->Present(0, 0);
 	}
+}
+
+void Renderer::Render(ModelResource& model, const glm::mat4& transform, DebugInfo debugInfo)
+{
+	auto renderAPI = RenderAPI::Get();
+	ID3D11DeviceContext* pContext = renderAPI->GetDeviceContext();
+	DebugRenderer::Get()->Clear(debugInfo.ID);
+	InternalRender(model, transform, pContext, debugInfo);
 }
 
 ID3D11RenderTargetView* Renderer::GetRenderTarget()
@@ -198,4 +207,44 @@ void Renderer::CreateRasterizer()
 	rasterizerDesc.ScissorEnable = false;
 	rasterizerDesc.SlopeScaledDepthBias = 0.0f;
 	m_DefaultPipeline.SetRasterState(rasterizerDesc);
+}
+
+void Renderer::InternalRender(ModelResource& model, const glm::mat4& transform, ID3D11DeviceContext* pContext, DebugInfo debugInfo)
+{
+	MeshResource::MeshData meshData;
+	meshData.world = transform * model.Transform;
+	for (MeshResource& mesh : model.Meshes)
+	{
+		D3D11_MAPPED_SUBRESOURCE mappedResource;
+		HRESULT result = pContext->Map(mesh.pMeshBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+		RS_D311_ASSERT_CHECK(result, "Failed to map mesh constant buffer!");
+		MeshResource::MeshData* data = (MeshResource::MeshData*)mappedResource.pData;
+		memcpy(data, &meshData, sizeof(meshData));
+		pContext->Unmap(mesh.pMeshBuffer, 0);
+
+		UINT stride = sizeof(MeshResource::Vertex);
+		UINT offset = 0;
+		pContext->IASetVertexBuffers(0, 1, &mesh.pVertexBuffer, &stride, &offset);
+		pContext->IASetIndexBuffer(mesh.pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		pContext->VSSetConstantBuffers(0, 1, &mesh.pMeshBuffer);
+		pContext->DrawIndexed((UINT)mesh.NumIndices, 0, 0);
+
+		if (debugInfo.DrawAABBs)
+		{
+			static Color meshAABBColor = Color::HSBToRGB(1.f, 1.f, 0.2f);
+			AABB transformedAABB = AABB::Transform(mesh.BoundingBox, meshData.world);
+			DebugRenderer::Get()->PushBox(transformedAABB, meshAABBColor, debugInfo.ID, false);
+		}
+	}
+
+	if (debugInfo.DrawAABBs)
+	{
+		static Color modelAABBColor = Color::HSBToRGB(1.f, 1.f, 0.8f);
+		AABB transformedAABB = AABB::Transform(model.BoundingBox, meshData.world);
+		DebugRenderer::Get()->PushBox(transformedAABB, modelAABBColor, debugInfo.ID, false);
+	}
+
+	for (ModelResource& child : model.Children)
+		InternalRender(child, meshData.world, pContext, debugInfo);
 }

@@ -214,6 +214,11 @@ uint32 DebugRenderer::PushBox(const glm::vec3& min, const glm::vec3& max, const 
 	return newID;
 }
 
+uint32 DebugRenderer::PushBox(const AABB& box, const Color& color, uint32 id, bool shouldClear)
+{
+	return PushBox(box.min, box.max, color, id, shouldClear);
+}
+
 uint32 DebugRenderer::PushMesh(ModelResource* pModel, const Color& color, glm::vec3 offset, uint32 id, bool shouldClear)
 {
 	uint32 newID = ProcessID(id, Type::LINES);

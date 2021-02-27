@@ -14,9 +14,13 @@ struct VSOut
     float2 uv : TEXCOORD;
 };
 
-cbuffer FrameData : register(b0)
+cbuffer MeshData : register(b0)
 {
     float4x4 worldMat;
+}
+
+cbuffer FrameData : register(b1)
+{
     float4x4 viewMat;
     float4x4 projMat;
 }
@@ -29,8 +33,6 @@ VSOut main(VSIn input)
     output.position = mul(projMat, output.position);
 
     output.normal = mul(worldMat, float4(input.normal, 0.f));
-    output.normal = mul(viewMat, output.normal);
-    output.normal = mul(projMat, output.normal);
 
     output.uv = input.uv;
 

@@ -137,9 +137,7 @@ bool ResourceManager::RemoveResource(Resource* pResource)
 		case RS::Resource::Type::MODEL:
 		{
 			ModelResource* pModel = dynamic_cast<ModelResource*>(pResource);
-			pModel->Meshes.clear();
-			pModel->Children.clear();
-			pModel->Transform = glm::mat4(1.f);
+			FreeModelRecursive(pModel);
 		}
 		break;
 		default:
@@ -165,6 +163,43 @@ void ResourceManager::FreeImage(ImageResource* pImage)
 	}
 	else
 		LOG_WARNING("Trying to free an image pointer which is NULL!");
+}
+
+void ResourceManager::FreeModelRecursive(ModelResource* pModel)
+{
+	pModel->Transform = glm::mat4(1.f);
+	
+	for (MeshResource& mesh : pModel->Meshes)
+	{
+		if (mesh.pVertexBuffer)
+		{
+			mesh.pVertexBuffer->Release();
+			mesh.pVertexBuffer = nullptr;
+		}
+
+		if (mesh.pIndexBuffer)
+		{
+			mesh.pIndexBuffer->Release();
+			mesh.pIndexBuffer = nullptr;
+		}
+
+		if (mesh.pMeshBuffer)
+		{
+			mesh.pMeshBuffer->Release();
+			mesh.pMeshBuffer = nullptr;
+		}
+
+		mesh.Vertices.clear();
+		mesh.Indices.clear();
+		mesh.NumVertices = 0;
+		mesh.NumIndices = 0;
+	}
+	pModel->Meshes.clear();
+	
+	for (ModelResource& model : pModel->Children)
+		FreeModelRecursive(&model);
+
+	pModel->Children.clear();
 }
 
 DXGI_FORMAT ResourceManager::GetFormatFromChannelCount(int nChannels) const

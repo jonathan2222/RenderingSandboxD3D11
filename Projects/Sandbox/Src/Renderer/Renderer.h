@@ -4,6 +4,8 @@
 
 #include "Renderer/Pipeline.h"
 
+#include "Core/ResourceManager.h"
+
 namespace RS
 {
 	struct DisplayDescription;
@@ -24,6 +26,13 @@ namespace RS
 		void BindWindowRTV();
 		void Present();
 
+		struct DebugInfo
+		{
+			bool	DrawAABBs	= false;
+			uint32	ID			= 0;
+		};
+		void Render(ModelResource& model, const glm::mat4& transform, DebugInfo debugInfo);
+
 		ID3D11RenderTargetView* GetRenderTarget();
 
 		Pipeline* GetDefaultPipeline();
@@ -34,6 +43,8 @@ namespace RS
 		void CreateDepthStencilState(DisplayDescription& displayDescriptor);
 		void CreateDepthStencilView();
 		void CreateRasterizer();
+
+		void InternalRender(ModelResource& model, const glm::mat4& transform, ID3D11DeviceContext* pContext, DebugInfo debugInfo);
 
 	private:
 		ID3D11Device*				m_pDevice				= nullptr;
