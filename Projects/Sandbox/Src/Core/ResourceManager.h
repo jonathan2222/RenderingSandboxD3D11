@@ -13,7 +13,9 @@ namespace RS
 	public:
 		struct Stats
 		{
-			std::unordered_map<Resource::Type, uint32>* pResourcesRefCount = nullptr;
+			std::unordered_map<Resource::Type, uint32>*		pTypeResourcesRefCount	= nullptr;
+			std::unordered_map<ResourceID, uint32>*			pResourcesRefCount		= nullptr;
+			std::unordered_map<std::string, ResourceID>*	pStringToResourceIDMap	= nullptr;
 		};
 
 	public:
@@ -74,7 +76,7 @@ namespace RS
 
 		DXGI_FORMAT GetFormatFromChannelCount(int nChannels) const;
 
-		void UpdateStats(Resource* pResrouce);
+		void UpdateStats(Resource* pResrouce, bool add);
 
 		ResourceID GetIDFromString(const std::string& key);
 
@@ -85,7 +87,8 @@ namespace RS
 		std::unordered_map<ResourceID, Resource*>	m_IDToResourceMap;
 
 		// Stats
-		std::unordered_map<Resource::Type, uint32> m_ResourcesRefCount;
+		std::unordered_map<Resource::Type, uint32>	m_TypeResourcesRefCount;
+		std::unordered_map<ResourceID, uint32>		m_ResourcesRefCount;
 	};
 
 	template<typename ResourceT>
@@ -113,7 +116,7 @@ namespace RS
 		}
 
 		pResource->AddRef();
-		UpdateStats(pResource);
+		UpdateStats(pResource, true);
 		return { pResource, isNew };
 	}
 }

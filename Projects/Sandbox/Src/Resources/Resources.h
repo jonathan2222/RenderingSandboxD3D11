@@ -25,8 +25,8 @@ namespace RS
 
 		static std::string TypeToString(Type type);
 
-		Type type;
-		ResourceID key;
+		Type		type;
+		ResourceID	key = 0;
 	};
 
 	struct ImageResource : public Resource

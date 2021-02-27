@@ -136,7 +136,7 @@ std::pair<ModelResource*, ResourceID> ResourceManager::LoadModelResource(ModelLo
 void ResourceManager::FreeResource(Resource* pResource)
 {
 	pResource->RemoveRef();
-	UpdateStats(pResource);
+	UpdateStats(pResource, false);
 	if (pResource->GetRefCount() == 0)
 	{
 		// Remove resource if it is the last pointer.
@@ -159,7 +159,9 @@ void ResourceManager::FreeResource(Resource* pResource)
 ResourceManager::Stats ResourceManager::GetStats()
 {
 	Stats stats;
+	stats.pTypeResourcesRefCount = &m_TypeResourcesRefCount;
 	stats.pResourcesRefCount = &m_ResourcesRefCount;
+	stats.pStringToResourceIDMap = &m_StringToResourceIDMap;
 	return stats;
 }
 
@@ -327,16 +329,31 @@ DXGI_FORMAT ResourceManager::GetFormatFromChannelCount(int nChannels) const
 	}
 }
 
-void ResourceManager::UpdateStats(Resource* pResrouce)
+void ResourceManager::UpdateStats(Resource* pResrouce, bool add)
 {
-	auto it = m_ResourcesRefCount.find(pResrouce->type);
-	if (it == m_ResourcesRefCount.end())
+	// Update type ref count stats
 	{
-		m_ResourcesRefCount[pResrouce->type] = pResrouce->GetRefCount();
+		auto it = m_TypeResourcesRefCount.find(pResrouce->type);
+		if (it == m_TypeResourcesRefCount.end())
+		{
+			m_TypeResourcesRefCount[pResrouce->type] = 1;
+		}
+		else
+		{
+			if (add)
+				it->second++;
+			else
+				it->second--;
+		}
 	}
-	else
+
+	// Update resource ref count stats
 	{
-		it->second = pResrouce->GetRefCount();
+		auto it = m_ResourcesRefCount.find(pResrouce->key);
+		if (it == m_ResourcesRefCount.end())
+			m_ResourcesRefCount[pResrouce->key] = pResrouce->GetRefCount();
+		else
+			it->second = pResrouce->GetRefCount();
 	}
 }
 

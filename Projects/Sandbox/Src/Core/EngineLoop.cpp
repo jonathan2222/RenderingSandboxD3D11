@@ -240,10 +240,32 @@ void RS::EngineLoop::DrawFrameStats(const FrameStats& frameStats)
             {
                 const ResourceManager::Stats& stats = ResourceManager::Get()->GetStats();
                 ImGui::Indent();
-                for (auto& [type, refCount] : *stats.pResourcesRefCount)
+                if (ImGui::TreeNode("Types"))
                 {
-                    std::string typeStr = Resource::TypeToString(type);
-                    ImGui::Text("%s: %d", typeStr.c_str(), refCount);
+                    for (auto& [type, refCount] : *stats.pTypeResourcesRefCount)
+                    {
+                        std::string typeStr = Resource::TypeToString(type);
+                        ImGui::Text("%s: %d", typeStr.c_str(), refCount);
+                    }
+                    ImGui::TreePop();
+                }
+                if (ImGui::TreeNode("Resources"))
+                {
+                    for (auto& [keyStr, id] : *stats.pStringToResourceIDMap)
+                    {
+                        uint32 refCount = (*stats.pResourcesRefCount)[id];
+                        std::string idStr = std::to_string(id);
+                        ImGui::Text("[%s] %s: %d", idStr.c_str(), keyStr.c_str(), refCount);
+                        if (ImGui::IsItemHovered())
+                        {
+                            ImGui::BeginTooltip();
+                            ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+                            ImGui::Text("[%s] %s: %d", idStr.c_str(), keyStr.c_str(), refCount);
+                            ImGui::PopTextWrapPos();
+                            ImGui::EndTooltip();
+                        }
+                    }
+                    ImGui::TreePop();
                 }
                 ImGui::Unindent();
             }
