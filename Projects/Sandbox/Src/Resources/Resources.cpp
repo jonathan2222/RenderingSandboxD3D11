@@ -11,6 +11,9 @@ std::string Resource::TypeToString(Type type)
 	case Type::IMAGE:
 		res = "IMAGE";
 		break;
+	case Type::TEXTURE:
+		res = "TEXTURE";
+		break;
 	case Type::MODEL:
 		res = "MODEL";
 		break;

@@ -45,7 +45,8 @@ void MeshScene::Start()
 		modelLoadDesc.FilePath = "Test.obj";
 		modelLoadDesc.Loader = ModelLoadDesc::Loader::TINYOBJ;
 		modelLoadDesc.Flags = ModelLoadDesc::LoaderFlag::LOADER_FLAG_GENERATE_BOUNDING_BOX;
-		m_pModel = ResourceManager::Get()->LoadModelResource(modelLoadDesc);
+		auto [pModel, handler] = ResourceManager::Get()->LoadModelResource(modelLoadDesc);
+		m_pModel = pModel;
 	}
 
 	// Load a model with assimp.
@@ -53,7 +54,8 @@ void MeshScene::Start()
 		ModelLoadDesc modelLoadDesc = {};
 		modelLoadDesc.FilePath = "knight_d_pelegrini.fbx";
 		modelLoadDesc.Loader = ModelLoadDesc::Loader::ASSIMP;
-		m_pAssimpModel = ResourceManager::Get()->LoadModelResource(modelLoadDesc);
+		auto [pModel, handler] = ResourceManager::Get()->LoadModelResource(modelLoadDesc);
+		m_pAssimpModel = pModel;
 	}
 
 	RS_ASSERT(m_pModel != nullptr, "Could not load model!");
@@ -226,8 +228,8 @@ void MeshScene::Tick(float dt)
 		pContext->VSSetConstantBuffers(1, 1, &m_pConstantBufferFrame);
 		Renderer::DebugInfo debugInfo = {};
 		debugInfo.DrawAABBs = true;
-		static uint32 id = DebugRenderer::Get()->GenID();
-		debugInfo.ID = id;
+		static uint32 debugInfoID = DebugRenderer::Get()->GenID();
+		debugInfo.ID = debugInfoID;
 		renderer->Render(*m_pAssimpModel, transform, debugInfo);
 	}
 

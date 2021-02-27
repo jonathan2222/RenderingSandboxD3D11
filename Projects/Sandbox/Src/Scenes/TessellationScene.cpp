@@ -492,7 +492,8 @@ void TessellationScene::CreateTexture(const std::string& fileName, ID3D11Texture
 	ImageLoadDesc imageDesc = {};
 	imageDesc.FilePath		= fileName;
 	imageDesc.NumChannels	= ImageLoadDesc::Channels::RGBA;
-	ImageResource* pImageResource = ResourceManager::Get()->LoadImageResource(imageDesc);
+	auto [pImage, handler] = ResourceManager::Get()->LoadImageResource(imageDesc);
+	ImageResource* pImageResource = pImage;
 
 	D3D11_TEXTURE2D_DESC textureDesc = {};
 	textureDesc.Width				= pImageResource->Width;

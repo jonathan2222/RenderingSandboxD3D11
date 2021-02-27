@@ -10,6 +10,8 @@
 
 namespace RS
 {
+	using ResourceID = uint32;
+
 	struct Resource : public RefObject
 	{
 		virtual ~Resource() = default;
@@ -17,13 +19,14 @@ namespace RS
 		enum class Type
 		{
 			IMAGE = 0,
+			TEXTURE,
 			MODEL
 		};
 
 		static std::string TypeToString(Type type);
 
 		Type type;
-		std::string key;
+		ResourceID key;
 	};
 
 	struct ImageResource : public Resource
@@ -32,6 +35,14 @@ namespace RS
 		uint32		Width	= 0;
 		uint32		Height	= 0;
 		DXGI_FORMAT Format	= DXGI_FORMAT_UNKNOWN;
+	};
+
+	struct TextureResource : public Resource
+	{
+		ResourceID					ImageHandler	= 0;
+		ID3D11Texture2D*			pTexture		= nullptr;
+		ID3D11ShaderResourceView*	pTextureSRV		= nullptr;
+		ID3D11SamplerState*			pSampler		= nullptr; // TODO: Make the sampler as a Resource!
 	};
 
 	struct MeshResource : public Resource

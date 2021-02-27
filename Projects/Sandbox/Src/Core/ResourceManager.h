@@ -33,9 +33,17 @@ namespace RS
 				Returns:
 					A pointer to the texture structure.
 		*/
-		ImageResource* LoadImageResource(ImageLoadDesc& imageDescription);
+		std::pair<ImageResource*, ResourceID> LoadImageResource(ImageLoadDesc& imageDescription);
+
+		std::pair<TextureResource*, ResourceID> LoadTextureResource(TextureLoadDesc& textureDescription);
 		
-		ModelResource* LoadModelResource(ModelLoadDesc& modelDescription);
+		std::pair<ModelResource*, ResourceID> LoadModelResource(ModelLoadDesc& modelDescription);
+
+		/*
+		* Returns a resource from a handler
+		*/
+		template<typename ResourceT>
+		ResourceT* GetResource(ResourceID id) const;
 
 		/*
 		* Give the resource back to the system. If it was the last reference, it will destroy it.
@@ -49,7 +57,9 @@ namespace RS
 		* Will add a new resource if it does not exist, else it will return the already existing resource.
 		*/
 		template<typename ResourceT>
-		std::pair<ResourceT*, bool> AddResource(const std::string& key, Resource::Type type);
+		std::pair<ResourceT*, bool> AddResource(ResourceID key, Resource::Type type);
+
+		void LoadImageInternal(ImageResource*& outImage, ImageLoadDesc& imageDescription);
 
 		bool RemoveResource(Resource* pResource);
 
@@ -58,34 +68,47 @@ namespace RS
 			Arguments:
 				* image: A pointer to the image structure.
 		*/
-		void FreeImage(ImageResource* pTexture);
+		void FreeImage(ImageResource* pImage);
+		void FreeTexture(TextureResource* pTexture);
 		void FreeModelRecursive(ModelResource* pModel);
 
 		DXGI_FORMAT GetFormatFromChannelCount(int nChannels) const;
 
 		void UpdateStats(Resource* pResrouce);
 
+		ResourceID GetIDFromString(const std::string& key);
+
+		ResourceID GetNextID() const;
+
 	private:
-		std::unordered_map<std::string, Resource*> m_Resources;
+		std::unordered_map<std::string, ResourceID> m_StringToResourceIDMap;
+		std::unordered_map<ResourceID, Resource*>	m_IDToResourceMap;
 
 		// Stats
 		std::unordered_map<Resource::Type, uint32> m_ResourcesRefCount;
 	};
 
 	template<typename ResourceT>
-	inline std::pair<ResourceT*, bool> ResourceManager::AddResource(const std::string& key, Resource::Type type)
+	inline ResourceT* ResourceManager::GetResource(ResourceID id) const
+	{
+		auto it = m_IDToResourceMap.find(id);
+		if (it == m_IDToResourceMap.end())
+			return nullptr;
+		return dynamic_cast<ResourceT*>(it->second);
+	}
+
+	template<typename ResourceT>
+	inline std::pair<ResourceT*, bool> ResourceManager::AddResource(ResourceID id, Resource::Type type)
 	{
 		bool isNew = false;
-		ResourceT* pResource = nullptr;
+		ResourceT* pResource = GetResource<ResourceT>(id);
 
-		std::string fullKey = key + Resource::TypeToString(type);
-		auto it = m_Resources.find(fullKey);
-		if (it == m_Resources.end())
+		if (pResource == nullptr)
 		{
 			pResource = new ResourceT();
 			pResource->type = type;
-			pResource->key = fullKey;
-			m_Resources[fullKey] = pResource;
+			pResource->key = id;
+			m_IDToResourceMap[id] = pResource;
 			isNew = true;
 		}
 

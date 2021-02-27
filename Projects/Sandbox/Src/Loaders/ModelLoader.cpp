@@ -190,7 +190,7 @@ bool ModelLoader::RecursiveLoadMeshes(const aiScene*& pScene, aiNode* pNode, Mod
             uint32 meshIndex    = pNode->mMeshes[m];
             aiMesh* pMesh       = pScene->mMeshes[meshIndex];
             MeshResource& mesh  = pNewModel->Meshes[m];
-            FillMesh(mesh, pMesh, flags);
+            FillMesh(pScene, mesh, pMesh, flags);
 
             // Expand the bounding box of this model to fit all meshes inside it.
             modelAABB.min = Maths::GetMinElements(mesh.BoundingBox.min, modelAABB.min);
@@ -241,8 +241,18 @@ bool ModelLoader::RecursiveLoadMeshes(const aiScene*& pScene, aiNode* pNode, Mod
     return succeeded;
 }
 
-void ModelLoader::FillMesh(MeshResource& outMesh, aiMesh*& pMesh, ModelLoadDesc::LoaderFlags flags)
+void ModelLoader::FillMesh(const aiScene*& pScene, MeshResource& outMesh, aiMesh*& pMesh, ModelLoadDesc::LoaderFlags flags)
 {
+    // Add Materials
+    {
+        uint32 materialIndex = pMesh->mMaterialIndex;
+        aiMaterial* pMaterial = pScene->mMaterials[materialIndex];
+        // TODO: Load textures to the ResourceManager, use the path as a keay! (PS. The Textures might be embedded!)
+        // TODO: Load a material into the ResourceManager, this will hold handlers to the textures and some constants!
+        aiString name;
+        pMaterial->Get(AI_MATKEY_NAME, name);
+    }
+
     // Add vertices
     outMesh.NumVertices = pMesh->mNumVertices;
     outMesh.Vertices.resize((uint64)outMesh.NumVertices);

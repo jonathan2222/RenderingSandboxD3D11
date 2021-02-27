@@ -17,6 +17,11 @@ namespace RS
 		Channels		NumChannels = Channels::DEFAULT;
 	};
 
+	struct TextureLoadDesc
+	{
+		ImageLoadDesc ImageDesc;
+	};
+
 	struct ModelLoadDesc
 	{
 		enum class Loader : uint32

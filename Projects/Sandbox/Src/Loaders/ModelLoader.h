@@ -21,6 +21,6 @@ namespace RS
 
 	private:
 		static bool RecursiveLoadMeshes(const aiScene*& pScene, aiNode* pNode, ModelResource* pParent, glm::mat4 accTransform, ModelLoadDesc::LoaderFlags flags);
-		static void FillMesh(MeshResource& outMesh, aiMesh*& pMesh, ModelLoadDesc::LoaderFlags flags);
+		static void FillMesh(const aiScene*& pScene, MeshResource& outMesh, aiMesh*& pMesh, ModelLoadDesc::LoaderFlags flags);
 	};
 }

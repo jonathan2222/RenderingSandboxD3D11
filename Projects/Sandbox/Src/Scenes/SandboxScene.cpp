@@ -97,7 +97,8 @@ void SandboxScene::Start()
 		ImageLoadDesc imageDesc = {};
 		imageDesc.FilePath = "Home.jpg";
 		imageDesc.NumChannels = ImageLoadDesc::Channels::RGBA;
-		ImageResource* pImageResource = ResourceManager::Get()->LoadImageResource(imageDesc);
+		auto [pImage, handler] = ResourceManager::Get()->LoadImageResource(imageDesc);
+		ImageResource* pImageResource = pImage;
 
 		D3D11_TEXTURE2D_DESC textureDesc = {};
 		textureDesc.Width				= pImageResource->Width;
