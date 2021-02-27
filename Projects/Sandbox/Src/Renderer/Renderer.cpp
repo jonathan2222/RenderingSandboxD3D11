@@ -2,6 +2,7 @@
 #include "Renderer.h"
 
 #include "Core/Display.h"
+#include "Renderer/ImGuiRenderer.h"
 
 #include "Utils/Config.h"
 
@@ -52,6 +53,8 @@ void Renderer::Resize(uint32 width, uint32 height)
 		CreateRTV();
 
 		m_DefaultPipeline.Resize(width, height);
+
+		ImGuiRenderer::Resize();
 	}
 }
 

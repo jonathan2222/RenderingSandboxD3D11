@@ -54,7 +54,7 @@ bool Input::IsKeyReleased(const Key& key) const
 
 KeyState Input::GetKeyState(const Key& key)
 {
-    auto& it = s_KeyMap.find(key);
+    auto it = s_KeyMap.find(key);
     if (it == s_KeyMap.end())
         return KeyState::RELEASED;
     else return it->second;
@@ -138,6 +138,9 @@ std::string Input::KeyStateToStr(KeyState state)
 
 void Input::KeyCallback(GLFWwindow* wnd, int key, int scancode, int action, int mods)
 {
+    RS_UNREFERENCED_VARIABLE(wnd);
+    RS_UNREFERENCED_VARIABLE(scancode);
+    RS_UNREFERENCED_VARIABLE(mods);
     if(!ImGuiRenderer::WantKeyInput())
     {
         Key ymKey = (Key)key;
@@ -150,6 +153,7 @@ void Input::KeyCallback(GLFWwindow* wnd, int key, int scancode, int action, int 
 
 void Input::CursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
 {
+    RS_UNREFERENCED_VARIABLE(window);
     {
         s_MousePos.x = (float)xpos;
         s_MousePos.y = (float)ypos;
@@ -158,6 +162,8 @@ void Input::CursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
 
 void Input::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
+    RS_UNREFERENCED_VARIABLE(window);
+    RS_UNREFERENCED_VARIABLE(mods);
     if (!ImGuiRenderer::WantKeyInput())
     {
         MB ymButton = (MB)button;
@@ -170,6 +176,7 @@ void Input::MouseButtonCallback(GLFWwindow* window, int button, int action, int 
 
 void Input::MouseScrollCallback(GLFWwindow* window, double xOffset, double yOffset)
 {
+    RS_UNREFERENCED_VARIABLE(window);
     if (!ImGuiRenderer::WantKeyInput())
     {
         s_ScrollDelta.x = (float)xOffset;

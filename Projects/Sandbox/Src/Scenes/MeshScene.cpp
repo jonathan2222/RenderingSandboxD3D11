@@ -178,19 +178,12 @@ void MeshScene::Tick(float dt)
 
 	// Update data
 	{
-		// Use right-handed coordinate system (+z is towards the viewer!)
-		glm::vec3 camPos(0.0, 0.0, 2.0);
-		glm::vec3 camDir(0.0, 0.0, -1.0);
-		constexpr float fov = glm::pi<float>() / 4.f;
-		float nearPlane = 0.01f, farPlane = 100.f;
-		float aspectRatio = display->GetAspectRatio();
-		//LOG_INFO("w: {}, h: {}, as: {}", display->GetWidth(), display->GetHeight(), aspectRatio);
 		static float t = 0.f;
 		t += glm::pi<float>() * dt * 0.5f;
 		glm::mat4 m = glm::scale(glm::vec3(0.2f));
 		m_FrameData.world = glm::rotate(m, t, glm::vec3(0.f, 1.f, 0.f));
-		m_FrameData.view = m_Camera.GetView();// glm::lookAtRH(camPos, camPos + camDir, glm::vec3(0.f, 1.f, 0.f));
-		m_FrameData.proj = m_Camera.GetProj();// glm::perspectiveRH(fov, aspectRatio, nearPlane, farPlane);
+		m_FrameData.view = m_Camera.GetView();
+		m_FrameData.proj = m_Camera.GetProj();
 
 
 		glm::vec3 v = glm::rotate(glm::vec3(0.3f, 0.6f, 0.f), -t, glm::vec3(0.f, 1.f, 0.f));

@@ -152,8 +152,9 @@ void RS::EngineLoop::DrawFrameStats(const FrameStats& frameStats)
             ImGuiWindowFlags_NoResize;
 
         uint32_t displayWidth = Display::Get()->GetWidth();
-        const uint32_t width = 260;
-        const uint32_t height = 455;
+        float scale = ImGuiRenderer::GetGuiScale();
+        const uint32_t width = 260 * scale;
+        const uint32_t height = 455 * scale;
 
         // Draw the stats in the top right corner.
         ImGui::SetNextWindowPos(ImVec2((float)displayWidth - width, 0));

@@ -21,13 +21,8 @@ void ImGuiRenderer::Init(Display* pDisplay)
 	//ImGui::SetWindowFontScale();
 	ImGui::StyleColorsDark();
 
-	/*ImGuiStyle& style = ImGui::GetStyle();
-	uint32 width	= pDisplay->GetWidth();
-	uint32 height	= pDisplay->GetHeight();
-	float scale = width / 1920.f;
-	scale = scale > height / 1080.f ? scale : height / 1080.f;
-	style.ScaleAllSizes(scale);
-	*/
+	ReScale(pDisplay->GetWidth(), pDisplay->GetHeight());
+
 	GLFWwindow* pWindow = pDisplay->GetGLFWWindow();
 	ImGui_ImplGlfw_InitForOpenGL(pWindow, true);
 
@@ -51,7 +46,17 @@ void ImGuiRenderer::Draw(std::function<void(void)> callback)
 
 void ImGuiRenderer::Render()
 {
+	if (s_ShouldRescale)
+	{
+		// Resize only, after BeginFrame set s_ShouldRescale to false.
+		s_ShouldRescale = false;
+		InternalResize();
+	}
+
 	BeginFrame();
+
+	ImGuiIO& io = ImGui::GetIO();
+	io.FontGlobalScale = s_Scale;
 
 	{
 		std::lock_guard<std::mutex> lock(s_Mutex);
@@ -71,6 +76,16 @@ bool ImGuiRenderer::WantKeyInput()
 	return io.WantCaptureKeyboard || io.WantCaptureMouse;
 }
 
+void ImGuiRenderer::Resize()
+{
+	s_ShouldRescale = true;
+}
+
+float ImGuiRenderer::GetGuiScale()
+{
+	return s_Scale;
+}
+
 void ImGuiRenderer::BeginFrame()
 {
 	ImGui_ImplDX11_NewFrame();
@@ -82,4 +97,27 @@ void ImGuiRenderer::EndFrame()
 {
 	ImGui::Render();
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+}
+
+void ImGuiRenderer::InternalResize()
+{
+	auto pDisplay	= Display::Get();
+	uint32 width	= pDisplay->GetWidth();
+	uint32 height	= pDisplay->GetHeight();
+	if (width != 0 && height != 0)
+	{
+		Release();
+		Init(pDisplay.get());
+	}
+}
+
+void ImGuiRenderer::ReScale(uint32 width, uint32 height)
+{
+	ImGuiStyle& style = ImGui::GetStyle();
+	float widthScale = width / 1920.f;
+	float heightScale = height / 1080.f;
+	s_Scale = widthScale > heightScale ? widthScale : heightScale;
+	style.ScaleAllSizes(s_Scale);
+
+	LOG_INFO("ImGui Scale: {}", s_Scale);
 }
