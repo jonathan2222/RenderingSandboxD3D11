@@ -18,8 +18,16 @@ void ImGuiRenderer::Init(Display* pDisplay)
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
+	//ImGui::SetWindowFontScale();
 	ImGui::StyleColorsDark();
 
+	/*ImGuiStyle& style = ImGui::GetStyle();
+	uint32 width	= pDisplay->GetWidth();
+	uint32 height	= pDisplay->GetHeight();
+	float scale = width / 1920.f;
+	scale = scale > height / 1080.f ? scale : height / 1080.f;
+	style.ScaleAllSizes(scale);
+	*/
 	GLFWwindow* pWindow = pDisplay->GetGLFWWindow();
 	ImGui_ImplGlfw_InitForOpenGL(pWindow, true);
 

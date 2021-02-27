@@ -30,6 +30,8 @@ void MeshScene::Start()
 	AttributeLayout layout;
 	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "POSITION", 0);
 	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "NORMAL", 0);
+	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "TANGENT", 0);
+	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "BITANGENT", 0);
 	layout.Push(DXGI_FORMAT_R32G32_FLOAT, "TEXCOORD", 0);
 	Shader::Descriptor shaderDesc = {};
 	shaderDesc.Vertex = "MeshVert.hlsl";

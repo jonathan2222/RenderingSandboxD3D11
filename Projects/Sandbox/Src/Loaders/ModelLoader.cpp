@@ -155,6 +155,12 @@ bool ModelLoader::LoadWithAssimp(const std::string& filePath, ModelResource* out
         return false;
     }
 
+    if (flags & ModelLoadDesc::LoaderFlag::LOADER_FLAG_UPLOAD_MESH_DATA_TO_GUP)
+    {
+        LOG_ERROR("LOADER_FLAG_UPLOAD_MESH_DATA_TO_GUP is not implemented for Loader:ASSIMP!");
+        return false;
+    }
+
     return RecursiveLoadMeshes(pScene, pScene->mRootNode, outModel, glm::mat4(1.f), flags);
 }
 
