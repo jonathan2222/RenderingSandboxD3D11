@@ -12,6 +12,16 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+#pragma warning( push )
+#pragma warning( disable : 6011 )
+#pragma warning( disable : 6262 )
+#pragma warning( disable : 6308 )
+#pragma warning( disable : 6387 )
+#pragma warning( disable : 26451 )
+#pragma warning( disable : 28182 )
+#include <stb_image.h>
+#pragma warning( pop )
+
 using namespace RS;
 
 bool ModelLoader::Load(const std::string& filePath, ModelResource*& outModel, ModelLoadDesc::LoaderFlags flags)
@@ -247,10 +257,50 @@ void ModelLoader::FillMesh(const aiScene*& pScene, MeshResource& outMesh, aiMesh
     {
         uint32 materialIndex = pMesh->mMaterialIndex;
         aiMaterial* pMaterial = pScene->mMaterials[materialIndex];
-        // TODO: Load textures to the ResourceManager, use the path as a keay! (PS. The Textures might be embedded!)
         // TODO: Load a material into the ResourceManager, this will hold handlers to the textures and some constants!
         aiString name;
         pMaterial->Get(AI_MATKEY_NAME, name);
+
+        // TODO: Load textures to the ResourceManager, use the path as a key (path should be unique)! (PS. The Textures might be embedded!)
+        if (pMaterial->GetTextureCount(aiTextureType_DIFFUSE) > 0)
+        {
+            aiString path;
+            pMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &path); // Only take One Texture
+            const aiTexture* pEmbeddedTexture = pScene->GetEmbeddedTexture(path.C_Str());
+            if (pEmbeddedTexture)
+            {
+                // The texture is an embedded texture, load it from memory!
+                //pEmbeddedTexture->pcData
+                if (std::strcmp(pEmbeddedTexture->achFormatHint, "png") == 0)
+                {
+                    // TODO: Use stbi_load_from_memory and convert it to a normal pixel stream.
+                    //       Add a function into the ResourceManager to load an image from memory!
+                }
+                else if (std::strcmp(pEmbeddedTexture->achFormatHint, "jpg") == 0)
+                {
+                    // TODO: Use stbi_load_from_memory and convert it to a normal pixel stream.
+                    //       Add a function into the ResourceManager to load an image from memory!
+                }
+                else
+                {
+                    LOG_WARNING("Embedded format not supported!");
+                    // TODO: Use default 1x1 white pixel texture!
+                }
+            }
+            else
+            {
+                // Load Texture with ResourceManger!
+                TextureLoadDesc loadDesc = {};
+                loadDesc.ImageDesc.FilePath     = std::string(path.C_Str());
+                loadDesc.ImageDesc.NumChannels  = ImageLoadDesc::Channels::RGBA;
+                auto [pTexture, id] = ResourceManager::Get()->LoadTextureResource(loadDesc);
+                // TODO: Save texture id in the material!
+            }
+        }
+        else
+        {
+            // TODO: Load a 1x1 white pixel texture as a default texture!
+        }
     }
 
     // Add vertices
