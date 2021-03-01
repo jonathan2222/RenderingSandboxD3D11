@@ -15,7 +15,8 @@ namespace RS
 
 		struct FileData
 		{
-			std::string		Path = "";
+			std::string		Path				= "";
+			bool			UseDefaultFolder	= true;
 		} File;
 
 		struct MemoryData
@@ -27,9 +28,9 @@ namespace RS
 			uint32			Height			= 0;		// This is only used for uncompressed data.
 		} Memory;
 
-		std::string	Name		= ""; // Used as a key, this should be unique!
-		Channels	NumChannels = Channels::DEFAULT;
-		bool		IsFromFile	= true;
+		std::string	Name				= ""; // Used as a key, this should be unique!
+		Channels	NumChannels			= Channels::DEFAULT;
+		bool		IsFromFile			= true;
 	};
 
 	struct TextureLoadDesc

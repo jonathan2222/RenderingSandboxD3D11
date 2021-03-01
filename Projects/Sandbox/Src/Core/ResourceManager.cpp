@@ -304,7 +304,9 @@ void ResourceManager::LoadImageFromFile(ImageResource*& outImage, ImageLoadDesc&
 		break;
 	}
 
-	std::string path = std::string(RS_TEXTURE_PATH) + imageDescription.File.Path;
+	std::string path = imageDescription.File.Path;
+	if(imageDescription.File.UseDefaultFolder)
+		path = std::string(RS_TEXTURE_PATH) + imageDescription.File.Path;
 	int width = 0, height = 0, channelCount = 0;
 	uint8* pPixels = nullptr;
 	if (nChannels < 0 || nChannels > 4)

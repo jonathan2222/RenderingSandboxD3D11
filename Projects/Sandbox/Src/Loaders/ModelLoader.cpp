@@ -438,18 +438,20 @@ void ModelLoader::LoadMaterial(const aiScene*& pScene, MeshObject& outMesh, aiMe
             pMaterial->Get(AI_MATKEY_NAME, name);
             pMaterialResource->Name = std::string(name.C_Str());
 
-            pMaterialResource->AlbedoTextureHandler = LoadTextureResource(aiTextureType_DIFFUSE, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelWhite);
-            pMaterialResource->NormalTextureHandler = LoadTextureResource(aiTextureType_NORMALS, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelNormal);
+            pMaterialResource->AlbedoTextureHandler = LoadTextureResource(aiTextureType_DIFFUSE, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelWhite, modelPath);
+            pMaterialResource->NormalTextureHandler = LoadTextureResource(aiTextureType_NORMALS, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelNormal, modelPath);
         }
 
         outMesh.MaterialHandler = materialID;
     }
 }
 
-ResourceID ModelLoader::LoadTextureResource(aiTextureType type, const aiScene*& pScene, aiMaterial* pMaterial, ResourceID defaultTextureID)
+ResourceID ModelLoader::LoadTextureResource(aiTextureType type, const aiScene*& pScene, aiMaterial* pMaterial, ResourceID defaultTextureID, const std::string& modelPath)
 {
     auto pResourceManager = ResourceManager::Get();
     ResourceID textureID = 0;
+
+    std::string folderPath = modelPath.substr(0, modelPath.find_last_of("\\/")) + "/";
 
     if (pMaterial->GetTextureCount(type) > 0)
     {
@@ -484,7 +486,8 @@ ResourceID ModelLoader::LoadTextureResource(aiTextureType type, const aiScene*& 
             // Load Texture with ResourceManger!
             TextureLoadDesc loadDesc = {};
             loadDesc.ImageDesc.IsFromFile   = true;
-            loadDesc.ImageDesc.File.Path    = std::string(path.C_Str());
+            loadDesc.ImageDesc.File.Path    = folderPath + std::string(path.C_Str());
+            loadDesc.ImageDesc.File.UseDefaultFolder = false; // Use the same folder as the model.
             loadDesc.ImageDesc.Name         = loadDesc.ImageDesc.File.Path;
             loadDesc.ImageDesc.NumChannels  = ImageLoadDesc::Channels::RGBA;
             auto [pTexture, ID] = ResourceManager::Get()->LoadTextureResource(loadDesc);
