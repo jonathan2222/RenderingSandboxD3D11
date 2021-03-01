@@ -2,6 +2,8 @@
 #include "ResourceManager.h"
 
 #include "Loaders/ModelLoader.h"
+#include "Renderer/ImGuiRenderer.h"
+#include <unordered_set>
 
 #pragma warning( push )
 #pragma warning( disable : 6011 )

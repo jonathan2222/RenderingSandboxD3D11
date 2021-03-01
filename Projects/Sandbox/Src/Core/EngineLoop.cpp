@@ -16,6 +16,8 @@
 #include "Renderer/ImGuiRenderer.h"
 #include "Renderer/ShaderHotReloader.h"
 
+#include "Core/ResourceInspector.h"
+
 #include <unordered_set>
 
 void RS::EngineLoop::Init(std::function<void(void)> fixedTickCallback, std::function<void(float)> tickCallback)
@@ -42,11 +44,14 @@ void RS::EngineLoop::Init(std::function<void(void)> fixedTickCallback, std::func
 
     ShaderHotReloader::Init();
 
-    ResourceManager::Get()->Init();
+    auto resourceManager = ResourceManager::Get();
+    resourceManager->Init();
+    ResourceInspector::Init(resourceManager);
 }
 
 void RS::EngineLoop::Release()
 {
+    ResourceInspector::Release();
     ResourceManager::Get()->Release();
 
     ShaderHotReloader::Release();
@@ -106,6 +111,7 @@ void RS::EngineLoop::FixedTick()
 void RS::EngineLoop::Tick(const FrameStats& frameStats)
 {
     DrawFrameStats(frameStats);
+    ResourceInspector::Draw();
 
     ShaderHotReloader::Update();
 
@@ -156,7 +162,7 @@ void RS::EngineLoop::DrawFrameStats(const FrameStats& frameStats)
         uint32 displayWidth = Display::Get()->GetWidth();
         float scale = ImGuiRenderer::GetGuiScale();
         const uint32 width  = (uint32)(260.f * scale);
-        const uint32 height = (uint32)(455.f * scale);
+        const uint32 height = (uint32)(405.f * scale);
 
         // Draw the stats in the top right corner.
         ImGui::SetNextWindowPos(ImVec2((float)displayWidth - width, 0));
@@ -234,65 +240,6 @@ void RS::EngineLoop::DrawFrameStats(const FrameStats& frameStats)
                 ImGui::Text("Num line vertices: %d", stats.NumberOfLineVertices);
                 ImGui::Text("Num point vertices: %d", stats.NumberOfPointVertices);
                 ImGui::Text("Num IDs: %d", stats.NumberOfIDs);
-                ImGui::Unindent();
-            }
-
-            ImGui::NewLine();
-            ImGui::Text("Resource Manager");
-            {
-                const ResourceManager::Stats& stats = ResourceManager::Get()->GetStats();
-                ImGui::Indent();
-                if (ImGui::TreeNode("Types"))
-                {
-                    for (auto& [type, refCount] : *stats.pTypeResourcesRefCount)
-                    {
-                        std::string typeStr = Resource::TypeToString(type);
-                        ImGui::Text("%s: %d", typeStr.c_str(), refCount);
-                    }
-                    ImGui::TreePop();
-                }
-                if (ImGui::TreeNode("Resources"))
-                {
-                    std::unordered_set<ResourceID> idSet;
-                    for (auto& [keyStr, id] : *stats.pStringToResourceIDMap)
-                    {
-                        idSet.insert(id);
-                        uint32 refCount = (*stats.pResourcesRefCount)[id];
-                        std::string idStr = std::to_string(id);
-                        ImGui::Text("[%s] %s: %d", idStr.c_str(), keyStr.c_str(), refCount);
-                        if (ImGui::IsItemHovered())
-                        {
-                            ImGui::BeginTooltip();
-                            ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-                            ImGui::Text("[%s] %s: %d", idStr.c_str(), keyStr.c_str(), refCount);
-                            ImGui::PopTextWrapPos();
-                            ImGui::EndTooltip();
-                        }
-                    }
-                    
-                    // Add the resources that do not have a name associated to it.
-                    for (ResourceID id : stats.ResourceIDs)
-                    {
-                        if (idSet.find(id) == idSet.end())
-                        {
-                            idSet.insert(id);
-                            std::string keyStr = "_";
-                            uint32 refCount = (*stats.pResourcesRefCount)[id];
-                            std::string idStr = std::to_string(id);
-                            ImGui::Text("[%s] %s: %d", idStr.c_str(), keyStr.c_str(), refCount);
-                            if (ImGui::IsItemHovered())
-                            {
-                                ImGui::BeginTooltip();
-                                ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-                                ImGui::Text("[%s] %s: %d", idStr.c_str(), keyStr.c_str(), refCount);
-                                ImGui::PopTextWrapPos();
-                                ImGui::EndTooltip();
-                            }
-                        }
-                    }
-
-                    ImGui::TreePop();
-                }
                 ImGui::Unindent();
             }
 
