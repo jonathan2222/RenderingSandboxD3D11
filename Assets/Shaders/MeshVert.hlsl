@@ -11,6 +11,9 @@ struct VSOut
 {
     float4 position : SV_POSITION;
     float4 normal : NORMAL;
+    float4 tangent : TANGENT;
+    float4 bitangent : BITANGENT;
+    float4x4 TBN : TBN_MATRIX;
     float2 uv : TEXCOORD;
 };
 
@@ -33,6 +36,11 @@ VSOut main(VSIn input)
     output.position = mul(projMat, output.position);
 
     output.normal = mul(worldMat, float4(input.normal, 0.f));
+    output.tangent = mul(worldMat, float4(input.tangent, 0.f));
+    output.bitangent = mul(worldMat, float4(input.bitangent, 0.f));
+
+    output.TBN = float4x4(output.tangent, output.bitangent, output.normal, float4(0.f, 0.f, 0.f, 1.f));
+    output.TBN = transpose(output.TBN);
 
     output.uv = input.uv;
 

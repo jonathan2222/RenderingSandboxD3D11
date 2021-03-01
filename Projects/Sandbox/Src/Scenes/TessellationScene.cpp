@@ -490,7 +490,8 @@ void TessellationScene::ToggleWireframe(bool forceToggle)
 void TessellationScene::CreateTexture(const std::string& fileName, ID3D11Texture2D*& pTexture, ID3D11ShaderResourceView*& pTextureView)
 {
 	ImageLoadDesc imageDesc = {};
-	imageDesc.FilePath		= fileName;
+	imageDesc.File.Path		= fileName;
+	imageDesc.Name			= imageDesc.File.Path;
 	imageDesc.NumChannels	= ImageLoadDesc::Channels::RGBA;
 	auto [pImage, handler] = ResourceManager::Get()->LoadImageResource(imageDesc);
 	ImageResource* pImageResource = pImage;
@@ -509,7 +510,7 @@ void TessellationScene::CreateTexture(const std::string& fileName, ID3D11Texture
 	textureDesc.MiscFlags			= 0;
 
 	D3D11_SUBRESOURCE_DATA data = {};
-	data.pSysMem			= pImageResource->Data;
+	data.pSysMem			= pImageResource->Data.data();
 	data.SysMemPitch		= pImageResource->Width * 4;
 	data.SysMemSlicePitch	= 0;
 

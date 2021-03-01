@@ -50,7 +50,7 @@ bool ModelLoader::Load(const std::string& filePath, ModelResource*& outModel, Mo
 
     // TODO: Add materials and make one model for each shape!
     outModel->Meshes.resize(1);
-    MeshResource& mesh = outModel->Meshes[0];
+    MeshObject& mesh = outModel->Meshes[0];
 
     if (flags & ModelLoadDesc::LoaderFlag::LOADER_FLAG_GENERATE_BOUNDING_BOX)
     {
@@ -84,7 +84,7 @@ bool ModelLoader::Load(const std::string& filePath, ModelResource*& outModel, Mo
                 tinyobj::real_t ty = attrib.texcoords[(size_t)2 * idx.texcoord_index + 1];
 
                 // Naive implementation.
-                MeshResource::Vertex vertex = {};
+                MeshObject::Vertex vertex = {};
                 vertex.Position     = glm::vec3(vx, vy, vz);
                 vertex.Normal       = glm::vec3(nx, ny, nz);
                 vertex.Tangent      = glm::vec3(0.f);
@@ -104,6 +104,30 @@ bool ModelLoader::Load(const std::string& filePath, ModelResource*& outModel, Mo
             // per-face material
             //shapes[s].mesh.material_ids[f];
         }
+    }
+
+    // Add a default material
+    {
+        auto pResourceManager = ResourceManager::Get();
+        
+        std::string key = path + "TINYOBJ_Material_DEFAULT";
+        ResourceID materialID = pResourceManager->GetIDFromString(key);
+        if (materialID == 0)
+        {
+            // Add a new material if it does not exist!
+            auto [pMaterialResource, newMaterialID] = pResourceManager->AddResource<MaterialResource>(Resource::Type::MATERIAL);
+            pResourceManager->AddStringToIDAssociation(key, newMaterialID);
+            materialID = newMaterialID;
+
+            pMaterialResource->Name = "Default Material";
+
+            pResourceManager->LoadTextureResource(pResourceManager->DefaultTextureOnePixelWhite);
+            pMaterialResource->AlbedoTextureHandler = pResourceManager->DefaultTextureOnePixelWhite;
+            pResourceManager->LoadTextureResource(pResourceManager->DefaultTextureOnePixelNormal);
+            pMaterialResource->NormalTextureHandler = pResourceManager->DefaultTextureOnePixelNormal;
+        }
+
+        mesh.MaterialHandler = materialID;
     }
 
     if (flags & ModelLoadDesc::LoaderFlag::LOADER_FLAG_GENERATE_BOUNDING_BOX)
@@ -165,10 +189,10 @@ bool ModelLoader::LoadWithAssimp(const std::string& filePath, ModelResource* out
         return false;
     }
 
-    return RecursiveLoadMeshes(pScene, pScene->mRootNode, outModel, glm::mat4(1.f), flags);
+    return RecursiveLoadMeshes(pScene, pScene->mRootNode, outModel, glm::mat4(1.f), flags, path);
 }
 
-bool ModelLoader::RecursiveLoadMeshes(const aiScene*& pScene, aiNode* pNode, ModelResource* pParent, glm::mat4 accTransform, ModelLoadDesc::LoaderFlags flags)
+bool ModelLoader::RecursiveLoadMeshes(const aiScene*& pScene, aiNode* pNode, ModelResource* pParent, glm::mat4 accTransform, ModelLoadDesc::LoaderFlags flags, const std::string& modelPath)
 {
     bool succeeded = true;
     ModelResource* pTargetParent = nullptr;
@@ -199,8 +223,8 @@ bool ModelLoader::RecursiveLoadMeshes(const aiScene*& pScene, aiNode* pNode, Mod
         {
             uint32 meshIndex    = pNode->mMeshes[m];
             aiMesh* pMesh       = pScene->mMeshes[meshIndex];
-            MeshResource& mesh  = pNewModel->Meshes[m];
-            FillMesh(pScene, mesh, pMesh, flags);
+            MeshObject& mesh  = pNewModel->Meshes[m];
+            FillMesh(pScene, mesh, pMesh, flags, modelPath);
 
             // Expand the bounding box of this model to fit all meshes inside it.
             modelAABB.min = Maths::GetMinElements(mesh.BoundingBox.min, modelAABB.min);
@@ -231,7 +255,7 @@ bool ModelLoader::RecursiveLoadMeshes(const aiScene*& pScene, aiNode* pNode, Mod
         for (uint32 i = 0; i < pNode->mNumChildren; i++)
         {
             aiNode* pChild = pNode->mChildren[(size_t)i];
-            succeeded &= RecursiveLoadMeshes(pScene, pChild, pTargetParent, transform, flags);
+            succeeded &= RecursiveLoadMeshes(pScene, pChild, pTargetParent, transform, flags, modelPath);
         }
     }
 
@@ -251,64 +275,18 @@ bool ModelLoader::RecursiveLoadMeshes(const aiScene*& pScene, aiNode* pNode, Mod
     return succeeded;
 }
 
-void ModelLoader::FillMesh(const aiScene*& pScene, MeshResource& outMesh, aiMesh*& pMesh, ModelLoadDesc::LoaderFlags flags)
+void ModelLoader::FillMesh(const aiScene*& pScene, MeshObject& outMesh, aiMesh*& pMesh, ModelLoadDesc::LoaderFlags flags, const std::string& modelPath)
 {
     // Add Materials
-    {
-        uint32 materialIndex = pMesh->mMaterialIndex;
-        aiMaterial* pMaterial = pScene->mMaterials[materialIndex];
-        // TODO: Load a material into the ResourceManager, this will hold handlers to the textures and some constants!
-        aiString name;
-        pMaterial->Get(AI_MATKEY_NAME, name);
-
-        // TODO: Load textures to the ResourceManager, use the path as a key (path should be unique)! (PS. The Textures might be embedded!)
-        if (pMaterial->GetTextureCount(aiTextureType_DIFFUSE) > 0)
-        {
-            aiString path;
-            pMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &path); // Only take One Texture
-            const aiTexture* pEmbeddedTexture = pScene->GetEmbeddedTexture(path.C_Str());
-            if (pEmbeddedTexture)
-            {
-                // The texture is an embedded texture, load it from memory!
-                //pEmbeddedTexture->pcData
-                if (std::strcmp(pEmbeddedTexture->achFormatHint, "png") == 0)
-                {
-                    // TODO: Use stbi_load_from_memory and convert it to a normal pixel stream.
-                    //       Add a function into the ResourceManager to load an image from memory!
-                }
-                else if (std::strcmp(pEmbeddedTexture->achFormatHint, "jpg") == 0)
-                {
-                    // TODO: Use stbi_load_from_memory and convert it to a normal pixel stream.
-                    //       Add a function into the ResourceManager to load an image from memory!
-                }
-                else
-                {
-                    LOG_WARNING("Embedded format not supported!");
-                    // TODO: Use default 1x1 white pixel texture!
-                }
-            }
-            else
-            {
-                // Load Texture with ResourceManger!
-                TextureLoadDesc loadDesc = {};
-                loadDesc.ImageDesc.FilePath     = std::string(path.C_Str());
-                loadDesc.ImageDesc.NumChannels  = ImageLoadDesc::Channels::RGBA;
-                auto [pTexture, id] = ResourceManager::Get()->LoadTextureResource(loadDesc);
-                // TODO: Save texture id in the material!
-            }
-        }
-        else
-        {
-            // TODO: Load a 1x1 white pixel texture as a default texture!
-        }
-    }
+    // TODO: Add default material if the mesh is missing one!
+    LoadMaterial(pScene, outMesh, pMesh, flags, modelPath);
 
     // Add vertices
     outMesh.NumVertices = pMesh->mNumVertices;
     outMesh.Vertices.resize((uint64)outMesh.NumVertices);
     for (uint32 v = 0; v < outMesh.NumVertices; v++)
     {
-        MeshResource::Vertex& vertex = outMesh.Vertices[v];
+        MeshObject::Vertex& vertex = outMesh.Vertices[v];
 
         // Position
         aiVector3D& pos = pMesh->mVertices[v];
@@ -328,6 +306,20 @@ void ModelLoader::FillMesh(const aiScene*& pScene, MeshResource& outMesh, aiMesh
             aiVector3D& bitan = pMesh->mBitangents[v];
             vertex.Tangent = glm::vec3(tan.x, tan.y, tan.z);
             vertex.Bitangent = glm::vec3(bitan.x, bitan.y, bitan.z);
+
+            // Check if they are correct!
+            vertex.Tangent = glm::normalize(vertex.Tangent - glm::dot(vertex.Tangent, vertex.Normal) * vertex.Normal);
+            vertex.Bitangent = glm::normalize(glm::cross(vertex.Normal, vertex.Tangent));
+
+            glm::vec3 bi = glm::normalize(glm::cross(vertex.Normal, vertex.Tangent));
+            //vertex.Bitangent = bi;
+            glm::vec3 tan2 = glm::normalize(glm::cross(vertex.Bitangent, vertex.Normal));
+            //vertex.Tangent = tan2;
+            glm::vec3 diff = glm::abs(bi) - glm::abs(glm::normalize(vertex.Bitangent));
+            if (glm::all(glm::greaterThan(diff, glm::vec3(FLT_EPSILON))))
+            {
+                LOG_WARNING("TANGENT & BITANGENT are wrong!");
+            }
         }
 
         // UVs
@@ -361,7 +353,7 @@ void ModelLoader::FillMesh(const aiScene*& pScene, MeshResource& outMesh, aiMesh
         // Create the vertex buffer.
         {
             D3D11_BUFFER_DESC bufferDesc = {};
-            bufferDesc.ByteWidth = (UINT)(sizeof(MeshResource::Vertex) * outMesh.Vertices.size());
+            bufferDesc.ByteWidth = (UINT)(sizeof(MeshObject::Vertex) * outMesh.Vertices.size());
             bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
             bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
             bufferDesc.CPUAccessFlags = 0;
@@ -399,14 +391,14 @@ void ModelLoader::FillMesh(const aiScene*& pScene, MeshResource& outMesh, aiMesh
         // Create Constant Buffer to hold transform data and other mesh related data.
         {
             D3D11_BUFFER_DESC bufferDesc = {};
-            bufferDesc.ByteWidth            = sizeof(MeshResource::MeshData);
+            bufferDesc.ByteWidth            = sizeof(MeshObject::MeshData);
             bufferDesc.Usage                = D3D11_USAGE_DYNAMIC;
             bufferDesc.BindFlags            = D3D11_BIND_CONSTANT_BUFFER;
             bufferDesc.CPUAccessFlags       = D3D11_CPU_ACCESS_WRITE;
             bufferDesc.MiscFlags            = 0;
             bufferDesc.StructureByteStride  = 0;
 
-            MeshResource::MeshData initialData = {};
+            MeshObject::MeshData initialData = {};
             D3D11_SUBRESOURCE_DATA data;
             data.pSysMem            = &initialData;
             data.SysMemPitch        = 0;
@@ -423,4 +415,88 @@ void ModelLoader::FillMesh(const aiScene*& pScene, MeshResource& outMesh, aiMesh
         outMesh.Vertices.clear();
         outMesh.Indices.clear();
     }
+}
+
+void ModelLoader::LoadMaterial(const aiScene*& pScene, MeshObject& outMesh, aiMesh*& pMesh, ModelLoadDesc::LoaderFlags flags, const std::string& modelPath)
+{
+    auto pResourceManager = ResourceManager::Get();
+    uint32 materialIndex = pMesh->mMaterialIndex;
+    if(materialIndex >= 0)
+    {
+        std::string key = modelPath + "_Material_" + std::to_string(materialIndex);
+        ResourceID materialID = pResourceManager->GetIDFromString(key);
+        if (materialID == 0)
+        {
+            // Add a new material if it does not exist!
+            auto [pMaterialResource, newMaterialID] = pResourceManager->AddResource<MaterialResource>(Resource::Type::MATERIAL);
+            pResourceManager->AddStringToIDAssociation(key, newMaterialID);
+            materialID = newMaterialID;
+
+            aiMaterial* pMaterial = pScene->mMaterials[materialIndex];
+
+            aiString name;
+            pMaterial->Get(AI_MATKEY_NAME, name);
+            pMaterialResource->Name = std::string(name.C_Str());
+
+            pMaterialResource->AlbedoTextureHandler = LoadTextureResource(aiTextureType_DIFFUSE, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelWhite);
+            pMaterialResource->NormalTextureHandler = LoadTextureResource(aiTextureType_NORMALS, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelNormal);
+        }
+
+        outMesh.MaterialHandler = materialID;
+    }
+}
+
+ResourceID ModelLoader::LoadTextureResource(aiTextureType type, const aiScene*& pScene, aiMaterial* pMaterial, ResourceID defaultTextureID)
+{
+    auto pResourceManager = ResourceManager::Get();
+    ResourceID textureID = 0;
+
+    if (pMaterial->GetTextureCount(type) > 0)
+    {
+        aiString path;
+        pMaterial->GetTexture(type, 0, &path); // Only take One Texture
+        const aiTexture* pEmbeddedTexture = pScene->GetEmbeddedTexture(path.C_Str());
+        if (pEmbeddedTexture)
+        {
+            // The texture is an embedded texture, load it from memory!
+            if (std::strcmp(pEmbeddedTexture->achFormatHint, "png") == 0 ||
+                std::strcmp(pEmbeddedTexture->achFormatHint, "jpg") == 0)
+            {
+                TextureLoadDesc loadDesc = {};
+                loadDesc.ImageDesc.Memory.pData         = &pEmbeddedTexture->pcData[0].b;
+                loadDesc.ImageDesc.Memory.Size          = pEmbeddedTexture->mWidth;
+                loadDesc.ImageDesc.Memory.IsCompressed  = true;
+                loadDesc.ImageDesc.IsFromFile           = false;
+                loadDesc.ImageDesc.NumChannels          = ImageLoadDesc::Channels::RGBA;
+                loadDesc.ImageDesc.Name                 = std::string(path.C_Str()); // Use the path as a key!
+                auto [pTexture, ID] = pResourceManager->LoadTextureResource(loadDesc);
+                textureID = ID;
+            }
+            else
+            {
+                LOG_WARNING("Embedded format not supported!");
+                pResourceManager->LoadTextureResource(defaultTextureID);
+                textureID = defaultTextureID;
+            }
+        }
+        else
+        {
+            // Load Texture with ResourceManger!
+            TextureLoadDesc loadDesc = {};
+            loadDesc.ImageDesc.IsFromFile   = true;
+            loadDesc.ImageDesc.File.Path    = std::string(path.C_Str());
+            loadDesc.ImageDesc.Name         = loadDesc.ImageDesc.File.Path;
+            loadDesc.ImageDesc.NumChannels  = ImageLoadDesc::Channels::RGBA;
+            auto [pTexture, ID] = ResourceManager::Get()->LoadTextureResource(loadDesc);
+            RS_UNREFERENCED_VARIABLE(pTexture);
+            textureID = ID;
+        }
+    }
+    else
+    {
+        pResourceManager->LoadTextureResource(defaultTextureID);
+        textureID = defaultTextureID;
+    }
+
+    return textureID;
 }

@@ -453,7 +453,7 @@ void DebugRenderer::UpdateLinesDrawBuffer()
 			data.pSysMem = m_LinesToRender.m_Vertices.data();
 			data.SysMemPitch = 0;
 			data.SysMemSlicePitch = 0;
-
+			
 			HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pLinesVertexBuffer);
 			RS_D311_CHECK(result, "Failed to create lines vertex buffer!");
 		}
@@ -595,11 +595,11 @@ void DebugRenderer::PushMeshInternal(ModelResource* model, const Color& color, u
 	std::vector<glm::vec3> points;
 	points.resize(4);
 	transform = model->Transform * accTransform;
-	for (MeshResource& mesh : model->Meshes)
+	for (MeshObject& mesh : model->Meshes)
 	{
 		for (uint32 i = 0; i < mesh.Indices.size(); i += 3)
 		{
-			MeshResource::Vertex v = mesh.Vertices[mesh.Indices[i]];
+			MeshObject::Vertex v = mesh.Vertices[mesh.Indices[i]];
 			glm::vec4 transformedPos = glm::vec4(v.Position, 1.f);
 			transformedPos = transformedPos * transform;
 			points[0] = (glm::vec3)transformedPos;

@@ -13,8 +13,23 @@ namespace RS
 			RGBA = FLAG(4)
 		};
 
-		std::string		FilePath = "";
-		Channels		NumChannels = Channels::DEFAULT;
+		struct FileData
+		{
+			std::string		Path = "";
+		} File;
+
+		struct MemoryData
+		{
+			const uint8*	pData			= nullptr;
+			bool			IsCompressed	= false;
+			uint32			Size			= 0;		// This is only used for compressed data.
+			uint32			Width			= 0;		// This is only used for uncompressed data.
+			uint32			Height			= 0;		// This is only used for uncompressed data.
+		} Memory;
+
+		std::string	Name		= ""; // Used as a key, this should be unique!
+		Channels	NumChannels = Channels::DEFAULT;
+		bool		IsFromFile	= true;
 	};
 
 	struct TextureLoadDesc
@@ -61,6 +76,6 @@ namespace RS
 
 		std::string	FilePath = "";
 		Loader		Loader = Loader::DEFAULT;
-		LoaderFlags	Flags = LOADER_FLAG_UPLOAD_MESH_DATA_TO_GUP | LOADER_FLAG_NO_MESH_DATA_IN_RAM | LOADER_FLAG_GENERATE_BOUNDING_BOX;
+		LoaderFlags	Flags = LOADER_FLAG_UPLOAD_MESH_DATA_TO_GUP | LOADER_FLAG_NO_MESH_DATA_IN_RAM | LOADER_FLAG_GENERATE_BOUNDING_BOX | LOADER_FLAG_USE_UV_TOP_LEFT;
 	};
 }

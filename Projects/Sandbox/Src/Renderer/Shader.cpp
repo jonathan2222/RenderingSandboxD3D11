@@ -277,6 +277,8 @@ bool Shader::InitAndReload(const Descriptor& shaderDescriptor, const AttributeLa
     m_pDReflector = newShader.m_pDReflector;
 
     m_Layout = layout;
+
+    return result;
 }
 
 bool Shader::CreateAndCompileShaderPart(const std::string& filePath, ShaderTypeFlag type, void** pShader, ID3D11ShaderReflection*& pReflection, ID3DBlob*& pByteCode, bool releaseBlob)
@@ -403,7 +405,7 @@ bool Shader::CreateShader(ShaderTypeFlag type, void** pShader, ID3DBlob*& pByteC
 
     result = D3DReflect(pByteCode->GetBufferPointer(), pByteCode->GetBufferSize(),
         IID_ID3D11ShaderReflection, (void**)&pReflection);
-    RS_D311_CHECK(result, "Failed to create {} shader reflection!", ShaderTypeToStringArr[type].c_str());
+    RS_D311_CHECK(result, "Failed to create shader reflection!");
 
     if (FAILED(result))
         return false;
@@ -431,6 +433,9 @@ bool Shader::CreateLayout(ID3DBlob*& pVertexShaderByteCode, const AttributeLayou
         polygonLayout[i].InputSlotClass = instanceDataStep != 0 ? D3D11_INPUT_PER_INSTANCE_DATA : D3D11_INPUT_PER_VERTEX_DATA;
         polygonLayout[i].InstanceDataStepRate = instanceDataStep;
     }
+
+    if (pVertexShaderByteCode == nullptr)
+        return false;
 
     // Create the vertex input layout.
     ID3D11Device* device = RenderAPI::Get()->GetDevice();

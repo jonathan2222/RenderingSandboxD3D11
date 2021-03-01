@@ -52,11 +52,11 @@ namespace RS
 		ID3D11Buffer* m_pConstantBufferMesh		= nullptr;
 
 		FrameData				m_FrameData;
-		MeshResource::MeshData	m_MeshData;
+		MeshObject::MeshData	m_MeshData;
 
 		ModelResource*	m_pModel				= nullptr;
-
 		ModelResource*	m_pAssimpModel			= nullptr;
+		ModelResource*	m_pBagModel				= nullptr;
 
 		Camera			m_Camera;
 

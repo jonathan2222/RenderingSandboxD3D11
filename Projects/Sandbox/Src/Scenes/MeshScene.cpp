@@ -51,18 +51,32 @@ void MeshScene::Start()
 
 	// Load a model with assimp.
 	{
-		ModelLoadDesc modelLoadDesc = {};
-		modelLoadDesc.FilePath = "knight_d_pelegrini.fbx";
-		modelLoadDesc.Loader = ModelLoadDesc::Loader::ASSIMP;
-		auto [pModel, handler] = ResourceManager::Get()->LoadModelResource(modelLoadDesc);
-		m_pAssimpModel = pModel;
+		{
+			// TODO: The Resource Manager does not allocate the right textures. 
+			//		 I saw that one texture was given many different IDs!
+			ModelLoadDesc modelLoadDesc = {};
+			modelLoadDesc.FilePath = "knight_d_pelegrini.fbx";
+			modelLoadDesc.Loader = ModelLoadDesc::Loader::ASSIMP;
+			auto [pModel, handler] = ResourceManager::Get()->LoadModelResource(modelLoadDesc);
+			m_pAssimpModel = pModel;
+		}
+
+		{
+			// TODO: The debug rendering of the bounding boxes seems to not work for this model! 
+			//	     At least the AABBs for a model closer to the root.
+			ModelLoadDesc modelLoadDesc = {};
+			modelLoadDesc.FilePath = "SurvivalGuitarBackpack/Survival_BackPack_2.fbx";
+			modelLoadDesc.Loader = ModelLoadDesc::Loader::ASSIMP;
+			auto [pModel, handler] = ResourceManager::Get()->LoadModelResource(modelLoadDesc);
+			m_pBagModel = pModel;
+		}
 	}
 
 	RS_ASSERT(m_pModel != nullptr, "Could not load model!");
 
 	{
 		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.ByteWidth = (UINT)(sizeof(MeshResource::Vertex) * m_pModel->Meshes[0].Vertices.size());
+		bufferDesc.ByteWidth = (UINT)(sizeof(MeshObject::Vertex) * m_pModel->Meshes[0].Vertices.size());
 		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 		bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 		bufferDesc.CPUAccessFlags = 0;
@@ -113,7 +127,7 @@ void MeshScene::Start()
 		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pConstantBufferFrame);
 		RS_D311_ASSERT_CHECK(result, "Failed to create frame constant buffer!");
 
-		bufferDesc.ByteWidth = sizeof(MeshResource::MeshData);
+		bufferDesc.ByteWidth = sizeof(MeshObject::MeshData);
 		data.pSysMem = &m_MeshData;
 		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pConstantBufferMesh);
 		RS_D311_ASSERT_CHECK(result, "Failed to create mesh constant buffer!");
@@ -208,17 +222,24 @@ void MeshScene::Tick(float dt)
 
 		result = pContext->Map(m_pConstantBufferMesh, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 		RS_D311_ASSERT_CHECK(result, "Failed to map mesh constant buffer!");
-		MeshResource::MeshData* dataMesh = (MeshResource::MeshData*)mappedResource.pData;
+		MeshObject::MeshData* dataMesh = (MeshObject::MeshData*)mappedResource.pData;
 		memcpy(dataMesh, &m_MeshData, sizeof(m_MeshData));
 		pContext->Unmap(m_pConstantBufferMesh, 0);
 	}
 
-	UINT stride = sizeof(MeshResource::Vertex);
+	MaterialResource* pMaterial = ResourceManager::Get()->GetResource<MaterialResource>(m_pModel->Meshes[0].MaterialHandler);
+	TextureResource* pAlbedoTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->AlbedoTextureHandler);
+	TextureResource* pNormalTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->NormalTextureHandler);
+
+	UINT stride = sizeof(MeshObject::Vertex);
 	UINT offset = 0;
 	pContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
 	pContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 	pContext->VSSetConstantBuffers(0, 1, &m_pConstantBufferMesh);
 	pContext->VSSetConstantBuffers(1, 1, &m_pConstantBufferFrame);
+	pContext->PSSetShaderResources(0, 1, &pAlbedoTexture->pTextureSRV);
+	pContext->PSSetShaderResources(1, 1, &pNormalTexture->pTextureSRV);
+	pContext->PSSetSamplers(0, 1, &pAlbedoTexture->pSampler);
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pContext->DrawIndexed((UINT)m_pModel->Meshes[0].Indices.size(), 0, 0);
 
@@ -231,6 +252,17 @@ void MeshScene::Tick(float dt)
 		static uint32 debugInfoID = DebugRenderer::Get()->GenID();
 		debugInfo.ID = debugInfoID;
 		renderer->Render(*m_pAssimpModel, transform, debugInfo);
+	}
+
+	// Draw assimp model
+	{
+		glm::mat4 transform = glm::translate(glm::vec3(-1.0f, 0.f, 0.f)) * glm::scale(glm::vec3(0.005f));
+		pContext->VSSetConstantBuffers(1, 1, &m_pConstantBufferFrame);
+		Renderer::DebugInfo debugInfo = {};
+		debugInfo.DrawAABBs = true;
+		static uint32 debugInfoID = DebugRenderer::Get()->GenID();
+		debugInfo.ID = debugInfoID;
+		renderer->Render(*m_pBagModel, transform, debugInfo);
 	}
 
 	// Test Assimp
@@ -284,7 +316,7 @@ void MeshScene::UpdateCamera(float dt)
 	if (input->IsMBPressed(MB::LEFT))
 	{
 
-		float mouseSensitivity = 5.f * dt;
+		float mouseSensitivity = 0.005f;
 		float zoomFactor = 2.f;
 
 		glm::vec3 pos = m_Camera.GetPos();
@@ -337,7 +369,7 @@ void MeshScene::DrawRecursiveImGui(int index, ModelResource& model)
 				{
 					if (ImGui::TreeNode((void*)(intptr_t)i, "Mesh #%d", i))
 					{
-						MeshResource& mesh = model.Meshes[i];
+						MeshObject& mesh = model.Meshes[i];
 						ImGui::Text("Is in RAM: ");
 						float on = mesh.Vertices.empty() ? 0.f : 1.f;
 						ImGui::SameLine(); ImGui::TextColored(ImVec4(1.f-on, on, 0.f, 1.f), "%s", on > 0.5f ? "True" : "False");

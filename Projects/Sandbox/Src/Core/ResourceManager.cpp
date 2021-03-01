@@ -23,42 +23,112 @@ std::shared_ptr<ResourceManager> ResourceManager::Get()
 
 void ResourceManager::Init()
 {
+	// Load default textures!
+	{
+		// Load a white texture
+		{
+			std::vector<uint8> whitePixel = { (uint8)0xFF, (uint8)0xFF, (uint8)0xFF, (uint8)0xFF };
+			TextureLoadDesc loadDesc = {};
+			loadDesc.ImageDesc.Memory.pData			= whitePixel.data();
+			loadDesc.ImageDesc.Memory.Size			= (uint32)whitePixel.size();
+			loadDesc.ImageDesc.Memory.Width			= 1;
+			loadDesc.ImageDesc.Memory.Height		= 1;
+			loadDesc.ImageDesc.Memory.IsCompressed	= false;
+			loadDesc.ImageDesc.IsFromFile	= false;
+			loadDesc.ImageDesc.NumChannels	= ImageLoadDesc::Channels::RGBA;
+			loadDesc.ImageDesc.Name			= "RS_WHITE_PIXEL";
+			auto [pTexture, ID] = LoadTextureResource(loadDesc);
+			DefaultTextureOnePixelWhite = ID;
+		}
+
+		// Load a black texture
+		{
+			std::vector<uint8> blackPixel = { (uint8)0x00, (uint8)0x00, (uint8)0x00, (uint8)0xFF };
+			TextureLoadDesc loadDesc = {};
+			loadDesc.ImageDesc.Memory.pData			= blackPixel.data();
+			loadDesc.ImageDesc.Memory.Size			= (uint32)blackPixel.size();
+			loadDesc.ImageDesc.Memory.Width			= 1;
+			loadDesc.ImageDesc.Memory.Height		= 1;
+			loadDesc.ImageDesc.Memory.IsCompressed	= false;
+			loadDesc.ImageDesc.IsFromFile	= false;
+			loadDesc.ImageDesc.NumChannels	= ImageLoadDesc::Channels::RGBA;
+			loadDesc.ImageDesc.Name			= "RS_BLACK_PIXEL";
+			auto [pTexture, ID] = LoadTextureResource(loadDesc);
+			DefaultTextureOnePixelBlack = ID;
+		}
+
+		// Load a Normal texture
+		{
+			std::vector<uint8> normalPixel = { (uint8)128, (uint8)128, (uint8)255, (uint8)0xFF };
+			TextureLoadDesc loadDesc = {};
+			loadDesc.ImageDesc.Memory.pData			= normalPixel.data();
+			loadDesc.ImageDesc.Memory.Size			= (uint32)normalPixel.size();
+			loadDesc.ImageDesc.Memory.Width			= 1;
+			loadDesc.ImageDesc.Memory.Height		= 1;
+			loadDesc.ImageDesc.Memory.IsCompressed	= false;
+			loadDesc.ImageDesc.IsFromFile	= false;
+			loadDesc.ImageDesc.NumChannels	= ImageLoadDesc::Channels::RGBA;
+			loadDesc.ImageDesc.Name			= "RS_NORMAL_PIXEL";
+			auto [pTexture, ID] = LoadTextureResource(loadDesc);
+			DefaultTextureOnePixelNormal = ID;
+		}
+	}
 }
 
 void ResourceManager::Release()
 {
 	// Remove all resources which was not freed.
-	for (auto [key, pResource] : m_IDToResourceMap)
+	for (auto& [key, pResource] : m_IDToResourceMap)
 	{
-		RemoveResource(pResource);
+		RemoveResource(pResource, true);
 		delete pResource;
+		pResource = nullptr;
 	}
 	m_IDToResourceMap.clear();
+	m_StringToResourceIDMap.clear();
+	m_TypeResourcesRefCount.clear();
+	m_ResourcesRefCount.clear();
 }
 
 std::pair<ImageResource*, ResourceID> ResourceManager::LoadImageResource(ImageLoadDesc& imageDescription)
 {
-	std::string fullKey = imageDescription.FilePath + Resource::TypeToString(Resource::Type::IMAGE);
-	ResourceID id = GetIDFromString(fullKey);
+	std::string fullKey = GetImageResourceStringKey(imageDescription);
+	ResourceID id = GetAndAddIDFromString(fullKey);
 	auto [pImage, isNew] = AddResource<ImageResource>(id, Resource::Type::IMAGE);
 
 	// Only load the iamge if it has not been loaded.
 	if (isNew)
-		LoadImageInternal(pImage, imageDescription);
+	{
+		if(imageDescription.IsFromFile)
+			LoadImageFromFile(pImage, imageDescription);
+		else
+			LoadImageFromMemory(pImage, imageDescription);
+	}
 
 	return { pImage, id };
 }
 
+ImageResource* RS::ResourceManager::LoadImageResource(ResourceID id)
+{
+	ImageResource* pImage = GetResource<ImageResource>(id);
+	if (pImage)
+	{
+		pImage->AddRef();
+		UpdateStats(pImage, true);
+	}
+	return pImage;
+}
+
 std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(TextureLoadDesc& textureDescription)
 {
-	std::string fullKey = textureDescription.ImageDesc.FilePath + Resource::TypeToString(Resource::Type::TEXTURE);
-	ResourceID id = GetIDFromString(fullKey);
+	std::string fullKey = GetTextureResourceStringKey(textureDescription);
+	ResourceID id = GetAndAddIDFromString(fullKey);
 	auto [pTexture, isNewTexture] = AddResource<TextureResource>(id, Resource::Type::TEXTURE);
 
 	// Only load the texture if it has not been loaded.
 	if (isNewTexture)
 	{
-		auto [pImage, isNewImage] = LoadImageResource(textureDescription.ImageDesc);
+		auto [pImage, imageId] = LoadImageResource(textureDescription.ImageDesc);
 		pTexture->ImageHandler = pImage->key;
 
 		{
@@ -76,7 +146,7 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 			textureDesc.MiscFlags			= 0;
 			
 			D3D11_SUBRESOURCE_DATA data = {};
-			data.pSysMem				= pImage->Data;
+			data.pSysMem				= pImage->Data.data();
 			data.SysMemPitch			= pImage->Width * 4;
 			data.SysMemSlicePitch		= 0;
 
@@ -114,10 +184,27 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 	return { pTexture, id };
 }
 
+TextureResource* ResourceManager::LoadTextureResource(ResourceID id)
+{
+	TextureResource* pTexture = GetResource<TextureResource>(id);
+	if (pTexture)
+	{
+		pTexture->AddRef();
+		UpdateStats(pTexture, true);
+		TextureResource* pImage = GetResource<TextureResource>(pTexture->ImageHandler);
+		if (pImage)
+		{
+			pImage->AddRef();
+			UpdateStats(pImage, true);
+		}
+	}
+	return pTexture;
+}
+
 std::pair<ModelResource*, ResourceID> ResourceManager::LoadModelResource(ModelLoadDesc& modelDescription)
 {
 	std::string fullKey = modelDescription.FilePath + Resource::TypeToString(Resource::Type::MODEL);
-	ResourceID id = GetIDFromString(fullKey);
+	ResourceID id = GetAndAddIDFromString(fullKey);
 	auto [pModel, isNew] = AddResource<ModelResource>(id, Resource::Type::MODEL);
 
 	// Only load the model if it has not been loaded.
@@ -133,6 +220,39 @@ std::pair<ModelResource*, ResourceID> ResourceManager::LoadModelResource(ModelLo
 	return { pModel, id };
 }
 
+ModelResource* ResourceManager::LoadModelResource(ResourceID id)
+{
+	ModelResource* pModel = GetResource<ModelResource>(id);
+	// TODO: Recursive add ref to each mesh's material handler!
+	if(pModel)
+		pModel->AddRef();
+	UpdateStats(pModel, true);
+	return pModel;
+}
+
+bool ResourceManager::HasResource(ResourceID id) const
+{
+	return m_IDToResourceMap.find(id) != m_IDToResourceMap.end();
+}
+
+ResourceID ResourceManager::GetIDFromString(const std::string& str) const
+{
+	auto it = m_StringToResourceIDMap.find(str);
+	if (it == m_StringToResourceIDMap.end())
+		return 0;
+	return it->second;
+}
+
+bool ResourceManager::AddStringToIDAssociation(const std::string& str, ResourceID id)
+{
+	if (HasResource(id))
+	{
+		m_StringToResourceIDMap[str] = id;
+		return true;
+	}
+	return false;
+}
+
 void ResourceManager::FreeResource(Resource* pResource)
 {
 	pResource->RemoveRef();
@@ -140,7 +260,7 @@ void ResourceManager::FreeResource(Resource* pResource)
 	if (pResource->GetRefCount() == 0)
 	{
 		// Remove resource if it is the last pointer.
-		if (RemoveResource(pResource))
+		if (RemoveResource(pResource, false))
 		{
 			for (auto& [key, id] : m_StringToResourceIDMap)
 			{
@@ -162,10 +282,14 @@ ResourceManager::Stats ResourceManager::GetStats()
 	stats.pTypeResourcesRefCount = &m_TypeResourcesRefCount;
 	stats.pResourcesRefCount = &m_ResourcesRefCount;
 	stats.pStringToResourceIDMap = &m_StringToResourceIDMap;
+	std::vector<ResourceID> resourceIDs;
+	for (auto [id, pResource] : m_IDToResourceMap)
+		resourceIDs.push_back(id);
+	stats.ResourceIDs = resourceIDs;
 	return stats;
 }
 
-void ResourceManager::LoadImageInternal(ImageResource*& outImage, ImageLoadDesc& imageDescription)
+void ResourceManager::LoadImageFromFile(ImageResource*& outImage, ImageLoadDesc& imageDescription)
 {
 	int nChannels = 0;
 	switch (imageDescription.NumChannels)
@@ -180,27 +304,87 @@ void ResourceManager::LoadImageInternal(ImageResource*& outImage, ImageLoadDesc&
 		break;
 	}
 
-	std::string path = std::string(RS_TEXTURE_PATH) + imageDescription.FilePath;
+	std::string path = std::string(RS_TEXTURE_PATH) + imageDescription.File.Path;
 	int width = 0, height = 0, channelCount = 0;
+	uint8* pPixels = nullptr;
 	if (nChannels < 0 || nChannels > 4)
 	{
-		outImage->Data = nullptr;
+		outImage->Data.clear();
 		LOG_WARNING("Unable to load image [{0}]: Requested number of channels is not supported! Requested {1}.", path.c_str(), nChannels);
 	}
 	else
 	{
-		outImage->Data = (void*)stbi_load(path.c_str(), &width, &height, &channelCount, nChannels);
-		outImage->Format = GetFormatFromChannelCount(nChannels == 0 ? channelCount : nChannels);
+		pPixels = (uint8*)stbi_load(path.c_str(), &width, &height, &channelCount, nChannels);
+		if (!pPixels)
+			LOG_WARNING("Unable to load image [{0}]: File not found!", path.c_str());
+		else
+		{
+			size_t size = (size_t)(width * height * (nChannels == 0 ? channelCount : nChannels));
+			outImage->Data.resize(size, 0);
+			memcpy(outImage->Data.data(), pPixels, size);
+			stbi_image_free(pPixels);
+			pPixels = nullptr;
+
+			outImage->Format = GetFormatFromChannelCount(nChannels == 0 ? channelCount : nChannels);
+		}
 	}
 
 	outImage->Width = (unsigned int)width;
 	outImage->Height = (unsigned int)height;
-
-	if (!outImage->Data)
-		LOG_WARNING("Unable to load image [{0}]: File not found!", path.c_str());
 }
 
-bool ResourceManager::RemoveResource(Resource* pResource)
+void ResourceManager::LoadImageFromMemory(ImageResource*& outImage, ImageLoadDesc& imageDescription)
+{
+	int nChannels = 0;
+	switch (imageDescription.NumChannels)
+	{
+	case ImageLoadDesc::Channels::R:		nChannels = 1; break;
+	case ImageLoadDesc::Channels::RG:		nChannels = 2; break;
+	case ImageLoadDesc::Channels::RGB:		nChannels = 3; break;
+	case ImageLoadDesc::Channels::RGBA:		nChannels = 4; break;
+	case ImageLoadDesc::Channels::DEFAULT:
+	default:
+		nChannels = 0;
+		break;
+	}
+
+	uint8* pPixels = nullptr;
+	int width = 0, height = 0, channelCount = 0;
+	if (imageDescription.Memory.pData)
+	{
+		if (imageDescription.Memory.IsCompressed)
+		{
+			pPixels = (uint8*)stbi_load_from_memory(imageDescription.Memory.pData, imageDescription.Memory.Size, &width, &height, &channelCount, nChannels);
+			if (!pPixels)
+				LOG_WARNING("Unable to load image from memory: Something went wrong!");
+			else
+			{
+				size_t size = (size_t)(width * height * (nChannels == 0 ? channelCount : nChannels));
+				outImage->Data.resize(size, 0);
+				memcpy(outImage->Data.data(), pPixels, size);
+				stbi_image_free(pPixels);
+				pPixels = nullptr;
+			}
+		}
+		else
+		{
+			outImage->Data.resize((size_t)imageDescription.Memory.Size, 0);
+			memcpy(outImage->Data.data(), imageDescription.Memory.pData, (size_t)imageDescription.Memory.Size);
+			width = imageDescription.Memory.Width;
+			height = imageDescription.Memory.Height;
+		}
+		outImage->Format = GetFormatFromChannelCount(nChannels == 0 ? channelCount : nChannels);
+	}
+	else
+	{
+		LOG_WARNING("Unable to load image from memory: Data was nullptr!");
+	}
+
+	outImage->Width		= (unsigned int)width;
+	outImage->Height	= (unsigned int)height;
+}
+
+bool ResourceManager::RemoveResource(Resource* pResource, bool fullRemoval)
 {
 	auto it = m_IDToResourceMap.find(pResource->key);
 	if (it != m_IDToResourceMap.end())
@@ -211,19 +395,25 @@ bool ResourceManager::RemoveResource(Resource* pResource)
 		case RS::Resource::Type::IMAGE:
 		{
 			ImageResource* pImage = dynamic_cast<ImageResource*>(pResource);
-			FreeImage(pImage);
+			FreeImage(pImage, fullRemoval);
 		}
 		break;
 		case RS::Resource::Type::TEXTURE:
 		{
-			ImageResource* pImage = dynamic_cast<ImageResource*>(pResource);
-			FreeImage(pImage);
+			TextureResource* pTexture = dynamic_cast<TextureResource*>(pResource);
+			FreeTexture(pTexture, fullRemoval);
 		}
 		break;
 		case RS::Resource::Type::MODEL:
 		{
 			ModelResource* pModel = dynamic_cast<ModelResource*>(pResource);
-			FreeModelRecursive(pModel);
+			FreeModelRecursive(pModel, fullRemoval);
+		}
+		break;
+		case RS::Resource::Type::MATERIAL:
+		{
+			MaterialResource* pMaterial = dynamic_cast<MaterialResource*>(pResource);
+			FreeMaterial(pMaterial, fullRemoval);
 		}
 		break;
 		default:
@@ -240,12 +430,11 @@ bool ResourceManager::RemoveResource(Resource* pResource)
 	}
 }
 
-void ResourceManager::FreeImage(ImageResource* pImage)
+void ResourceManager::FreeImage(ImageResource* pImage, bool fullRemoval)
 {
 	if (pImage)
 	{
-		if (pImage->Data)
-			stbi_image_free(pImage->Data);
+		pImage->Data.clear();
 		pImage->Width	= 0;
 		pImage->Height	= 0;
 		pImage->Format	= DXGI_FORMAT_UNKNOWN;
@@ -254,11 +443,16 @@ void ResourceManager::FreeImage(ImageResource* pImage)
 		LOG_WARNING("Trying to free an image pointer which is NULL!");
 }
 
-void ResourceManager::FreeTexture(TextureResource* pTexture)
+void ResourceManager::FreeTexture(TextureResource* pTexture, bool fullRemoval)
 {
+	// This will only release it, if it is the last handler.
 	ImageResource* pImage = GetResource<ImageResource>(pTexture->ImageHandler);
-	FreeResource(pImage); // This will only release it, if it is the last handler.
-	
+	if (pImage)
+		FreeImage(pImage, fullRemoval);
+	else if(fullRemoval == false)
+		LOG_ERROR("Trying to free a texture resource {}, without an image resource!", pTexture->key);
+	pTexture->ImageHandler = 0;
+
 	if (pTexture->pTexture)
 	{
 		pTexture->pTexture->Release();
@@ -278,11 +472,27 @@ void ResourceManager::FreeTexture(TextureResource* pTexture)
 	}
 }
 
-void ResourceManager::FreeModelRecursive(ModelResource* pModel)
+void ResourceManager::FreeMaterial(MaterialResource* pMaterial, bool fullRemoval)
+{
+	TextureResource* pAlbedoTexture = GetResource<TextureResource>(pMaterial->AlbedoTextureHandler);
+	if(pAlbedoTexture)
+		FreeTexture(pAlbedoTexture, fullRemoval);
+	else if (fullRemoval == false)
+		LOG_ERROR("Trying to free a material resource {} without an albedo texture resource!", pMaterial->key);
+	TextureResource* pNormalTexture = GetResource<TextureResource>(pMaterial->NormalTextureHandler);
+	if (pNormalTexture)
+		FreeTexture(pNormalTexture, fullRemoval);
+	else if (fullRemoval == false)
+		LOG_ERROR("Trying to free a material resource {} without a normal texture resource!", pMaterial->key);
+	pMaterial->AlbedoTextureHandler = 0;
+	pMaterial->NormalTextureHandler = 0;
+}
+
+void ResourceManager::FreeModelRecursive(ModelResource* pModel, bool fullRemoval)
 {
 	pModel->Transform = glm::mat4(1.f);
 	
-	for (MeshResource& mesh : pModel->Meshes)
+	for (MeshObject& mesh : pModel->Meshes)
 	{
 		if (mesh.pVertexBuffer)
 		{
@@ -310,7 +520,7 @@ void ResourceManager::FreeModelRecursive(ModelResource* pModel)
 	pModel->Meshes.clear();
 	
 	for (ModelResource& model : pModel->Children)
-		FreeModelRecursive(&model);
+		FreeModelRecursive(&model, fullRemoval);
 
 	pModel->Children.clear();
 }
@@ -323,7 +533,7 @@ DXGI_FORMAT ResourceManager::GetFormatFromChannelCount(int nChannels) const
 	case 2: return DXGI_FORMAT_R8G8_UNORM; break;
 	case 3:
 		LOG_WARNING("A texture format with 3 channels are not supported!");
-	case 4:
+	case 4: return DXGI_FORMAT_R8G8B8A8_UNORM; break;
 	default:
 		return DXGI_FORMAT_R8_UNORM; break;
 	}
@@ -357,7 +567,45 @@ void ResourceManager::UpdateStats(Resource* pResrouce, bool add)
 	}
 }
 
-ResourceID ResourceManager::GetIDFromString(const std::string& key)
+std::string	ResourceManager::GetImageResourceStringKey(ImageLoadDesc& imageDescription)
+{
+	if (imageDescription.Name.empty())
+	{
+		if (imageDescription.IsFromFile)
+		{
+			imageDescription.Name = imageDescription.File.Path;
+			LOG_WARNING("The image created from file was not given a name! Using the path as the name.");
+		}
+		else
+		{
+			LOG_ERROR("The image created from memory was not given a name!");
+		}
+	}
+	return imageDescription.Name + "." + 
+		std::to_string(imageDescription.IsFromFile) + "." +
+		Resource::TypeToString(Resource::Type::IMAGE);
+}
+
+std::string ResourceManager::GetTextureResourceStringKey(TextureLoadDesc& textureDescription)
+{
+	if (textureDescription.ImageDesc.Name.empty())
+	{
+		if (textureDescription.ImageDesc.IsFromFile)
+		{
+			textureDescription.ImageDesc.Name = textureDescription.ImageDesc.File.Path;
+			LOG_WARNING("The texture created from file was not given a name! Using the path as the name.");
+		}
+		else
+		{
+			LOG_ERROR("The texture created from memory was not given a name!");
+		}
+	}
+	return textureDescription.ImageDesc.Name + "." + 
+		std::to_string(textureDescription.ImageDesc.IsFromFile) + "." +
+		Resource::TypeToString(Resource::Type::TEXTURE);
+}
+
+ResourceID ResourceManager::GetAndAddIDFromString(const std::string& key)
 {
 	auto it = m_StringToResourceIDMap.find(key);
 	if (it == m_StringToResourceIDMap.end())

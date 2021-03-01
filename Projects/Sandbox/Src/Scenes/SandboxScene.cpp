@@ -95,7 +95,8 @@ void SandboxScene::Start()
 
 	{
 		ImageLoadDesc imageDesc = {};
-		imageDesc.FilePath = "Home.jpg";
+		imageDesc.File.Path = "Home.jpg";
+		imageDesc.Name = imageDesc.File.Path;
 		imageDesc.NumChannels = ImageLoadDesc::Channels::RGBA;
 		auto [pImage, handler] = ResourceManager::Get()->LoadImageResource(imageDesc);
 		ImageResource* pImageResource = pImage;
@@ -114,7 +115,7 @@ void SandboxScene::Start()
 		textureDesc.MiscFlags			= 0;
 
 		D3D11_SUBRESOURCE_DATA data = {};
-		data.pSysMem			= pImageResource->Data;
+		data.pSysMem			= pImageResource->Data.data();
 		data.SysMemPitch		= pImageResource->Width * 4;
 		data.SysMemSlicePitch	= 0;
 

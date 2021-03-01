@@ -29,4 +29,5 @@ void TerrainScene::FixedTick()
 
 void TerrainScene::Tick(float dt)
 {
+	RS_UNREFERENCED_VARIABLE(dt);
 }

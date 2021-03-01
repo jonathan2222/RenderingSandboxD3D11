@@ -211,23 +211,30 @@ void Renderer::CreateRasterizer()
 
 void Renderer::InternalRender(ModelResource& model, const glm::mat4& transform, ID3D11DeviceContext* pContext, DebugInfo debugInfo)
 {
-	MeshResource::MeshData meshData;
+	MeshObject::MeshData meshData;
 	meshData.world = transform * model.Transform;
-	for (MeshResource& mesh : model.Meshes)
+	for (MeshObject& mesh : model.Meshes)
 	{
+		MaterialResource* pMaterial = ResourceManager::Get()->GetResource<MaterialResource>(mesh.MaterialHandler);
+		TextureResource* pAlbedoTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->AlbedoTextureHandler);
+		TextureResource* pNormalTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->NormalTextureHandler);
+
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
 		HRESULT result = pContext->Map(mesh.pMeshBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 		RS_D311_ASSERT_CHECK(result, "Failed to map mesh constant buffer!");
-		MeshResource::MeshData* data = (MeshResource::MeshData*)mappedResource.pData;
+		MeshObject::MeshData* data = (MeshObject::MeshData*)mappedResource.pData;
 		memcpy(data, &meshData, sizeof(meshData));
 		pContext->Unmap(mesh.pMeshBuffer, 0);
 
-		UINT stride = sizeof(MeshResource::Vertex);
+		UINT stride = sizeof(MeshObject::Vertex);
 		UINT offset = 0;
 		pContext->IASetVertexBuffers(0, 1, &mesh.pVertexBuffer, &stride, &offset);
 		pContext->IASetIndexBuffer(mesh.pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		pContext->VSSetConstantBuffers(0, 1, &mesh.pMeshBuffer);
+		pContext->PSSetShaderResources(0, 1, &pAlbedoTexture->pTextureSRV);
+		pContext->PSSetShaderResources(1, 1, &pNormalTexture->pTextureSRV);
+		pContext->PSSetSamplers(0, 1, &pAlbedoTexture->pSampler);
 		pContext->DrawIndexed((UINT)mesh.NumIndices, 0, 0);
 
 		if (debugInfo.DrawAABBs)

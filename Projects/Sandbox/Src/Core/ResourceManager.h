@@ -16,6 +16,7 @@ namespace RS
 			std::unordered_map<Resource::Type, uint32>*		pTypeResourcesRefCount	= nullptr;
 			std::unordered_map<ResourceID, uint32>*			pResourcesRefCount		= nullptr;
 			std::unordered_map<std::string, ResourceID>*	pStringToResourceIDMap	= nullptr;
+			std::vector<ResourceID>							ResourceIDs;
 		};
 
 	public:
@@ -27,25 +28,84 @@ namespace RS
 		void Release();
 
 		/*
-				Load a image from memory.
-				Arguments:
-					* fileName: The path to the file, including the name of the image file with its extention.
-					* nChannels: How many channels it will use. It can be 0, 1, 2, 3 or 4.
-						If it is set to 0, it will use the same number of channels as the image file on disk.
-				Returns:
-					A pointer to the texture structure.
+			Load a image either from a file or memory.
+			Arguments:
+				* ImageLoadDesc: All information to load the image, this can either be a pointer to data or a file path.
+								 However, The image need a name!
+			Returns:
+				A pointer to the image structure and the resource ID.
 		*/
 		std::pair<ImageResource*, ResourceID> LoadImageResource(ImageLoadDesc& imageDescription);
 
+		/*
+		* This add a referense to the resource before it is returned.
+		* Returns a pointer to the resource, nullptr if it was not found.
+		*/
+		ImageResource* LoadImageResource(ResourceID id);
+
+		/*
+			Load a texture with the use of the LoadImageResource function.
+			Arguments:
+				* TextureLoadDesc: All information to load the texture, this can either be a pointer to data or a file path.
+									However, The texture need a name!
+			Returns:
+				A pointer to the texture structure and the resource ID.
+		*/
 		std::pair<TextureResource*, ResourceID> LoadTextureResource(TextureLoadDesc& textureDescription);
 		
+		/*
+		* This add a referense to the resource before it is returned.
+		* Returns a pointer to the resource, nullptr if it was not found.
+		*/
+		TextureResource* LoadTextureResource(ResourceID id);
+
+		/*
+			Load a model from a file path.
+			Arguments:
+				* ModelLoadDesc: All information to load the model.
+			Returns:
+				A pointer to the model structure and the resource ID.
+		*/
 		std::pair<ModelResource*, ResourceID> LoadModelResource(ModelLoadDesc& modelDescription);
 
 		/*
-		* Returns a resource from a handler
+		* This add a referense to the resource before it is returned.
+		* Returns a pointer to the resource, nullptr if it was not found.
+		*/
+		ModelResource* LoadModelResource(ResourceID id);
+
+		/*
+		* Creates a new resource and adds a referense to it.
+		* Returns the empty resource and its ID.
+		* !Caution: Do not forget to load all the necessary resource handlers which this resource should point to!
+		*/
+		template<typename ResourceT>
+		std::pair<ResourceT*, ResourceID> AddResource(Resource::Type type);
+
+		/*
+		* Returns a pointer of a resource from a handler, nullptr if it was not found.
+		* This does not add a referens ot the resource!
 		*/
 		template<typename ResourceT>
 		ResourceT* GetResource(ResourceID id) const;
+
+		/*
+		* Check if the resource exists in the system.
+		*/
+		bool HasResource(ResourceID id) const;
+
+		/*
+		* Returns the ID associated with a string.
+		* If the string has no association or if the resource does not exists, return an ID of 0.
+		*/
+		ResourceID GetIDFromString(const std::string& str) const;
+
+		/*
+		* This will associate the string to a specified ID.
+		* If the ID does not exist, it will return false else true.
+		* If the ID already has an association, it will be overwritten.
+		*/
+		bool AddStringToIDAssociation(const std::string& str, ResourceID id);
 
 		/*
 		* Give the resource back to the system. If it was the last reference, it will destroy it.
@@ -54,6 +114,10 @@ namespace RS
 
 		Stats GetStats();
 
+		// Default textures
+		ResourceID	DefaultTextureOnePixelWhite		= 0;
+		ResourceID	DefaultTextureOnePixelBlack		= 0;
+		ResourceID	DefaultTextureOnePixelNormal	= 0;
 	private:
 		/*
 		* Will add a new resource if it does not exist, else it will return the already existing resource.
@@ -61,24 +125,38 @@ namespace RS
 		template<typename ResourceT>
 		std::pair<ResourceT*, bool> AddResource(ResourceID key, Resource::Type type);
 
-		void LoadImageInternal(ImageResource*& outImage, ImageLoadDesc& imageDescription);
+		void LoadImageFromFile(ImageResource*& outImage, ImageLoadDesc& imageDescription);
+		void LoadImageFromMemory(ImageResource*& outImage, ImageLoadDesc& imageDescription);
 
-		bool RemoveResource(Resource* pResource);
+		/*
+		* Remove data from a single resource. The resource is still in the system!
+		* FullRemoval: If true, the function will not give warnings if some resources are missing.
+		*			This is good when the destructor need to remove all resources and the order can differ.
+		*/
+		bool RemoveResource(Resource* pResource, bool fullRemoval);
 
 		/*
 			Free image data and deallocate the image structure.
 			Arguments:
 				* image: A pointer to the image structure.
 		*/
-		void FreeImage(ImageResource* pImage);
-		void FreeTexture(TextureResource* pTexture);
-		void FreeModelRecursive(ModelResource* pModel);
+		void FreeImage(ImageResource* pImage, bool fullRemoval);
+		void FreeTexture(TextureResource* pTexture, bool fullRemoval);
+		void FreeMaterial(MaterialResource* pMaterial, bool fullRemoval);
+		void FreeModelRecursive(ModelResource* pModel, bool fullRemoval);
 
 		DXGI_FORMAT GetFormatFromChannelCount(int nChannels) const;
 
 		void UpdateStats(Resource* pResrouce, bool add);
 
-		ResourceID GetIDFromString(const std::string& key);
+		std::string GetImageResourceStringKey(ImageLoadDesc& imageDescription);
+		std::string GetTextureResourceStringKey(TextureLoadDesc& textureDescription);
+
+		/*
+		* This will return the ID associated with a string.
+		* If the string has no association or if the resource does not exists, return an new generated ID.
+		*/
+		ResourceID GetAndAddIDFromString(const std::string& key);
 
 		ResourceID GetNextID() const;
 
@@ -90,6 +168,18 @@ namespace RS
 		std::unordered_map<Resource::Type, uint32>	m_TypeResourcesRefCount;
 		std::unordered_map<ResourceID, uint32>		m_ResourcesRefCount;
 	};
+
+	template<typename ResourceT>
+	inline std::pair<ResourceT*, ResourceID> ResourceManager::AddResource(Resource::Type type)
+	{
+		ResourceID id = GetNextID();
+		ResourceT* pResource = new ResourceT();
+		pResource->type = type;
+		pResource->key = id;
+		m_IDToResourceMap[id] = pResource;
+		UpdateStats(pResource, true);
+		return { pResource, id };
+	}
 
 	template<typename ResourceT>
 	inline ResourceT* ResourceManager::GetResource(ResourceID id) const

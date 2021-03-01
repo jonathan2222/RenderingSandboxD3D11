@@ -20,7 +20,8 @@ namespace RS
 		{
 			IMAGE = 0,
 			TEXTURE,
-			MODEL
+			MODEL,
+			MATERIAL
 		};
 
 		static std::string TypeToString(Type type);
@@ -31,10 +32,10 @@ namespace RS
 
 	struct ImageResource : public Resource
 	{
-		void*		Data	= nullptr;
-		uint32		Width	= 0;
-		uint32		Height	= 0;
-		DXGI_FORMAT Format	= DXGI_FORMAT_UNKNOWN;
+		std::vector<uint8>	Data;
+		uint32				Width	= 0;
+		uint32				Height	= 0;
+		DXGI_FORMAT			Format	= DXGI_FORMAT_UNKNOWN;
 	};
 
 	struct TextureResource : public Resource
@@ -42,10 +43,17 @@ namespace RS
 		ResourceID					ImageHandler	= 0;
 		ID3D11Texture2D*			pTexture		= nullptr;
 		ID3D11ShaderResourceView*	pTextureSRV		= nullptr;
-		ID3D11SamplerState*			pSampler		= nullptr; // TODO: Make the sampler as a Resource!
+		ID3D11SamplerState*			pSampler		= nullptr; // TODO: Convert the sampler to a Resource!
 	};
 
-	struct MeshResource : public Resource
+	struct MaterialResource : public Resource
+	{
+		ResourceID	AlbedoTextureHandler = 0;
+		ResourceID	NormalTextureHandler = 0;
+		std::string Name = "";
+	};
+
+	struct MeshObject
 	{
 		struct MeshData
 		{
@@ -70,6 +78,8 @@ namespace RS
 		ID3D11Buffer*		pVertexBuffer	= nullptr;
 		ID3D11Buffer*		pIndexBuffer	= nullptr;
 		ID3D11Buffer*		pMeshBuffer		= nullptr;
+
+		ResourceID			MaterialHandler = 0;
 	};
 
 	struct ModelResource : public Resource
@@ -78,7 +88,7 @@ namespace RS
 		ModelResource*				pParent		= nullptr;
 		glm::mat4					Transform	= glm::mat4(1.f);
 		AABB						BoundingBox;
-		std::vector<MeshResource>	Meshes;
+		std::vector<MeshObject>		Meshes;
 		std::vector<ModelResource>	Children;
 	};
 }

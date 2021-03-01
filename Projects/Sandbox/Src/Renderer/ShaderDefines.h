@@ -24,7 +24,7 @@ namespace RS
 		NameToStr(ShaderTypeFlag::TESS_DOMAIN),
 	};
 
-	static std::string ShaderTypeToTarget(RS::ShaderTypeFlag type)
+	inline static std::string ShaderTypeToTarget(RS::ShaderTypeFlag type)
 	{
 		switch (type)
 		{

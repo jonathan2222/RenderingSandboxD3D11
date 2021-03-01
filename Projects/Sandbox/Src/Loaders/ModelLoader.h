@@ -5,6 +5,8 @@
 #include "Core/ResourceManager.h"
 #include "Core/ResourceManagerDefines.h"
 
+#include <assimp/material.h>
+
 struct aiMesh;
 struct aiNode;
 struct aiScene;
@@ -20,7 +22,9 @@ namespace RS
 		static bool LoadWithAssimp(const std::string& filePath, ModelResource* outModel, ModelLoadDesc::LoaderFlags flags);
 
 	private:
-		static bool RecursiveLoadMeshes(const aiScene*& pScene, aiNode* pNode, ModelResource* pParent, glm::mat4 accTransform, ModelLoadDesc::LoaderFlags flags);
-		static void FillMesh(const aiScene*& pScene, MeshResource& outMesh, aiMesh*& pMesh, ModelLoadDesc::LoaderFlags flags);
+		static bool RecursiveLoadMeshes(const aiScene*& pScene, aiNode* pNode, ModelResource* pParent, glm::mat4 accTransform, ModelLoadDesc::LoaderFlags flags, const std::string& modelPath);
+		static void FillMesh(const aiScene*& pScene, MeshObject& outMesh, aiMesh*& pMesh, ModelLoadDesc::LoaderFlags flags, const std::string& modelPath);
+		static void LoadMaterial(const aiScene*& pScene, MeshObject& outMesh, aiMesh*& pMesh, ModelLoadDesc::LoaderFlags flags, const std::string& modelPath);
+		static ResourceID LoadTextureResource(aiTextureType type, const aiScene*& pScene, aiMaterial* pMaterial, ResourceID defaultTextureID);
 	};
 }

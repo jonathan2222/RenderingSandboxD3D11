@@ -17,6 +17,9 @@ std::string Resource::TypeToString(Type type)
 	case Type::MODEL:
 		res = "MODEL";
 		break;
+	case Type::MATERIAL:
+		res = "MATERIAL";
+		break;
 	default:
 		LOG_WARNING("Resource type is not supported!");
 		res = "NULL";
