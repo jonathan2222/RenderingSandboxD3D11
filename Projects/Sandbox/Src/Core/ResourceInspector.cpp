@@ -3,11 +3,13 @@
 
 #include <unordered_set>
 
+#include "Core/ResourceManager.h"
+
 using namespace RS;
 
-void ResourceInspector::Init(std::shared_ptr<ResourceManager>& resourceManager)
+void ResourceInspector::Init(ResourceManager* pResourceManager)
 {
-	s_ResourceManager = resourceManager;
+	s_ResourceManager = pResourceManager;
 }
 
 void ResourceInspector::Release()
@@ -16,12 +18,12 @@ void ResourceInspector::Release()
 
 void ResourceInspector::Draw()
 {
+	static bool s_ResourceManagerWindow = true;
 	ImGuiRenderer::Draw([&]()
 	{
-		static bool s_ResourceManagerWindow = true;
 		if (ImGui::Begin("Resource Manager", &s_ResourceManagerWindow))
 		{
-			const ResourceManager::Stats& stats = ResourceManager::Get()->GetStats();
+			const ResourceManager::Stats& stats = s_ResourceManager->GetStats();
 			ImGui::Indent();
 			if (ImGui::TreeNode("Types"))
 			{
@@ -76,7 +78,7 @@ void ResourceInspector::Draw()
 			}
 			ImGui::Unindent();
 
-			ImGui::End();
 		}
+		ImGui::End();
 	});
 }

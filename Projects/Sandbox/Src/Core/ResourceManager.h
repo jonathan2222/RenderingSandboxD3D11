@@ -5,12 +5,14 @@
 #include "Resources/Resources.h"
 
 #include "Core/ResourceManagerDefines.h"
+#include "Core/ResourceInspector.h"
 
 namespace RS
 {
 	class ResourceManager
 	{
 	public:
+		friend class ResourceInspector;
 		struct Stats
 		{
 			std::unordered_map<Resource::Type, uint32>*		pTypeResourcesRefCount	= nullptr;

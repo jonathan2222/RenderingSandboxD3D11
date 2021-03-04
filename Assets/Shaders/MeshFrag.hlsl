@@ -21,8 +21,8 @@ float4 main(PSIn input) : SV_TARGET
     input.bitangent = normalize(input.bitangent);
 
     float3 normal = normalTexture.SampleLevel(texSampler, input.uv, 0).xyz;
-    //normal = normalize(normal*2.f - 1.f);
-    //normal = mul((float3x3)input.TBN, normal);
+    normal = normalize(normal*2.f - 1.f);
+    normal = mul((float3x3)input.TBN, normal);
 
 	return float4(normal, 1.0f);
 }

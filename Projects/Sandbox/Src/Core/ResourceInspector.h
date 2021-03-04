@@ -1,19 +1,19 @@
 #pragma once
 
-#include "Core/ResourceManager.h"
 #include "Renderer/ImGuiRenderer.h"
 
 namespace RS
 {
+	class ResourceManager;
 	class ResourceInspector
 	{
 	public:
-		static void Init(std::shared_ptr<ResourceManager>& resourceManager);
+		static void Init(ResourceManager* pResourceManager);
 		static void Release();
 
 		static void Draw();
 
 	private:
-		inline static std::shared_ptr<ResourceManager> s_ResourceManager = nullptr;
+		inline static ResourceManager* s_ResourceManager = nullptr;
 	};
 }

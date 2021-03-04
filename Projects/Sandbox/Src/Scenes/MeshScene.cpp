@@ -52,8 +52,6 @@ void MeshScene::Start()
 	// Load a model with assimp.
 	{
 		{
-			// TODO: The Resource Manager does not allocate the right textures. 
-			//		 I saw that one texture was given many different IDs!
 			ModelLoadDesc modelLoadDesc = {};
 			modelLoadDesc.FilePath = "knight_d_pelegrini.fbx";
 			modelLoadDesc.Loader = ModelLoadDesc::Loader::ASSIMP;
@@ -245,7 +243,7 @@ void MeshScene::Tick(float dt)
 
 	// Draw assimp model
 	{
-		glm::mat4 transform = glm::translate(glm::vec3(1.0f, 0.f, 0.f)) * glm::scale(glm::vec3(0.01f));
+		glm::mat4 transform = glm::translate(glm::vec3(1.5f, 0.f, 0.f)) * glm::scale(glm::vec3(0.01f));
 		pContext->VSSetConstantBuffers(1, 1, &m_pConstantBufferFrame);
 		Renderer::DebugInfo debugInfo = {};
 		debugInfo.DrawAABBs = true;
@@ -256,7 +254,7 @@ void MeshScene::Tick(float dt)
 
 	// Draw assimp model
 	{
-		glm::mat4 transform = glm::translate(glm::vec3(-1.0f, 0.f, 0.f)) * glm::scale(glm::vec3(0.005f));
+		glm::mat4 transform = glm::translate(glm::vec3(-1.5f, 0.f, 0.f)) * glm::scale(glm::vec3(0.005f));
 		pContext->VSSetConstantBuffers(1, 1, &m_pConstantBufferFrame);
 		Renderer::DebugInfo debugInfo = {};
 		debugInfo.DrawAABBs = true;

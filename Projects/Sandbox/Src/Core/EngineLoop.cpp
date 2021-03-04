@@ -46,7 +46,7 @@ void RS::EngineLoop::Init(std::function<void(void)> fixedTickCallback, std::func
 
     auto resourceManager = ResourceManager::Get();
     resourceManager->Init();
-    ResourceInspector::Init(resourceManager);
+    ResourceInspector::Init(resourceManager.get());
 }
 
 void RS::EngineLoop::Release()
