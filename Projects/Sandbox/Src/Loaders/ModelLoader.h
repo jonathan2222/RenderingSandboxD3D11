@@ -25,6 +25,6 @@ namespace RS
 		static bool RecursiveLoadMeshes(const aiScene*& pScene, aiNode* pNode, ModelResource* pParent, glm::mat4 accTransform, ModelLoadDesc::LoaderFlags flags, const std::string& modelPath);
 		static void FillMesh(const aiScene*& pScene, MeshObject& outMesh, aiMesh*& pMesh, ModelLoadDesc::LoaderFlags flags, const std::string& modelPath);
 		static void LoadMaterial(const aiScene*& pScene, MeshObject& outMesh, aiMesh*& pMesh, ModelLoadDesc::LoaderFlags flags, const std::string& modelPath);
-		static ResourceID LoadTextureResource(aiTextureType type, const aiScene*& pScene, aiMaterial* pMaterial, ResourceID defaultTextureID, const std::string& modelPath);
+		static ResourceID LoadTextureResource(aiTextureType type, uint32 index, const aiScene*& pScene, aiMaterial* pMaterial, ResourceID defaultTextureID, const std::string& folderPath, bool& succeeded);
 	};
 }

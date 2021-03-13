@@ -48,8 +48,12 @@ namespace RS
 
 	struct MaterialResource : public Resource
 	{
-		ResourceID	AlbedoTextureHandler = 0;
-		ResourceID	NormalTextureHandler = 0;
+		ResourceID	AlbedoTextureHandler			= 0;
+		ResourceID	NormalTextureHandler			= 0;
+		ResourceID	AOTextureHandler				= 0;
+		ResourceID	MetallicTextureHandler			= 0;
+		ResourceID	RoughnessTextureHandler			= 0;
+		ResourceID	MetallicRoughnessTextureHandler = 0;
 		std::string Name = "";
 	};
 

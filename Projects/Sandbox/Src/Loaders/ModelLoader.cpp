@@ -11,6 +11,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <assimp/pbrmaterial.h>
 
 #pragma warning( push )
 #pragma warning( disable : 6011 )
@@ -122,9 +123,14 @@ bool ModelLoader::Load(const std::string& filePath, ModelResource*& outModel, Mo
             pMaterialResource->Name = "Default Material";
 
             pResourceManager->LoadTextureResource(pResourceManager->DefaultTextureOnePixelWhite);
-            pMaterialResource->AlbedoTextureHandler = pResourceManager->DefaultTextureOnePixelWhite;
+            pResourceManager->LoadTextureResource(pResourceManager->DefaultTextureOnePixelBlack);
             pResourceManager->LoadTextureResource(pResourceManager->DefaultTextureOnePixelNormal);
-            pMaterialResource->NormalTextureHandler = pResourceManager->DefaultTextureOnePixelNormal;
+            pMaterialResource->AlbedoTextureHandler             = pResourceManager->DefaultTextureOnePixelWhite;
+            pMaterialResource->NormalTextureHandler             = pResourceManager->DefaultTextureOnePixelNormal;
+            pMaterialResource->AOTextureHandler                 = pResourceManager->DefaultTextureOnePixelWhite;
+            pMaterialResource->MetallicTextureHandler           = pResourceManager->DefaultTextureOnePixelBlack;
+            pMaterialResource->RoughnessTextureHandler          = pResourceManager->DefaultTextureOnePixelWhite;
+            pMaterialResource->MetallicRoughnessTextureHandler  = pResourceManager->DefaultTextureOnePixelBlack;
         }
 
         mesh.MaterialHandler = materialID;
@@ -438,25 +444,70 @@ void ModelLoader::LoadMaterial(const aiScene*& pScene, MeshObject& outMesh, aiMe
             pMaterial->Get(AI_MATKEY_NAME, name);
             pMaterialResource->Name = std::string(name.C_Str());
 
-            pMaterialResource->AlbedoTextureHandler = LoadTextureResource(aiTextureType_DIFFUSE, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelWhite, modelPath);
-            pMaterialResource->NormalTextureHandler = LoadTextureResource(aiTextureType_NORMALS, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelNormal, modelPath);
+            std::string folderPath = modelPath.substr(0, modelPath.find_last_of("\\/")) + "/";
+
+            bool succeeded = false;
+            // Load albedo
+            {
+                pMaterialResource->AlbedoTextureHandler = LoadTextureResource(aiTextureType_DIFFUSE, 0, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelWhite, folderPath, succeeded);
+                if (!succeeded)
+                    pMaterialResource->AlbedoTextureHandler = LoadTextureResource(aiTextureType_BASE_COLOR, 0, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelWhite, folderPath, succeeded);
+                if (!succeeded)
+                    pMaterialResource->AlbedoTextureHandler = LoadTextureResource(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelWhite, folderPath, succeeded);
+            }
+
+            // Load normal map
+            {
+                pMaterialResource->NormalTextureHandler = LoadTextureResource(aiTextureType_NORMALS, 0, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelNormal, folderPath, succeeded);
+                if (!succeeded)
+                    pMaterialResource->NormalTextureHandler = LoadTextureResource(aiTextureType_NORMAL_CAMERA, 0, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelNormal, folderPath, succeeded);
+                if (!succeeded)
+                    pMaterialResource->NormalTextureHandler = LoadTextureResource(aiTextureType_HEIGHT, 0, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelNormal, folderPath, succeeded);
+            }
+
+            // Load AO
+            {
+                pMaterialResource->AOTextureHandler = LoadTextureResource(aiTextureType_AMBIENT_OCCLUSION, 0, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelWhite, folderPath, succeeded);
+                if (!succeeded)
+                    pMaterialResource->AOTextureHandler = LoadTextureResource(aiTextureType_AMBIENT, 0, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelWhite, folderPath, succeeded);
+            }
+
+            bool hasMetallic = false;
+            // Load Metallic
+            {
+                pMaterialResource->MetallicTextureHandler = LoadTextureResource(aiTextureType_METALNESS, 0, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelBlack, folderPath, hasMetallic);
+                if (!hasMetallic)
+                    pMaterialResource->MetallicTextureHandler = LoadTextureResource(aiTextureType_REFLECTION, 0, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelBlack, folderPath, hasMetallic);
+            }
+
+            bool hasRoughness = false;
+            // Load Roughness
+            {
+                pMaterialResource->RoughnessTextureHandler = LoadTextureResource(aiTextureType_DIFFUSE_ROUGHNESS, 0, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelWhite, folderPath, hasRoughness);
+                if (!hasRoughness)
+                    pMaterialResource->RoughnessTextureHandler = LoadTextureResource(aiTextureType_SHININESS, 0, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelWhite, folderPath, hasRoughness);
+            }
+
+            // Load combined Metallic and Roughness
+            if(!hasMetallic && !hasRoughness)
+            {
+                pMaterialResource->MetallicRoughnessTextureHandler = LoadTextureResource(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelBlack, folderPath, succeeded);
+            }
         }
 
         outMesh.MaterialHandler = materialID;
     }
 }
 
-ResourceID ModelLoader::LoadTextureResource(aiTextureType type, const aiScene*& pScene, aiMaterial* pMaterial, ResourceID defaultTextureID, const std::string& modelPath)
+ResourceID ModelLoader::LoadTextureResource(aiTextureType type, uint32 index, const aiScene*& pScene, aiMaterial* pMaterial, ResourceID defaultTextureID, const std::string& folderPath, bool& succeeded)
 {
     auto pResourceManager = ResourceManager::Get();
     ResourceID textureID = 0;
 
-    std::string folderPath = modelPath.substr(0, modelPath.find_last_of("\\/")) + "/";
-
-    if (pMaterial->GetTextureCount(type) > 0)
+    if (pMaterial->GetTextureCount(type) > index)
     {
         aiString path;
-        pMaterial->GetTexture(type, 0, &path); // Only take One Texture
+        pMaterial->GetTexture(type, index, &path); // Only take One Texture
         const aiTexture* pEmbeddedTexture = pScene->GetEmbeddedTexture(path.C_Str());
         if (pEmbeddedTexture)
         {
@@ -473,12 +524,14 @@ ResourceID ModelLoader::LoadTextureResource(aiTextureType type, const aiScene*& 
                 loadDesc.ImageDesc.Name                 = std::string(path.C_Str()); // Use the path as a key!
                 auto [pTexture, ID] = pResourceManager->LoadTextureResource(loadDesc);
                 textureID = ID;
+                succeeded = true;
             }
             else
             {
                 LOG_WARNING("Embedded format not supported!");
                 pResourceManager->LoadTextureResource(defaultTextureID);
                 textureID = defaultTextureID;
+                succeeded = false;
             }
         }
         else
@@ -493,12 +546,14 @@ ResourceID ModelLoader::LoadTextureResource(aiTextureType type, const aiScene*& 
             auto [pTexture, ID] = ResourceManager::Get()->LoadTextureResource(loadDesc);
             RS_UNREFERENCED_VARIABLE(pTexture);
             textureID = ID;
+            succeeded = true;
         }
     }
     else
     {
         pResourceManager->LoadTextureResource(defaultTextureID);
         textureID = defaultTextureID;
+        succeeded = false;
     }
 
     return textureID;

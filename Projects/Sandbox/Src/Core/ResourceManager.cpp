@@ -478,18 +478,39 @@ void ResourceManager::FreeTexture(TextureResource* pTexture, bool fullRemoval)
 
 void ResourceManager::FreeMaterial(MaterialResource* pMaterial, bool fullRemoval)
 {
-	TextureResource* pAlbedoTexture = GetResource<TextureResource>(pMaterial->AlbedoTextureHandler);
-	if(pAlbedoTexture)
-		FreeTexture(pAlbedoTexture, fullRemoval);
-	else if (fullRemoval == false)
+	auto FreeTex = [&](ResourceID& textureID)->bool 
+	{
+		TextureResource* pTexture = GetResource<TextureResource>(textureID);
+		if (pTexture)
+		{
+			FreeTexture(pTexture, fullRemoval);
+			textureID = 0;
+			return true;
+		}
+		else if (fullRemoval == false)
+		{
+			textureID = 0;
+			return false;
+		}
+	};
+
+	if (!FreeTex(pMaterial->AlbedoTextureHandler))
 		LOG_ERROR("Trying to free a material resource {} without an albedo texture resource!", pMaterial->key);
-	TextureResource* pNormalTexture = GetResource<TextureResource>(pMaterial->NormalTextureHandler);
-	if (pNormalTexture)
-		FreeTexture(pNormalTexture, fullRemoval);
-	else if (fullRemoval == false)
+
+	if (!FreeTex(pMaterial->NormalTextureHandler))
 		LOG_ERROR("Trying to free a material resource {} without a normal texture resource!", pMaterial->key);
-	pMaterial->AlbedoTextureHandler = 0;
-	pMaterial->NormalTextureHandler = 0;
+
+	if (!FreeTex(pMaterial->AOTextureHandler))
+		LOG_ERROR("Trying to free a material resource {} without an ambient occlusion texture resource!", pMaterial->key);
+
+	if (!FreeTex(pMaterial->MetallicTextureHandler))
+		LOG_ERROR("Trying to free a material resource {} without a metallic texture resource!", pMaterial->key);
+
+	if (!FreeTex(pMaterial->RoughnessTextureHandler))
+		LOG_ERROR("Trying to free a material resource {} without a roughness texture resource!", pMaterial->key);
+
+	if (!FreeTex(pMaterial->MetallicRoughnessTextureHandler))
+		LOG_ERROR("Trying to free a material resource {} without a combined metallic-roughness texture resource!", pMaterial->key);
 }
 
 void ResourceManager::FreeModelRecursive(ModelResource* pModel, bool fullRemoval)
