@@ -4,6 +4,7 @@
 #include <unordered_set>
 
 #include "Core/ResourceManager.h"
+#include "Renderer/RenderUtils.h"
 
 using namespace RS;
 
@@ -18,10 +19,60 @@ void ResourceInspector::Release()
 
 void ResourceInspector::Draw()
 {
-	static bool s_ResourceManagerWindow = true;
+	// Process resources
+	static std::unordered_map<Resource::Type, std::vector<std::pair<uint32, Resource*>>> s_TypeToResourcesMap;
+	s_TypeToResourcesMap.clear();
+	for (auto& [id, pResource] : s_ResourceManager->m_IDToResourceMap)
+	{
+		auto& resources = s_TypeToResourcesMap[pResource->type];
+		resources.push_back(std::make_pair(id, pResource));
+	}
+
+	static bool s_ResourceInspectorWindow = true;
 	ImGuiRenderer::Draw([&]()
 	{
-		if (ImGui::Begin("Resource Manager", &s_ResourceManagerWindow))
+		if (ImGui::Begin("Resource Inspector", &s_ResourceInspectorWindow))
+		{
+			for (auto& [type, resources] : s_TypeToResourcesMap)
+			{
+				std::string typeStr = Resource::TypeToString(type);
+				typeStr += " [" + std::to_string(resources.size()) + "]";
+				if (ImGui::TreeNode(typeStr.c_str()))
+				{
+					for (uint32 index = 0; index < (uint32)resources.size(); index++)
+					{
+						ResourceID id = resources[index].first;
+						ResourceID key = resources[index].second->key;
+						std::string resourceKeyString = "[" + std::to_string(key) + "] " + GetKeyStringFromID(id);
+						if (ImGui::TreeNode((void*)(intptr_t)index, resourceKeyString.c_str()))
+						{
+							if (type == Resource::Type::TEXTURE)
+							{
+								TextureResource* pResource = dynamic_cast<TextureResource*>(resources[index].second);
+								DrawTextureResource(id, pResource);
+							}
+
+							ImGui::TreePop();
+						}
+
+						// Make a tooltip for when the tree node is hovered. In this tooltop display the key.
+						if (ImGui::IsItemHovered())
+						{
+							ImGui::BeginTooltip();
+							ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+							ImGui::Text("%s", resourceKeyString.c_str());
+							ImGui::PopTextWrapPos();
+							ImGui::EndTooltip();
+						}
+					}
+					ImGui::TreePop();
+				}
+			}
+		}
+		ImGui::End();
+
+		/*
+		if (ImGui::Begin("Resource Inspector", &s_ResourceManagerWindow))
 		{
 			const ResourceManager::Stats& stats = s_ResourceManager->GetStats();
 			ImGui::Indent();
@@ -80,5 +131,31 @@ void ResourceInspector::Draw()
 
 		}
 		ImGui::End();
+		*/
 	});
+}
+
+void ResourceInspector::DrawTextureResource(ResourceID id, TextureResource* pTexture)
+{
+	ImageResource* pImageResource = s_ResourceManager->GetResource<ImageResource>(pTexture->ImageHandler);
+	DrawImageResource(pTexture->ImageHandler, pImageResource);
+	
+}
+
+void ResourceInspector::DrawImageResource(ResourceID id, ImageResource* pImage)
+{
+	ImGui::Text("Width: %d", pImage->Width);
+	ImGui::Text("Height: %d", pImage->Height);
+	std::string formatStr = RenderUtils::FormatToString(pImage->Format);
+	ImGui::Text("Format: %s", formatStr.c_str());
+}
+
+std::string ResourceInspector::GetKeyStringFromID(ResourceID id)
+{
+	for (auto& [key, resourceID] : s_ResourceManager->m_StringToResourceIDMap)
+	{
+		if (resourceID == id)
+			return key;
+	}
+	return "";
 }
