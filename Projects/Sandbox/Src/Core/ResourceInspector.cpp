@@ -25,7 +25,8 @@ void ResourceInspector::Draw()
 	for (auto& [id, pResource] : s_ResourceManager->m_IDToResourceMap)
 	{
 		auto& resources = s_TypeToResourcesMap[pResource->type];
-		resources.push_back(std::make_pair(id, pResource));
+		uint32 refCount = s_ResourceManager->m_ResourcesRefCount[id];
+		resources.push_back(std::make_pair(refCount, pResource));
 	}
 
 	static bool s_ResourceInspectorWindow = true;
@@ -41,18 +42,62 @@ void ResourceInspector::Draw()
 				{
 					for (uint32 index = 0; index < (uint32)resources.size(); index++)
 					{
-						ResourceID id = resources[index].first;
+						ResourceID refCount = resources[index].first;
 						ResourceID key = resources[index].second->key;
-						std::string resourceKeyString = "[" + std::to_string(key) + "] " + GetKeyStringFromID(id);
-						if (ImGui::TreeNode((void*)(intptr_t)index, resourceKeyString.c_str()))
-						{
-							if (type == Resource::Type::TEXTURE)
-							{
-								TextureResource* pResource = dynamic_cast<TextureResource*>(resources[index].second);
-								DrawTextureResource(id, pResource);
-							}
+						std::string resourceKeyString = GetKeyStringFromID(key);
+						
+						std::string resourceKeyStringEnding = resourceKeyString;
+						size_t lastSlashPos = resourceKeyString.find_last_of("\\/");
+						if(lastSlashPos != std::string::npos)
+							resourceKeyStringEnding = resourceKeyString.substr(lastSlashPos);
 
-							ImGui::TreePop();
+						resourceKeyStringEnding = "[" + std::to_string(key) + "] " + resourceKeyStringEnding;
+
+						if (type == Resource::Type::TEXTURE)
+						{
+							TextureResource* pResource = dynamic_cast<TextureResource*>(resources[index].second);
+							if (ImGui::TreeNode((void*)(intptr_t)index, resourceKeyStringEnding.c_str()))
+							{
+								ImGui::Text("Ref. count: %d", refCount);
+								ImGui::Text("Key: %s", resourceKeyString.c_str());
+								DrawTextureResource(pResource);
+								ImGui::TreePop();
+							}
+						}
+						else if (type == Resource::Type::IMAGE)
+						{
+							ImageResource* pResource = dynamic_cast<ImageResource*>(resources[index].second);
+							if (ImGui::TreeNode((void*)(intptr_t)index, resourceKeyStringEnding.c_str()))
+							{
+								ImGui::Text("Ref. count: %d", refCount);
+								ImGui::Text("Key: %s", resourceKeyString.c_str());
+								DrawImageResource(pResource);
+								ImGui::TreePop();
+							}
+						}
+						else if (type == Resource::Type::MATERIAL)
+						{
+							MaterialResource* pResource = dynamic_cast<MaterialResource*>(resources[index].second);
+							std::string name = "[" + std::to_string(key) + "] " + pResource->Name;
+							if (ImGui::TreeNode((void*)(intptr_t)index, name.c_str()))
+							{
+								ImGui::Text("Ref. count: %d", refCount);
+								ImGui::Text("Key: %s", resourceKeyString.c_str());
+								DrawMaterialResource(pResource);
+								ImGui::TreePop();
+							}
+						}
+						else if (type == Resource::Type::MODEL)
+						{
+							ModelResource* pResource = dynamic_cast<ModelResource*>(resources[index].second);
+							std::string name = "[" + std::to_string(key) + "] " + pResource->Name;
+							if (ImGui::TreeNode((void*)(intptr_t)index, name.c_str()))
+							{
+								ImGui::Text("Ref. count: %d", refCount);
+								ImGui::Text("Key: %s", resourceKeyString.c_str());
+								DrawModelResource(pResource);
+								ImGui::TreePop();
+							}
 						}
 
 						// Make a tooltip for when the tree node is hovered. In this tooltop display the key.
@@ -135,19 +180,130 @@ void ResourceInspector::Draw()
 	});
 }
 
-void ResourceInspector::DrawTextureResource(ResourceID id, TextureResource* pTexture)
+void ResourceInspector::DrawTextureResource(TextureResource* pTexture)
 {
 	ImageResource* pImageResource = s_ResourceManager->GetResource<ImageResource>(pTexture->ImageHandler);
-	DrawImageResource(pTexture->ImageHandler, pImageResource);
+	DrawImageResource(pImageResource);
 	
+	DrawTexture(pTexture, 200, 200);
 }
 
-void ResourceInspector::DrawImageResource(ResourceID id, ImageResource* pImage)
+void ResourceInspector::DrawImageResource(ImageResource* pImage)
 {
 	ImGui::Text("Width: %d", pImage->Width);
 	ImGui::Text("Height: %d", pImage->Height);
 	std::string formatStr = RenderUtils::FormatToString(pImage->Format);
 	ImGui::Text("Format: %s", formatStr.c_str());
+}
+
+void ResourceInspector::DrawMaterialResource(MaterialResource* pMaterial)
+{
+	uint32 index = 0;
+	auto DrawMaterialTexture = [&](const std::string& name, ResourceID id)->void
+	{
+		if (ImGui::TreeNode((void*)(intptr_t)index, name.c_str()))
+		{
+			TextureResource* pTextureResource = s_ResourceManager->GetResource<TextureResource>(id);
+			DrawTextureResource(pTextureResource);
+
+			ImGui::TreePop();
+		}
+		index++;
+	};
+	
+	ImGui::Text("Name: %s", pMaterial->Name.c_str());
+	DrawMaterialTexture("Albedo Texture", pMaterial->AlbedoTextureHandler);
+	DrawMaterialTexture("Normal Texture", pMaterial->NormalTextureHandler);
+	DrawMaterialTexture("Ambient Occlusion Texture", pMaterial->AOTextureHandler);
+	DrawMaterialTexture("Metallic Texture", pMaterial->MetallicTextureHandler);
+	DrawMaterialTexture("Roughness Texture", pMaterial->RoughnessTextureHandler);
+	DrawMaterialTexture("Combined Metallic-Roughness Texture", pMaterial->MetallicRoughnessTextureHandler);
+}
+
+void ResourceInspector::DrawModelResource(ModelResource* pModel)
+{
+	ImGui::Text("Name: %s", pModel->Name.c_str());
+	if (ImGui::TreeNode("Model"))
+	{
+		DrawModelRecursive(*pModel);
+		ImGui::TreePop();
+	}
+}
+
+void ResourceInspector::DrawModelRecursive(ModelResource& model)
+{
+	ImGui::TextColored(ImVec4(0.f, 1.f, 0.f, 1.f), "Name: %s", model.Name.c_str());
+	if (model.pParent)
+		ImGui::Text("Parent: %s", model.pParent->Name.c_str());
+	else
+		ImGui::Text("Parent: No Parent");
+	DrawImGuiAABB(0, model.BoundingBox);
+
+	if (model.Meshes.empty() == false)
+	{
+		if (ImGui::TreeNode((void*)(intptr_t)1, "Meshes"))
+		{
+			for (uint32 i = 0; i < (uint32)model.Meshes.size(); i++)
+			{
+				if (ImGui::TreeNode((void*)(intptr_t)i, "Mesh #%d", i))
+				{
+					MeshObject& mesh = model.Meshes[i];
+					ImGui::Text("Is in RAM: ");
+					float on = mesh.Vertices.empty() ? 0.f : 1.f;
+					ImGui::SameLine(); ImGui::TextColored(ImVec4(1.f - on, on, 0.f, 1.f), "%s", on > 0.5f ? "True" : "False");
+
+					ImGui::Text("Is in GPU: ");
+					on = mesh.pVertexBuffer ? 1.f : 0.f;
+					ImGui::SameLine(); ImGui::TextColored(ImVec4(1.f - on, on, 0.f, 1.f), "%s", on > 0.5f ? "True" : "False");
+
+					ImGui::Text("Num Vertices: %d", mesh.NumVertices);
+					ImGui::Text("Num Indices: %d", mesh.NumIndices);
+					DrawImGuiAABB(0, mesh.BoundingBox);
+
+					if (ImGui::TreeNode((void*)(intptr_t)1, "Material"))
+					{
+						MaterialResource* pMaterialResource = s_ResourceManager->GetResource<MaterialResource>(mesh.MaterialHandler);
+						DrawMaterialResource(pMaterialResource);
+						ImGui::TreePop();
+					}
+
+					ImGui::TreePop();
+				}
+			}
+			ImGui::TreePop();
+		}
+	}
+
+	if (model.Children.empty() == false)
+	{
+		uint32 index = model.Meshes.empty() ? 1 : 2;
+		if (ImGui::TreeNode((void*)(intptr_t)index, "Children"))
+		{
+			for (int i = 0; i < (int)model.Children.size(); i++)
+			{
+				if (ImGui::TreeNode((void*)(intptr_t)i, model.Children[i].Name.c_str()))
+				{
+					DrawModelRecursive(model.Children[i]);
+					ImGui::TreePop();
+				}
+			}
+			ImGui::TreePop();
+		}
+	}
+}
+
+void ResourceInspector::DrawImGuiAABB(int index, const AABB& aabb)
+{
+	if (ImGui::TreeNode((void*)(intptr_t)index, "Bounding Box"))
+	{
+		bool isSame = glm::all(glm::lessThan(glm::abs(aabb.min - aabb.max), glm::vec3(FLT_EPSILON)));
+		ImVec4 color(0.f, 1.f, 0.f, 1.f);
+		if (isSame) color = ImVec4(1.f, 0.f, 0.f, 1.f);
+		ImGui::TextColored(color, "Size: (%f, %f, %f)", aabb.max.x - aabb.min.x, aabb.max.y - aabb.min.y, aabb.max.z - aabb.min.z);
+		ImGui::TextColored(color, "Min: (%f, %f, %f)", aabb.min.x, aabb.min.y, aabb.min.z);
+		ImGui::TextColored(color, "Max: (%f, %f, %f)", aabb.max.x, aabb.max.y, aabb.max.z);
+		ImGui::TreePop();
+	}
 }
 
 std::string ResourceInspector::GetKeyStringFromID(ResourceID id)
@@ -158,4 +314,25 @@ std::string ResourceInspector::GetKeyStringFromID(ResourceID id)
 			return key;
 	}
 	return "";
+}
+
+void ResourceInspector::DrawTexture(TextureResource* pTexture, uint32 width, uint32 height)
+{
+	ImVec2 size = ImVec2((float)width, (float)height);
+	ImVec2 uv_min = ImVec2(0.0f, 0.0f);                 // Top-left
+	ImVec2 uv_max = ImVec2(1.0f, 1.0f);                 // Lower-right
+	ImVec4 tint_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);   // No tint
+	ImVec4 border_col = ImVec4(1.0f, 1.0f, 1.0f, 0.5f); // 50% opaque white
+	ImGui::Image((ImTextureID)pTexture->pTextureSRV, size, uv_min, uv_max, tint_col, border_col);
+
+	// Display a larger image when the mouse is hovering the image.
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::BeginTooltip();
+		float zoom = 4.0f;
+		ImVec2 uv0 = ImVec2(0.f, 0.f);
+		ImVec2 uv1 = ImVec2(1.f, 1.f);
+		ImGui::Image((ImTextureID)pTexture->pTextureSRV, ImVec2(width * zoom, height * zoom), uv0, uv1, tint_col, border_col);
+		ImGui::EndTooltip();
+	}
 }
