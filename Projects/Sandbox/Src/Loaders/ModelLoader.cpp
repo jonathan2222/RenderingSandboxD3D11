@@ -425,6 +425,8 @@ void ModelLoader::FillMesh(const aiScene*& pScene, MeshObject& outMesh, aiMesh*&
 
 void ModelLoader::LoadMaterial(const aiScene*& pScene, MeshObject& outMesh, aiMesh*& pMesh, ModelLoadDesc::LoaderFlags flags, const std::string& modelPath)
 {
+    RS_UNREFERENCED_VARIABLE(flags);
+
     auto pResourceManager = ResourceManager::Get();
     uint32 materialIndex = pMesh->mMaterialIndex;
     if(materialIndex >= 0)

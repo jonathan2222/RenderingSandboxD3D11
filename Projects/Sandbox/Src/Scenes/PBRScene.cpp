@@ -152,6 +152,7 @@ void PBRScene::Tick(float dt)
 
 void PBRScene::UpdateCamera(float dt)
 {
+	RS_UNREFERENCED_VARIABLE(dt);
 	/*
 	*	Camera
 	*	Type: Orbit

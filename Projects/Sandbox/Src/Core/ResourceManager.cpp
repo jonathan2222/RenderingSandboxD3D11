@@ -436,6 +436,8 @@ bool ResourceManager::RemoveResource(Resource* pResource, bool fullRemoval)
 
 void ResourceManager::FreeImage(ImageResource* pImage, bool fullRemoval)
 {
+	RS_UNREFERENCED_VARIABLE(fullRemoval);
+
 	if (pImage)
 	{
 		pImage->Data.clear();
@@ -492,6 +494,8 @@ void ResourceManager::FreeMaterial(MaterialResource* pMaterial, bool fullRemoval
 			textureID = 0;
 			return false;
 		}
+		else
+			return false;
 	};
 
 	if (!FreeTex(pMaterial->AlbedoTextureHandler))

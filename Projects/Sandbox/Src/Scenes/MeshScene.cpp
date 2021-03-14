@@ -284,6 +284,7 @@ void MeshScene::Tick(float dt)
 
 void MeshScene::UpdateCamera(float dt)
 {
+	RS_UNREFERENCED_VARIABLE(dt);
 	/*
 	*	Camera
 	*	Type: Orbit
