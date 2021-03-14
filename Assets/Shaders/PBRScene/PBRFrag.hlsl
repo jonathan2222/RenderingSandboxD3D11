@@ -60,6 +60,22 @@ float3 CalcNormal(float3 t, float3 b, float3 n, float2 uv)
 
 float3 DebugTextures(MaterialData materialData)
 {
+    if(materialInfo.x > 0.5f)
+    {
+        if(FLOAT_EQUAL(materialInfo.y, 3.f)) // AO
+        {
+            return float3(materialData.metallicRoughness.r, materialData.metallicRoughness.r, materialData.metallicRoughness.r);
+        }
+        else if(FLOAT_EQUAL(materialInfo.y, 4.f)) // Metallic
+        {
+             return float3(materialData.metallicRoughness.b, materialData.metallicRoughness.b, materialData.metallicRoughness.b);
+        }
+        else if(FLOAT_EQUAL(materialInfo.y, 5.f)) // Roughness
+        {
+             return float3(materialData.metallicRoughness.g, materialData.metallicRoughness.g, materialData.metallicRoughness.g);
+        }
+    }
+
     if(FLOAT_EQUAL(materialInfo.y, 1.f))
     {
         return materialData.albedo;

@@ -563,10 +563,13 @@ ResourceID ModelLoader::LoadTextureResource(aiTextureType type, uint32 index, co
         }
         else
         {
+            std::string newPath = std::string(path.C_Str());
+            std::replace(newPath.begin(), newPath.end(), '\\', '/');
+
             // Load Texture with ResourceManger!
             TextureLoadDesc loadDesc = {};
             loadDesc.ImageDesc.IsFromFile   = true;
-            loadDesc.ImageDesc.File.Path    = folderPath + std::string(path.C_Str());
+            loadDesc.ImageDesc.File.Path    = folderPath + newPath;
             loadDesc.ImageDesc.File.UseDefaultFolder = false; // Use the same folder as the model.
             loadDesc.ImageDesc.Name         = loadDesc.ImageDesc.File.Path;
             loadDesc.ImageDesc.NumChannels  = ImageLoadDesc::Channels::RGBA;
