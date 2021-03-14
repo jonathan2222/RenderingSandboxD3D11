@@ -8,6 +8,14 @@
 
 #include "Structures/AABB.h"
 
+/*
+* TODO: Add support for static and dynamic rendering.
+*	Reason: Do not want to rebuild the vertices buffers every time one element is added.
+* TODO: Add support for timed rendering and text rendering.
+*	Timed rendering: If you only want to render a line/box etc. for a spesific time and after that time it should be removed.
+*	Text rendering: Be able to render text in different sizes and colors.
+*/
+
 namespace RS
 {
 	struct ModelResource;

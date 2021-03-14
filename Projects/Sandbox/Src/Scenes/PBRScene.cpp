@@ -33,8 +33,8 @@ void PBRScene::Start()
 	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "BITANGENT", 0);
 	layout.Push(DXGI_FORMAT_R32G32_FLOAT, "TEXCOORD", 0);
 	Shader::Descriptor shaderDesc = {};
-	shaderDesc.Vertex = "MeshVert.hlsl";
-	shaderDesc.Fragment = "MeshFrag.hlsl";
+	shaderDesc.Vertex = "PBRScene/PBRVert.hlsl";
+	shaderDesc.Fragment = "PBRScene/PBRFrag.hlsl";
 	m_Shader.Load(shaderDesc, layout);
 	ShaderHotReloader::AddShader(&m_Shader);
 
@@ -109,6 +109,8 @@ void PBRScene::FixedTick()
 
 void PBRScene::Tick(float dt)
 {
+	DrawImGui();
+
 	UpdateCamera(dt);
 	DebugRenderer::Get()->UpdateCamera(m_Camera.GetView(), m_Camera.GetProj());
 
@@ -143,7 +145,8 @@ void PBRScene::Tick(float dt)
 		debugInfo.DrawAABBs = false;
 		static uint32 debugInfoID = DebugRenderer::Get()->GenID();
 		debugInfo.ID = debugInfoID;
-		renderer->Render(*m_pModel, transform, debugInfo);
+		debugInfo.RenderMode = (uint32)m_RenderMode;
+		renderer->RenderWithMaterial(*m_pModel, transform, debugInfo);
 	}
 }
 
@@ -211,4 +214,23 @@ void PBRScene::UpdateCamera(float dt)
 		// Update the projection for the possibility that the screen size has been changed.
 		m_Camera.UpdateProj();
 	}
+}
+
+void PBRScene::DrawImGui()
+{
+	static bool s_MaterialDebugWindow = true;
+	ImGuiRenderer::Draw([&]()
+	{
+		if (ImGui::Begin("Material Debugger", &s_MaterialDebugWindow))
+		{
+			ImGui::RadioButton("Normal Rendering", &m_RenderMode, 0);
+			ImGui::RadioButton("Only Albedo", &m_RenderMode, 1);
+			ImGui::RadioButton("Only Normal", &m_RenderMode, 2);
+			ImGui::RadioButton("Only AO", &m_RenderMode, 3);
+			ImGui::RadioButton("Only Mettalic", &m_RenderMode, 4);
+			ImGui::RadioButton("Only Roughness", &m_RenderMode, 5);
+			ImGui::RadioButton("Only Combined Metallic-Roughness", &m_RenderMode, 6);
+		}
+		ImGui::End();
+	});
 }

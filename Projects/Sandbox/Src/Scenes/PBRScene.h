@@ -40,15 +40,17 @@ namespace RS
 
 	private:
 		void UpdateCamera(float dt);
+		void DrawImGui();
 
 	private:
 		Shader m_Shader;
 
-		ID3D11Buffer* m_pConstantBufferFrame = nullptr;
+		ID3D11Buffer*	m_pConstantBufferFrame = nullptr;
 
-		FrameData				m_FrameData;
+		FrameData		m_FrameData;
 
-		ModelResource* m_pModel = nullptr;
+		ModelResource*	m_pModel		= nullptr;
+		int32			m_RenderMode	= 0;
 
 		Camera			m_Camera;
 

@@ -511,6 +511,12 @@ void ResourceManager::FreeMaterial(MaterialResource* pMaterial, bool fullRemoval
 
 	if (!FreeTex(pMaterial->MetallicRoughnessTextureHandler))
 		LOG_ERROR("Trying to free a material resource {} without a combined metallic-roughness texture resource!", pMaterial->key);
+
+	if (pMaterial->pConstantBuffer)
+	{
+		pMaterial->pConstantBuffer->Release();
+		pMaterial->pConstantBuffer = nullptr;
+	}
 }
 
 void ResourceManager::FreeModelRecursive(ModelResource* pModel, bool fullRemoval)

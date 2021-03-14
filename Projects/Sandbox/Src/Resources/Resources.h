@@ -46,15 +46,35 @@ namespace RS
 		ID3D11SamplerState*			pSampler		= nullptr; // TODO: Convert the sampler to a Resource!
 	};
 
+	/*
+	* Used as a constant buffer when rendering with a material.
+	*/
+	struct MaterialBuffer
+	{
+		glm::vec4 Info = glm::vec4(0.f); // x: UseCombined, y: debug draw index, z: not used, w: not used
+		/*
+		Debug draw index:
+			0: Normal rendering
+			1: Only albedo
+			2: Only normal
+			3: Only ao
+			4: Only metallic
+			5: Only roughness
+			6: Only combined metallic-roughness (If avaliable)
+		*/
+	};
+
 	struct MaterialResource : public Resource
 	{
-		ResourceID	AlbedoTextureHandler			= 0;
-		ResourceID	NormalTextureHandler			= 0;
-		ResourceID	AOTextureHandler				= 0;
-		ResourceID	MetallicTextureHandler			= 0;
-		ResourceID	RoughnessTextureHandler			= 0;
-		ResourceID	MetallicRoughnessTextureHandler = 0;
-		std::string Name = "";
+		ResourceID		AlbedoTextureHandler			= 0;
+		ResourceID		NormalTextureHandler			= 0;
+		ResourceID		AOTextureHandler				= 0;
+		ResourceID		MetallicTextureHandler			= 0;
+		ResourceID		RoughnessTextureHandler			= 0;
+		ResourceID		MetallicRoughnessTextureHandler = 0;
+		std::string		Name							= "";
+		MaterialBuffer	InfoBuffer						= {};
+		ID3D11Buffer*	pConstantBuffer					= nullptr;
 	};
 
 	struct MeshObject

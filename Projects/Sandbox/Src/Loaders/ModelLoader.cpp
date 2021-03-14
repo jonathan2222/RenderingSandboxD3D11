@@ -444,6 +444,8 @@ void ModelLoader::LoadMaterial(const aiScene*& pScene, MeshObject& outMesh, aiMe
             pMaterial->Get(AI_MATKEY_NAME, name);
             pMaterialResource->Name = std::string(name.C_Str());
 
+            pMaterialResource->InfoBuffer = {};
+
             std::string folderPath = modelPath.substr(0, modelPath.find_last_of("\\/")) + "/";
 
             bool succeeded = false;
@@ -492,6 +494,31 @@ void ModelLoader::LoadMaterial(const aiScene*& pScene, MeshObject& outMesh, aiMe
             if(!hasMetallic && !hasRoughness)
             {
                 pMaterialResource->MetallicRoughnessTextureHandler = LoadTextureResource(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, pScene, pMaterial, pResourceManager->DefaultTextureOnePixelBlack, folderPath, succeeded);
+                pMaterialResource->InfoBuffer.Info.x = 1.f;
+            }
+            else
+            {
+                pMaterialResource->MetallicRoughnessTextureHandler = pResourceManager->DefaultTextureOnePixelBlack;
+                pMaterialResource->InfoBuffer.Info.x = 0.f;
+            }
+
+            // Create the constant buffer
+            {
+                D3D11_BUFFER_DESC bufferDesc = {};
+                bufferDesc.ByteWidth = sizeof(MaterialBuffer);
+                bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+                bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+                bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+                bufferDesc.MiscFlags = 0;
+                bufferDesc.StructureByteStride = 0;
+
+                D3D11_SUBRESOURCE_DATA data;
+                data.pSysMem = &pMaterialResource->InfoBuffer;
+                data.SysMemPitch = 0;
+                data.SysMemSlicePitch = 0;
+
+                HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &pMaterialResource->pConstantBuffer);
+                RS_D311_ASSERT_CHECK(result, "Failed to create constant buffer for material \"{}\"!", pMaterialResource->Name.c_str());
             }
         }
 

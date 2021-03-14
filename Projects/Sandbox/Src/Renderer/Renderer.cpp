@@ -99,6 +99,14 @@ void Renderer::Render(ModelResource& model, const glm::mat4& transform, DebugInf
 	InternalRender(model, transform, pContext, debugInfo);
 }
 
+void Renderer::RenderWithMaterial(ModelResource& model, const glm::mat4& transform, DebugInfo debugInfo)
+{
+	auto renderAPI = RenderAPI::Get();
+	ID3D11DeviceContext* pContext = renderAPI->GetDeviceContext();
+	DebugRenderer::Get()->Clear(debugInfo.ID);
+	InternalRenderWithMaterial(model, transform, pContext, debugInfo);
+}
+
 ID3D11RenderTargetView* Renderer::GetRenderTarget()
 {
 	return m_pRenderTargetView;
@@ -254,4 +262,71 @@ void Renderer::InternalRender(ModelResource& model, const glm::mat4& transform, 
 
 	for (ModelResource& child : model.Children)
 		InternalRender(child, meshData.world, pContext, debugInfo);
+}
+
+void Renderer::InternalRenderWithMaterial(ModelResource& model, const glm::mat4& transform, ID3D11DeviceContext* pContext, DebugInfo debugInfo)
+{
+	MeshObject::MeshData meshData;
+	meshData.world = transform * model.Transform;
+	for (MeshObject& mesh : model.Meshes)
+	{
+		MaterialResource* pMaterial = ResourceManager::Get()->GetResource<MaterialResource>(mesh.MaterialHandler);
+		TextureResource* pAlbedoTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->AlbedoTextureHandler);
+		TextureResource* pNormalTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->NormalTextureHandler);
+		TextureResource* pAOTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->AOTextureHandler);
+		TextureResource* pMetallicTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->MetallicTextureHandler);
+		TextureResource* pRoughnessTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->RoughnessTextureHandler);
+		TextureResource* pMetallicRoughnessTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->MetallicRoughnessTextureHandler);
+
+		D3D11_MAPPED_SUBRESOURCE mappedResource;
+		{
+			HRESULT result = pContext->Map(mesh.pMeshBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+			RS_D311_ASSERT_CHECK(result, "Failed to map mesh constant buffer!");
+			MeshObject::MeshData* data = (MeshObject::MeshData*)mappedResource.pData;
+			memcpy(data, &meshData, sizeof(meshData));
+			pContext->Unmap(mesh.pMeshBuffer, 0);
+		}
+
+		{
+			HRESULT result = pContext->Map(pMaterial->pConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+			RS_D311_ASSERT_CHECK(result, "Failed to map material constant buffer!");
+			MaterialBuffer* data = (MaterialBuffer*)mappedResource.pData;
+			pMaterial->InfoBuffer.Info.y = (float)debugInfo.RenderMode;
+			memcpy(data, &pMaterial->InfoBuffer, sizeof(pMaterial->InfoBuffer));
+			pContext->Unmap(pMaterial->pConstantBuffer, 0);
+		}
+
+		UINT stride = sizeof(MeshObject::Vertex);
+		UINT offset = 0;
+		pContext->IASetVertexBuffers(0, 1, &mesh.pVertexBuffer, &stride, &offset);
+		pContext->IASetIndexBuffer(mesh.pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		pContext->VSSetConstantBuffers(0, 1, &mesh.pMeshBuffer);
+		pContext->PSSetShaderResources(0, 1, &pAlbedoTexture->pTextureSRV);
+		pContext->PSSetShaderResources(1, 1, &pNormalTexture->pTextureSRV);
+		pContext->PSSetShaderResources(2, 1, &pAOTexture->pTextureSRV);
+		pContext->PSSetShaderResources(3, 1, &pMetallicTexture->pTextureSRV);
+		pContext->PSSetShaderResources(4, 1, &pRoughnessTexture->pTextureSRV);
+		pContext->PSSetShaderResources(5, 1, &pMetallicRoughnessTexture->pTextureSRV);
+		pContext->PSSetSamplers(0, 1, &pAlbedoTexture->pSampler);
+		pContext->PSSetConstantBuffers(0, 1, &pMaterial->pConstantBuffer);
+		pContext->DrawIndexed((UINT)mesh.NumIndices, 0, 0);
+
+		if (debugInfo.DrawAABBs)
+		{
+			static Color meshAABBColor = Color::HSBToRGB(1.f, 1.f, 0.2f);
+			AABB transformedAABB = AABB::Transform(mesh.BoundingBox, meshData.world);
+			DebugRenderer::Get()->PushBox(transformedAABB, meshAABBColor, debugInfo.ID, false);
+		}
+	}
+
+	if (debugInfo.DrawAABBs)
+	{
+		static Color modelAABBColor = Color::HSBToRGB(1.f, 1.f, 0.8f);
+		AABB transformedAABB = AABB::Transform(model.BoundingBox, meshData.world);
+		DebugRenderer::Get()->PushBox(transformedAABB, modelAABBColor, debugInfo.ID, false);
+	}
+
+	for (ModelResource& child : model.Children)
+		InternalRenderWithMaterial(child, meshData.world, pContext, debugInfo);
 }
