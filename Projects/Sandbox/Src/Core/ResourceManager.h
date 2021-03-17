@@ -179,6 +179,7 @@ namespace RS
 		pResource->type = type;
 		pResource->key = id;
 		m_IDToResourceMap[id] = pResource;
+		pResource->AddRef();
 		UpdateStats(pResource, true);
 		return { pResource, id };
 	}

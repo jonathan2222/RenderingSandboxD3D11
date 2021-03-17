@@ -495,7 +495,10 @@ void ResourceManager::FreeMaterial(MaterialResource* pMaterial, bool fullRemoval
 			return false;
 		}
 		else
-			return false;
+		{
+			textureID = 0;
+			return true;
+		}
 	};
 
 	if (!FreeTex(pMaterial->AlbedoTextureHandler))
