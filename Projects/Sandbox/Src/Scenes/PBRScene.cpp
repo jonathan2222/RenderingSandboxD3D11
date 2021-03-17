@@ -51,20 +51,25 @@ void PBRScene::Start()
 
 	{
 		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.ByteWidth = sizeof(FrameData);
-		bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-		bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-		bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		bufferDesc.MiscFlags = 0;
-		bufferDesc.StructureByteStride = 0;
+		bufferDesc.ByteWidth			= sizeof(FrameData);
+		bufferDesc.Usage				= D3D11_USAGE_DYNAMIC;
+		bufferDesc.BindFlags			= D3D11_BIND_CONSTANT_BUFFER;
+		bufferDesc.CPUAccessFlags		= D3D11_CPU_ACCESS_WRITE;
+		bufferDesc.MiscFlags			= 0;
+		bufferDesc.StructureByteStride	= 0;
 
 		D3D11_SUBRESOURCE_DATA data;
-		data.pSysMem = &m_FrameData;
-		data.SysMemPitch = 0;
-		data.SysMemSlicePitch = 0;
+		data.pSysMem			= &m_FrameData;
+		data.SysMemPitch		= 0;
+		data.SysMemSlicePitch	= 0;
 
 		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pConstantBufferFrame);
 		RS_D311_ASSERT_CHECK(result, "Failed to create frame constant buffer!");
+
+		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pConstantBufferCamera);
+		bufferDesc.ByteWidth	= sizeof(CameraData);
+		data.pSysMem			= &m_CameraData;
+		RS_D311_ASSERT_CHECK(result, "Failed to create camera constant buffer!");
 	}
 
 	m_Pipeline.Init();
@@ -101,6 +106,7 @@ void PBRScene::End()
 
 	m_Shader.Release();
 	m_pConstantBufferFrame->Release();
+	m_pConstantBufferCamera->Release();
 }
 
 void PBRScene::FixedTick()
@@ -128,19 +134,36 @@ void PBRScene::Tick(float dt)
 	{
 		m_FrameData.view = m_Camera.GetView();
 		m_FrameData.proj = m_Camera.GetProj();
+		m_CameraData.camPos = glm::vec4(m_Camera.GetPos(), 1.f);
+
+		static float t = 0.f;
+		t += glm::pi<float>() * dt * 0.5f;
+		m_CameraData.lightPos = glm::rotateY(glm::vec4(1.f, 2.f, 0.f, 0.f), t);
+		DebugRenderer::Get()->PushPoint(glm::vec3(m_CameraData.lightPos), Color::WHITE);
 
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
-		HRESULT result = pContext->Map(m_pConstantBufferFrame, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-		RS_D311_ASSERT_CHECK(result, "Failed to map frame constant buffer!");
-		FrameData* data = (FrameData*)mappedResource.pData;
-		memcpy(data, &m_FrameData, sizeof(FrameData));
-		pContext->Unmap(m_pConstantBufferFrame, 0);
+		{
+			HRESULT result = pContext->Map(m_pConstantBufferFrame, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+			RS_D311_ASSERT_CHECK(result, "Failed to map frame constant buffer!");
+			FrameData* data = (FrameData*)mappedResource.pData;
+			memcpy(data, &m_FrameData, sizeof(FrameData));
+			pContext->Unmap(m_pConstantBufferFrame, 0);
+		}
+
+		{
+			HRESULT result = pContext->Map(m_pConstantBufferCamera, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+			RS_D311_ASSERT_CHECK(result, "Failed to map camera constant buffer!");
+			CameraData* data = (CameraData*)mappedResource.pData;
+			memcpy(data, &m_CameraData, sizeof(CameraData));
+			pContext->Unmap(m_pConstantBufferCamera, 0);
+		}
 	}
 
 	// Draw assimp model
 	{
 		glm::mat4 transform = glm::translate(glm::vec3(0.f, 1.f, 0.f)) * glm::scale(glm::vec3(2.f)) * glm::rotate(glm::pi<float>(), glm::vec3(0.f, 1.f, 0.f));
 		pContext->VSSetConstantBuffers(1, 1, &m_pConstantBufferFrame);
+		pContext->PSSetConstantBuffers(1, 1, &m_pConstantBufferCamera);
 		Renderer::DebugInfo debugInfo = {};
 		debugInfo.DrawAABBs = false;
 		static uint32 debugInfoID = DebugRenderer::Get()->GenID();
@@ -224,7 +247,7 @@ void PBRScene::DrawImGui()
 	{
 		if (ImGui::Begin("Material Debugger", &s_MaterialDebugWindow))
 		{
-			ImGui::RadioButton("Normal Rendering", &m_RenderMode, 0);
+			ImGui::RadioButton("PBR", &m_RenderMode, 0);
 			ImGui::RadioButton("Only Albedo", &m_RenderMode, 1);
 			ImGui::RadioButton("Only Normal", &m_RenderMode, 2);
 			ImGui::RadioButton("Only AO", &m_RenderMode, 3);

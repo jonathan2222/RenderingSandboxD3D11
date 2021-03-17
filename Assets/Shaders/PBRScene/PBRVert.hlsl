@@ -10,6 +10,7 @@ struct VSIn
 struct VSOut
 {
     float4 position : SV_POSITION;
+    float4 worldPosition : POSITION;
     float4 normal : NORMAL;
     float4 tangent : TANGENT;
     float4 bitangent : BITANGENT;
@@ -30,8 +31,8 @@ cbuffer FrameData : register(b1)
 VSOut main(VSIn input)
 {
     VSOut output;
-    output.position = mul(worldMat, float4(input.position, 1.f));
-    output.position = mul(viewMat, output.position);
+    output.worldPosition = mul(worldMat, float4(input.position, 1.f));
+    output.position = mul(viewMat, output.worldPosition);
     output.position = mul(projMat, output.position);
 
     output.normal = mul(worldMat, float4(input.normal, 0.f));

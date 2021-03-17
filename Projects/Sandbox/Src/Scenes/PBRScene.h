@@ -22,6 +22,12 @@ namespace RS
 			glm::mat4 proj = glm::mat4(1.f);
 		};
 
+		struct CameraData
+		{
+			glm::vec4 camPos	= glm::vec4(0.f);
+			glm::vec4 lightPos	= glm::vec4(0.f);
+		};
+
 	public:
 		PBRScene();
 		~PBRScene() = default;
@@ -46,8 +52,10 @@ namespace RS
 		Shader m_Shader;
 
 		ID3D11Buffer*	m_pConstantBufferFrame = nullptr;
+		ID3D11Buffer*	m_pConstantBufferCamera = nullptr;
 
 		FrameData		m_FrameData;
+		CameraData		m_CameraData;
 
 		ModelResource*	m_pModel		= nullptr;
 		int32			m_RenderMode	= 0;
