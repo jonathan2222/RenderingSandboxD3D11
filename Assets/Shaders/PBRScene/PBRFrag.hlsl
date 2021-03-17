@@ -251,9 +251,8 @@ float4 main(PSIn input) : SV_TARGET
     // Loop through all light sources
     float3 Lo = float3(0.f, 0.f, 0.f);
     {
-        //float3 lightPos = float3(1.1f, 1.f, 1.5f);
         float3 lightColor = float3(1.f, 1.f, 1.f);
-        float3 lightDir = normalize(input.worldPosition.xyz - lightPos.xyz);//normalize(float3(-1.f, -1.f, -0.5f));
+        float3 lightDir = normalize(input.worldPosition.xyz - lightPos.xyz);
         material.invLightDir = -lightDir;
 
         float nDotVMax = max(dot(material.normal, material.invViewDir), 0.f);
@@ -264,7 +263,7 @@ float4 main(PSIn input) : SV_TARGET
 
         float distance = length(lightPos.xyz - input.worldPosition.xyz);
         float attenuation = 1.f / (distance*distance);
-        float3 radiance = lightColor;// * attenuation;
+        float3 radiance = lightColor * attenuation;
 
         float cosTheta = dot(material.normal, h);
         float NDF   = DistributionGGX(material.normal, h, material.roughness);
