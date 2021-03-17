@@ -241,7 +241,7 @@ float4 main(PSIn input) : SV_TARGET
     PBRMaterial material;
     material.normal = materialData.normal;
     material.invViewDir = normalize(cameraPos.xyz - input.worldPosition.xyz);
-    material.roughness = GetRoughnessData(materialData);
+    material.roughness = max(GetAlbedoColor(materialData), 0.01f);
     material.metallic = GetMetallicData(materialData);
     material.albedo = GetAlbedoColor(materialData);
     
