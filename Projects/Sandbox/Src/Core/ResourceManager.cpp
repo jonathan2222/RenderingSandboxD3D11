@@ -74,6 +74,66 @@ void ResourceManager::Init()
 			auto [pTexture, ID] = LoadTextureResource(loadDesc);
 			DefaultTextureOnePixelNormal = ID;
 		}
+
+		// Load a Anisotropic Sampler
+		{
+			SamplerLoadDesc loadDesc = {};
+			loadDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+			loadDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+			loadDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+			loadDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+			loadDesc.MipLODBias = 0.f;
+			loadDesc.MaxAnisotropy = 16;
+			loadDesc.ComparisonFunc = D3D11_COMPARISON_GREATER_EQUAL;
+			loadDesc.MinLOD = 0.f;
+			loadDesc.MaxLOD = D3D11_FLOAT32_MAX;
+			loadDesc.BorderColor[0] = 0.f;
+			loadDesc.BorderColor[1] = 0.f;
+			loadDesc.BorderColor[2] = 0.f;
+			loadDesc.BorderColor[3] = 0.f;
+			auto [pSampler, ID] = LoadSamplerResource(loadDesc);
+			DefaultSamplerAnisotropic = ID;
+		}
+
+		// Load a Linear Sampler
+		{
+			SamplerLoadDesc loadDesc = {};
+			loadDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+			loadDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+			loadDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+			loadDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+			loadDesc.MipLODBias = 0.f;
+			loadDesc.MaxAnisotropy = 0;
+			loadDesc.ComparisonFunc = D3D11_COMPARISON_GREATER_EQUAL;
+			loadDesc.MinLOD = 0.f;
+			loadDesc.MaxLOD = D3D11_FLOAT32_MAX;
+			loadDesc.BorderColor[0] = 0.f;
+			loadDesc.BorderColor[1] = 0.f;
+			loadDesc.BorderColor[2] = 0.f;
+			loadDesc.BorderColor[3] = 0.f;
+			auto [pSampler, ID] = LoadSamplerResource(loadDesc);
+			DefaultSamplerLinear = ID;
+		}
+
+		// Load a Nearest Sampler
+		{
+			SamplerLoadDesc loadDesc = {};
+			loadDesc.Filter = D3D11_FILTER_MIN_MAG_POINT_MIP_LINEAR;
+			loadDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+			loadDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+			loadDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+			loadDesc.MipLODBias = 0.f;
+			loadDesc.MaxAnisotropy = 16;
+			loadDesc.ComparisonFunc = D3D11_COMPARISON_GREATER_EQUAL;
+			loadDesc.MinLOD = 0.f;
+			loadDesc.MaxLOD = D3D11_FLOAT32_MAX;
+			loadDesc.BorderColor[0] = 0.f;
+			loadDesc.BorderColor[1] = 0.f;
+			loadDesc.BorderColor[2] = 0.f;
+			loadDesc.BorderColor[3] = 0.f;
+			auto [pSampler, ID] = LoadSamplerResource(loadDesc);
+			DefaultSamplerNearest = ID;
+		}
 	}
 }
 
@@ -121,6 +181,45 @@ ImageResource* RS::ResourceManager::LoadImageResource(ResourceID id)
 	return pImage;
 }
 
+std::pair<SamplerResource*, ResourceID> ResourceManager::LoadSamplerResource(SamplerLoadDesc samplerLoadDesc)
+{
+	std::string fullKey = GetSamplerResourceStringKey(samplerLoadDesc);
+	ResourceID id = GetAndAddIDFromString(fullKey);
+	auto [pSampler, isNew] = AddResource<SamplerResource>(id, Resource::Type::SAMPLER);
+
+	// Only load the sampler if it has not been loaded.
+	if (isNew)
+	{
+		D3D11_SAMPLER_DESC samplerDesc = {};
+		samplerDesc.Filter			= samplerLoadDesc.Filter;
+		samplerDesc.AddressU		= samplerLoadDesc.AddressU;
+		samplerDesc.AddressV		= samplerLoadDesc.AddressV;
+		samplerDesc.AddressW		= samplerLoadDesc.AddressW;
+		samplerDesc.MipLODBias		= samplerLoadDesc.MipLODBias;
+		samplerDesc.MaxAnisotropy	= samplerLoadDesc.MaxAnisotropy;
+		samplerDesc.ComparisonFunc	= samplerLoadDesc.ComparisonFunc;
+		samplerDesc.MinLOD			= samplerLoadDesc.MinLOD;
+		samplerDesc.MaxLOD			= samplerLoadDesc.MaxLOD;
+		memcpy(samplerDesc.BorderColor, samplerLoadDesc.BorderColor, sizeof(FLOAT) * 4);
+
+		HRESULT result = RenderAPI::Get()->GetDevice()->CreateSamplerState(&samplerDesc, &pSampler->pSampler);
+		RS_D311_ASSERT_CHECK(result, "Failed to create sampler!");
+	}
+
+	return { pSampler, id };
+}
+
+SamplerResource* ResourceManager::LoadSamplerResource(ResourceID id)
+{
+	SamplerResource* pSampler = GetResource<SamplerResource>(id);
+	if (pSampler)
+	{
+		pSampler->AddRef();
+		UpdateStats(pSampler, true);
+	}
+	return pSampler;
+}
+
 std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(TextureLoadDesc& textureDescription)
 {
 	std::string fullKey = GetTextureResourceStringKey(textureDescription);
@@ -162,24 +261,6 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 			srvDesc.Texture2D.MipLevels			= 1;
 			result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->pTextureSRV);
 			RS_D311_ASSERT_CHECK(result, "Failed to create texture RSV!");
-
-			D3D11_SAMPLER_DESC samplerDesc = {};
-			samplerDesc.Filter				= D3D11_FILTER_ANISOTROPIC;
-			samplerDesc.AddressU			= D3D11_TEXTURE_ADDRESS_WRAP;
-			samplerDesc.AddressV			= D3D11_TEXTURE_ADDRESS_WRAP;
-			samplerDesc.AddressW			= D3D11_TEXTURE_ADDRESS_WRAP;
-			samplerDesc.MipLODBias			= 0.f;
-			samplerDesc.MaxAnisotropy		= 16;
-			samplerDesc.ComparisonFunc		= D3D11_COMPARISON_GREATER_EQUAL;
-			samplerDesc.MinLOD				= 0.f;
-			samplerDesc.MaxLOD				= D3D11_FLOAT32_MAX;
-			samplerDesc.BorderColor[0]		= 0.f;
-			samplerDesc.BorderColor[1]		= 0.f;
-			samplerDesc.BorderColor[2]		= 0.f;
-			samplerDesc.BorderColor[3]		= 0.f;
-
-			result = RenderAPI::Get()->GetDevice()->CreateSamplerState(&samplerDesc, &pTexture->pSampler);
-			RS_D311_ASSERT_CHECK(result, "Failed to create sampler!");
 		}
 	}
 
@@ -193,12 +274,75 @@ TextureResource* ResourceManager::LoadTextureResource(ResourceID id)
 	{
 		pTexture->AddRef();
 		UpdateStats(pTexture, true);
-		TextureResource* pImage = GetResource<TextureResource>(pTexture->ImageHandler);
-		if (pImage)
+		LoadImageResource(pTexture->ImageHandler);
+	}
+	return pTexture;
+}
+
+std::pair<CubeMapResource*, ResourceID> ResourceManager::LoadCubeMapResource(CubeMapLoadDesc& cubeMapDescription)
+{
+	std::string fullKey = GetCubeMapResourceStringKey(cubeMapDescription);
+	ResourceID id = GetAndAddIDFromString(fullKey);
+	auto [pTexture, isNewTexture] = AddResource<CubeMapResource>(id, Resource::Type::CUBE_MAP);
+
+	// Only load the texture if it has not been loaded.
+	if (isNewTexture)
+	{
+		ImageResource* pImageResources[6];
+		for (uint32 i = 0; i < 6; i++)
 		{
-			pImage->AddRef();
-			UpdateStats(pImage, true);
+			auto [pImage, imageId]		= LoadImageResource(cubeMapDescription.ImageDescs[i]);
+			pImageResources[i]			= pImage;
+			pTexture->ImageHandlers[i]	= pImage->key;
 		}
+
+		{
+			D3D11_TEXTURE2D_DESC textureDesc = {};
+			textureDesc.Width = pImageResources[0]->Width;
+			textureDesc.Height = pImageResources[0]->Height;
+			textureDesc.Format = pImageResources[0]->Format;
+			textureDesc.MipLevels = 1;
+			textureDesc.ArraySize = 6;
+			textureDesc.SampleDesc.Count = 1;
+			textureDesc.SampleDesc.Quality = 0;
+			textureDesc.Usage = D3D11_USAGE_IMMUTABLE;
+			textureDesc.CPUAccessFlags = 0;
+			textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+			textureDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+
+			D3D11_SUBRESOURCE_DATA dataArr[6];
+			for (uint32 i = 0; i < 6; i++)
+			{
+				dataArr[i].pSysMem = pImageResources[i]->Data.data();
+				dataArr[i].SysMemPitch = pImageResources[i]->Width * 4;
+				dataArr[i].SysMemSlicePitch = 0;
+			}
+
+			HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, &dataArr[0], &pTexture->pTexture);
+			RS_D311_ASSERT_CHECK(result, "Failed to create cube map texture!");
+
+			D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Format = textureDesc.Format;
+			srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+			srvDesc.Texture2D.MostDetailedMip = 0;
+			srvDesc.Texture2D.MipLevels = 1;
+			result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, & pTexture->pTextureSRV);
+			RS_D311_ASSERT_CHECK(result, "Failed to create cube map texture RSV!");
+		}
+	}
+
+	return { pTexture, id };
+}
+
+CubeMapResource* ResourceManager::LoadCubeMapResource(ResourceID id)
+{
+	CubeMapResource* pTexture = GetResource<CubeMapResource>(id);
+	if (pTexture)
+	{
+		pTexture->AddRef();
+		UpdateStats(pTexture, true);
+		for (uint32 i = 0; i < 6; i++)
+			LoadImageResource(pTexture->ImageHandlers[i]);
 	}
 	return pTexture;
 }
@@ -408,6 +552,18 @@ bool ResourceManager::RemoveResource(Resource* pResource, bool fullRemoval)
 			FreeTexture(pTexture, fullRemoval);
 		}
 		break;
+		case RS::Resource::Type::CUBE_MAP:
+		{
+			CubeMapResource* pTexture = dynamic_cast<CubeMapResource*>(pResource);
+			FreeCubeMap(pTexture, fullRemoval);
+		}
+		break;
+		case RS::Resource::Type::SAMPLER:
+		{
+			SamplerResource* pSampler = dynamic_cast<SamplerResource*>(pResource);
+			FreeSampler(pSampler, fullRemoval);
+		}
+		break;
 		case RS::Resource::Type::MODEL:
 		{
 			ModelResource* pModel = dynamic_cast<ModelResource*>(pResource);
@@ -449,6 +605,17 @@ void ResourceManager::FreeImage(ImageResource* pImage, bool fullRemoval)
 		LOG_WARNING("Trying to free an image pointer which is NULL!");
 }
 
+void ResourceManager::FreeSampler(SamplerResource* pSampler, bool fullRemoval)
+{
+	RS_UNREFERENCED_VARIABLE(fullRemoval);
+
+	if (pSampler->pSampler)
+	{
+		pSampler->pSampler->Release();
+		pSampler->pSampler = nullptr;
+	}
+}
+
 void ResourceManager::FreeTexture(TextureResource* pTexture, bool fullRemoval)
 {
 	// This will only release it, if it is the last handler.
@@ -470,11 +637,31 @@ void ResourceManager::FreeTexture(TextureResource* pTexture, bool fullRemoval)
 		pTexture->pTextureSRV->Release();
 		pTexture->pTextureSRV = nullptr;
 	}
+}
 
-	if (pTexture->pSampler)
+void ResourceManager::FreeCubeMap(CubeMapResource* pTexture, bool fullRemoval)
+{
+	// This will only release it, if it is the last handler.
+	for (uint32 i = 0; i < 6; i++)
 	{
-		pTexture->pSampler->Release();
-		pTexture->pSampler = nullptr;
+		ImageResource* pImage = GetResource<ImageResource>(pTexture->ImageHandlers[i]);
+		if (pImage)
+			FreeImage(pImage, fullRemoval);
+		else if (fullRemoval == false)
+			LOG_ERROR("Trying to free a cube map resource {}, without one or more image resources!", pTexture->key);
+		pTexture->ImageHandlers[0] = 0;
+	}
+
+	if (pTexture->pTexture)
+	{
+		pTexture->pTexture->Release();
+		pTexture->pTexture = nullptr;
+	}
+
+	if (pTexture->pTextureSRV)
+	{
+		pTexture->pTextureSRV->Release();
+		pTexture->pTextureSRV = nullptr;
 	}
 }
 
@@ -624,6 +811,19 @@ std::string	ResourceManager::GetImageResourceStringKey(ImageLoadDesc& imageDescr
 		Resource::TypeToString(Resource::Type::IMAGE);
 }
 
+std::string ResourceManager::GetSamplerResourceStringKey(SamplerLoadDesc& samplerDescription)
+{
+	// TODO: Make this better! Try to compress the key and add all attributes which identify this resource!
+	std::string key = std::to_string(samplerDescription.Filter) + "." +
+		std::to_string(samplerDescription.AddressU) + "." +
+		std::to_string(samplerDescription.AddressV) + "." +
+		std::to_string(samplerDescription.AddressW) + "." +
+		std::to_string(samplerDescription.ComparisonFunc) + "." +
+		Resource::TypeToString(Resource::Type::SAMPLER);
+
+	return key;
+}
+
 std::string ResourceManager::GetTextureResourceStringKey(TextureLoadDesc& textureDescription)
 {
 	if (textureDescription.ImageDesc.Name.empty())
@@ -641,6 +841,28 @@ std::string ResourceManager::GetTextureResourceStringKey(TextureLoadDesc& textur
 	return textureDescription.ImageDesc.Name + "." + 
 		std::to_string(textureDescription.ImageDesc.IsFromFile) + "." +
 		Resource::TypeToString(Resource::Type::TEXTURE);
+}
+
+std::string ResourceManager::GetCubeMapResourceStringKey(CubeMapLoadDesc& cubeMapDescription)
+{
+	if(cubeMapDescription.ImageDescs == nullptr)
+		LOG_ERROR("The cube map created from file did not have any image descriptions!");
+
+	if (cubeMapDescription.ImageDescs[0].Name.empty())
+	{
+		if (cubeMapDescription.ImageDescs[0].IsFromFile)
+		{
+			cubeMapDescription.ImageDescs[0].Name = cubeMapDescription.ImageDescs[0].File.Path;
+			LOG_WARNING("The cube map created from file was not given a name! Using the path as the name.");
+		}
+		else
+		{
+			LOG_ERROR("The cube map created from memory was not given a name!");
+		}
+	}
+	return cubeMapDescription.ImageDescs[0].Name + "." +
+		std::to_string(cubeMapDescription.ImageDescs[0].IsFromFile) + "." +
+		Resource::TypeToString(Resource::Type::CUBE_MAP);
 }
 
 ResourceID ResourceManager::GetAndAddIDFromString(const std::string& key)

@@ -64,6 +64,17 @@ void ResourceInspector::Draw()
 								ImGui::TreePop();
 							}
 						}
+						else if (type == Resource::Type::CUBE_MAP)
+						{
+							CubeMapResource* pResource = dynamic_cast<CubeMapResource*>(resources[index].second);
+							if (ImGui::TreeNode((void*)(intptr_t)index, resourceKeyStringEnding.c_str()))
+							{
+								ImGui::Text("Ref. count: %d", refCount);
+								ImGui::Text("Key: %s", resourceKeyString.c_str());
+								DrawCubeMapResource(pResource);
+								ImGui::TreePop();
+							}
+						}
 						else if (type == Resource::Type::IMAGE)
 						{
 							ImageResource* pResource = dynamic_cast<ImageResource*>(resources[index].second);
@@ -124,6 +135,14 @@ void ResourceInspector::DrawTextureResource(TextureResource* pTexture)
 	DrawImageResource(pImageResource);
 	
 	DrawTexture(pTexture, 200, 200);
+}
+
+void ResourceInspector::DrawCubeMapResource(CubeMapResource* pCubeMap)
+{
+	ImageResource* pImageResource = s_ResourceManager->GetResource<ImageResource>(pCubeMap->ImageHandlers[0]);
+	DrawImageResource(pImageResource);
+
+	DrawCubeMap(pCubeMap, 200, 200);
 }
 
 void ResourceInspector::DrawImageResource(ImageResource* pImage)
@@ -255,6 +274,27 @@ std::string ResourceInspector::GetKeyStringFromID(ResourceID id)
 }
 
 void ResourceInspector::DrawTexture(TextureResource* pTexture, uint32 width, uint32 height)
+{
+	ImVec2 size = ImVec2((float)width, (float)height);
+	ImVec2 uv_min = ImVec2(0.0f, 0.0f);                 // Top-left
+	ImVec2 uv_max = ImVec2(1.0f, 1.0f);                 // Lower-right
+	ImVec4 tint_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);   // No tint
+	ImVec4 border_col = ImVec4(1.0f, 1.0f, 1.0f, 0.5f); // 50% opaque white
+	ImGui::Image((ImTextureID)pTexture->pTextureSRV, size, uv_min, uv_max, tint_col, border_col);
+
+	// Display a larger image when the mouse is hovering the image.
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::BeginTooltip();
+		float zoom = 4.0f;
+		ImVec2 uv0 = ImVec2(0.f, 0.f);
+		ImVec2 uv1 = ImVec2(1.f, 1.f);
+		ImGui::Image((ImTextureID)pTexture->pTextureSRV, ImVec2(width * zoom, height * zoom), uv0, uv1, tint_col, border_col);
+		ImGui::EndTooltip();
+	}
+}
+
+void ResourceInspector::DrawCubeMap(CubeMapResource* pTexture, uint32 width, uint32 height)
 {
 	ImVec2 size = ImVec2((float)width, (float)height);
 	ImVec2 uv_min = ImVec2(0.0f, 0.0f);                 // Top-left

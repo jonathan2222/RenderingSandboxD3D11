@@ -6,10 +6,13 @@
 #include "Utils/Maths.h"
 
 #include "Renderer/Pipeline.h"
+#include "Resources/Resources.h"
+
+#include "Scenes/Camera.h"
 
 namespace RS
 {
-	class SandboxScene : public Scene
+	class TextureScene : public Scene
 	{
 	public:
 		struct Vertex
@@ -27,8 +30,8 @@ namespace RS
 		};
 
 	public:
-		SandboxScene();
-		~SandboxScene() = default;
+		TextureScene();
+		~TextureScene() = default;
 
 		void Start() override;
 
@@ -43,7 +46,11 @@ namespace RS
 		void Tick(float dt) override;
 
 	private:
+		void UpdateCamera(float dt);
+
+	private:
 		Shader m_Shader;
+		Shader m_SkyboxShader;
 
 		ID3D11Buffer* m_pVertexBuffer = nullptr;
 		ID3D11Buffer* m_pIndexBuffer = nullptr;
@@ -55,6 +62,11 @@ namespace RS
 
 		FrameData m_FrameData;
 
+		CubeMapResource*	m_pCubeMap	= nullptr;
+		ModelResource*		m_pModel	= nullptr;
+
 		Pipeline m_Pipeline;
+
+		Camera m_Camera;
 	};
 }

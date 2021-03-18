@@ -16,6 +16,7 @@ namespace RS
 
 	private:
 		static void DrawTextureResource(TextureResource* pTexture);
+		static void DrawCubeMapResource(CubeMapResource* pCubeMap);
 		static void DrawImageResource(ImageResource* pImage);
 		static void DrawMaterialResource(MaterialResource* pMaterial);
 		static void DrawModelResource(ModelResource* pModel);
@@ -24,6 +25,7 @@ namespace RS
 
 		static std::string GetKeyStringFromID(ResourceID id);
 		static void DrawTexture(TextureResource* pTexture, uint32 width, uint32 height);
+		static void DrawCubeMap(CubeMapResource* pTexture, uint32 width, uint32 height);
 
 	private:
 		inline static ResourceManager* s_ResourceManager = nullptr;

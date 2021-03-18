@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include "Core/Application.h"
-#include "Scenes/SandboxScene.h"
+#include "Scenes/TextureScene.h"
 #include "Scenes/MeshScene.h"
 #include "Scenes/TessellationScene.h"
 #include "Scenes/PBRScene.h"
@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
 
     RS::Application application;
     application.Init();
-    application.AddScene(new RS::SandboxScene());
+    application.AddScene(new RS::TextureScene());
     application.AddScene(new RS::MeshScene());
     application.AddScene(new RS::TessellationScene());
     application.AddScene(new RS::PBRScene());

@@ -226,6 +226,7 @@ void MeshScene::Tick(float dt)
 	}
 
 	MaterialResource* pMaterial = ResourceManager::Get()->GetResource<MaterialResource>(m_pModel->Meshes[0].MaterialHandler);
+	SamplerResource* pSampler = ResourceManager::Get()->GetResource<SamplerResource>(ResourceManager::Get()->DefaultSamplerAnisotropic);
 	TextureResource* pAlbedoTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->AlbedoTextureHandler);
 	TextureResource* pNormalTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->NormalTextureHandler);
 
@@ -237,7 +238,7 @@ void MeshScene::Tick(float dt)
 	pContext->VSSetConstantBuffers(1, 1, &m_pConstantBufferFrame);
 	pContext->PSSetShaderResources(0, 1, &pAlbedoTexture->pTextureSRV);
 	pContext->PSSetShaderResources(1, 1, &pNormalTexture->pTextureSRV);
-	pContext->PSSetSamplers(0, 1, &pAlbedoTexture->pSampler);
+	pContext->PSSetSamplers(0, 1, &pSampler->pSampler);
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pContext->DrawIndexed((UINT)m_pModel->Meshes[0].Indices.size(), 0, 0);
 
@@ -249,7 +250,7 @@ void MeshScene::Tick(float dt)
 		debugInfo.DrawAABBs = true;
 		static uint32 debugInfoID = DebugRenderer::Get()->GenID();
 		debugInfo.ID = debugInfoID;
-		renderer->Render(*m_pAssimpModel, transform, debugInfo);
+		renderer->Render(*m_pAssimpModel, transform, debugInfo, RenderFlag::RENDER_FLAG_ALBEDO_TEXTURE | RenderFlag::RENDER_FLAG_NORMAL_TEXTURE);
 	}
 
 	// Draw assimp model
@@ -260,7 +261,7 @@ void MeshScene::Tick(float dt)
 		debugInfo.DrawAABBs = true;
 		static uint32 debugInfoID = DebugRenderer::Get()->GenID();
 		debugInfo.ID = debugInfoID;
-		renderer->Render(*m_pBagModel, transform, debugInfo);
+		renderer->Render(*m_pBagModel, transform, debugInfo, RenderFlag::RENDER_FLAG_ALBEDO_TEXTURE | RenderFlag::RENDER_FLAG_NORMAL_TEXTURE);
 	}
 
 	// Test Assimp

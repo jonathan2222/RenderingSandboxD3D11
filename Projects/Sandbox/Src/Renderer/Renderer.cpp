@@ -91,12 +91,12 @@ void Renderer::Present()
 	}
 }
 
-void Renderer::Render(ModelResource& model, const glm::mat4& transform, DebugInfo debugInfo)
+void Renderer::Render(ModelResource& model, const glm::mat4& transform, DebugInfo debugInfo, RenderFlags flags)
 {
 	auto renderAPI = RenderAPI::Get();
 	ID3D11DeviceContext* pContext = renderAPI->GetDeviceContext();
 	DebugRenderer::Get()->Clear(debugInfo.ID);
-	InternalRender(model, transform, pContext, debugInfo);
+	InternalRender(model, transform, pContext, debugInfo, flags);
 }
 
 void Renderer::RenderWithMaterial(ModelResource& model, const glm::mat4& transform, DebugInfo debugInfo)
@@ -217,15 +217,24 @@ void Renderer::CreateRasterizer()
 	m_DefaultPipeline.SetRasterState(rasterizerDesc);
 }
 
-void Renderer::InternalRender(ModelResource& model, const glm::mat4& transform, ID3D11DeviceContext* pContext, DebugInfo debugInfo)
+void Renderer::InternalRender(ModelResource& model, const glm::mat4& transform, ID3D11DeviceContext* pContext, DebugInfo debugInfo, RenderFlags flags)
 {
+	auto SetPSSRV = [&](uint32& slot, ResourceID handler, RenderFlag flag)->void
+	{
+		if (flags & flag)
+		{
+			TextureResource* pTexture = ResourceManager::Get()->GetResource<TextureResource>(handler);
+			pContext->PSSetShaderResources(slot++, 1, &pTexture->pTextureSRV);
+		}
+	};
+
+	SamplerResource* pSampler = ResourceManager::Get()->GetResource<SamplerResource>(ResourceManager::Get()->DefaultSamplerLinear);
+
 	MeshObject::MeshData meshData;
 	meshData.world = transform * model.Transform;
 	for (MeshObject& mesh : model.Meshes)
 	{
 		MaterialResource* pMaterial = ResourceManager::Get()->GetResource<MaterialResource>(mesh.MaterialHandler);
-		TextureResource* pAlbedoTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->AlbedoTextureHandler);
-		TextureResource* pNormalTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->NormalTextureHandler);
 
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
 		HRESULT result = pContext->Map(mesh.pMeshBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
@@ -240,9 +249,15 @@ void Renderer::InternalRender(ModelResource& model, const glm::mat4& transform, 
 		pContext->IASetIndexBuffer(mesh.pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 		pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		pContext->VSSetConstantBuffers(0, 1, &mesh.pMeshBuffer);
-		pContext->PSSetShaderResources(0, 1, &pAlbedoTexture->pTextureSRV);
-		pContext->PSSetShaderResources(1, 1, &pNormalTexture->pTextureSRV);
-		pContext->PSSetSamplers(0, 1, &pAlbedoTexture->pSampler);
+
+		uint32 textureSlot = 0;
+		SetPSSRV(textureSlot, pMaterial->AlbedoTextureHandler,				RenderFlag::RENDER_FLAG_ALBEDO_TEXTURE);
+		SetPSSRV(textureSlot, pMaterial->NormalTextureHandler,				RenderFlag::RENDER_FLAG_NORMAL_TEXTURE);
+		SetPSSRV(textureSlot, pMaterial->AOTextureHandler,					RenderFlag::RENDER_FLAG_AO_TEXTURE);
+		SetPSSRV(textureSlot, pMaterial->MetallicTextureHandler,			RenderFlag::RENDER_FLAG_METALLIC_TEXTURE);
+		SetPSSRV(textureSlot, pMaterial->RoughnessTextureHandler,			RenderFlag::RENDER_FLAG_ROUGHNESS_TEXTURE);
+		if(textureSlot != 0)
+			pContext->PSSetSamplers(0, 1, &pSampler->pSampler);
 		pContext->DrawIndexed((UINT)mesh.NumIndices, 0, 0);
 
 		if (debugInfo.DrawAABBs)
@@ -261,7 +276,7 @@ void Renderer::InternalRender(ModelResource& model, const glm::mat4& transform, 
 	}
 
 	for (ModelResource& child : model.Children)
-		InternalRender(child, meshData.world, pContext, debugInfo);
+		InternalRender(child, meshData.world, pContext, debugInfo, flags);
 }
 
 void Renderer::InternalRenderWithMaterial(ModelResource& model, const glm::mat4& transform, ID3D11DeviceContext* pContext, DebugInfo debugInfo)
@@ -271,6 +286,7 @@ void Renderer::InternalRenderWithMaterial(ModelResource& model, const glm::mat4&
 	for (MeshObject& mesh : model.Meshes)
 	{
 		MaterialResource* pMaterial = ResourceManager::Get()->GetResource<MaterialResource>(mesh.MaterialHandler);
+		SamplerResource* pSampler = ResourceManager::Get()->GetResource<SamplerResource>(ResourceManager::Get()->DefaultSamplerLinear);
 		TextureResource* pAlbedoTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->AlbedoTextureHandler);
 		TextureResource* pNormalTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->NormalTextureHandler);
 		TextureResource* pAOTexture = ResourceManager::Get()->GetResource<TextureResource>(pMaterial->AOTextureHandler);
@@ -308,7 +324,7 @@ void Renderer::InternalRenderWithMaterial(ModelResource& model, const glm::mat4&
 		pContext->PSSetShaderResources(3, 1, &pMetallicTexture->pTextureSRV);
 		pContext->PSSetShaderResources(4, 1, &pRoughnessTexture->pTextureSRV);
 		pContext->PSSetShaderResources(5, 1, &pMetallicRoughnessTexture->pTextureSRV);
-		pContext->PSSetSamplers(0, 1, &pAlbedoTexture->pSampler);
+		pContext->PSSetSamplers(0, 1, &pSampler->pSampler);
 		pContext->PSSetConstantBuffers(0, 1, &pMaterial->pConstantBuffer);
 		pContext->DrawIndexed((UINT)mesh.NumIndices, 0, 0);
 

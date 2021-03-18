@@ -40,10 +40,21 @@ namespace RS
 		std::pair<ImageResource*, ResourceID> LoadImageResource(ImageLoadDesc& imageDescription);
 
 		/*
-		* This add a referense to the resource before it is returned.
+		* This adds a referense to the resource before it is returned.
 		* Returns a pointer to the resource, nullptr if it was not found.
 		*/
 		ImageResource* LoadImageResource(ResourceID id);
+
+		/*
+		*	Creates a sampler resource.
+		*/
+		std::pair<SamplerResource*, ResourceID> LoadSamplerResource(SamplerLoadDesc samplerDesc);
+
+		/*
+		* This adds a referense to the resource before it is returned.
+		* Returns a pointer to the resource, nullptr if it was not found.
+		*/
+		SamplerResource* LoadSamplerResource(ResourceID id);
 
 		/*
 			Load a texture with the use of the LoadImageResource function.
@@ -56,10 +67,26 @@ namespace RS
 		std::pair<TextureResource*, ResourceID> LoadTextureResource(TextureLoadDesc& textureDescription);
 		
 		/*
-		* This add a referense to the resource before it is returned.
+		* This adds a referense to the resource before it is returned.
 		* Returns a pointer to the resource, nullptr if it was not found.
 		*/
 		TextureResource* LoadTextureResource(ResourceID id);
+
+		/*
+			Load a cube map texture with the use of the LoadImageResource function.
+			Arguments:
+				* CubeMapLoadDesc: All information to load the cube map texture and its images, this can either be a pointer to data or a file path.
+									However, The texture need a name!
+			Returns:
+				A pointer to the texture structure and the resource ID.
+		*/
+		std::pair<CubeMapResource*, ResourceID > LoadCubeMapResource(CubeMapLoadDesc& cubeMapDescription);
+
+		/*
+		* This adds a referense to the resource before it is returned.
+		* Returns a pointer to the resource, nullptr if it was not found.
+		*/
+		CubeMapResource* LoadCubeMapResource(ResourceID id);
 
 		/*
 			Load a model from a file path.
@@ -71,7 +98,7 @@ namespace RS
 		std::pair<ModelResource*, ResourceID> LoadModelResource(ModelLoadDesc& modelDescription);
 
 		/*
-		* This add a referense to the resource before it is returned.
+		* This adds a referense to the resource before it is returned.
 		* Returns a pointer to the resource, nullptr if it was not found.
 		*/
 		ModelResource* LoadModelResource(ResourceID id);
@@ -120,6 +147,9 @@ namespace RS
 		ResourceID	DefaultTextureOnePixelWhite		= 0;
 		ResourceID	DefaultTextureOnePixelBlack		= 0;
 		ResourceID	DefaultTextureOnePixelNormal	= 0;
+		ResourceID	DefaultSamplerAnisotropic		= 0;
+		ResourceID	DefaultSamplerLinear			= 0;
+		ResourceID	DefaultSamplerNearest			= 0;
 	private:
 		/*
 		* Will add a new resource if it does not exist, else it will return the already existing resource.
@@ -143,7 +173,9 @@ namespace RS
 				* image: A pointer to the image structure.
 		*/
 		void FreeImage(ImageResource* pImage, bool fullRemoval);
+		void FreeSampler(SamplerResource* pSampler, bool fullRemoval);
 		void FreeTexture(TextureResource* pTexture, bool fullRemoval);
+		void FreeCubeMap(CubeMapResource* pTexture, bool fullRemoval);
 		void FreeMaterial(MaterialResource* pMaterial, bool fullRemoval);
 		void FreeModelRecursive(ModelResource* pModel, bool fullRemoval);
 
@@ -152,7 +184,9 @@ namespace RS
 		void UpdateStats(Resource* pResrouce, bool add);
 
 		std::string GetImageResourceStringKey(ImageLoadDesc& imageDescription);
+		std::string GetSamplerResourceStringKey(SamplerLoadDesc& samplerDescription);
 		std::string GetTextureResourceStringKey(TextureLoadDesc& textureDescription);
+		std::string GetCubeMapResourceStringKey(CubeMapLoadDesc& cubeMapDescription);
 
 		/*
 		* This will return the ID associated with a string.

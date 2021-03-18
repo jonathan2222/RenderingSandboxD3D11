@@ -286,10 +286,6 @@ float4 main(PSIn input) : SV_TARGET
 
     color = color / (color + 1.f);
     color = pow(color, 1.f/2.2f);
-
-    //float3 ambient = float3(0.1, 0.1, 0.1);
-    //float diffuseFactor = max(dot(-lightDir, materialData.normal), 0.f);
-    //float3 diffuse = float3(diffuseFactor, diffuseFactor, diffuseFactor);
-    //float3 color = materialData.albedo * (ambient + diffuse);
+    
 	return float4(color, 1.0f);
 }

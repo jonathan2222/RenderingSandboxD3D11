@@ -20,6 +20,8 @@ namespace RS
 		{
 			IMAGE = 0,
 			TEXTURE,
+			CUBE_MAP,
+			SAMPLER,
 			MODEL,
 			MATERIAL
 		};
@@ -43,7 +45,18 @@ namespace RS
 		ResourceID					ImageHandler	= 0;
 		ID3D11Texture2D*			pTexture		= nullptr;
 		ID3D11ShaderResourceView*	pTextureSRV		= nullptr;
-		ID3D11SamplerState*			pSampler		= nullptr; // TODO: Convert the sampler to a Resource!
+	};
+
+	struct CubeMapResource : public Resource
+	{
+		ResourceID					ImageHandlers[6]	= { 0 };	// Contains images of a cube in this order [x, -x, y, -y, z, -z]
+		ID3D11Texture2D*			pTexture			= nullptr;
+		ID3D11ShaderResourceView*	pTextureSRV			= nullptr;
+	};
+
+	struct SamplerResource : public Resource
+	{
+		ID3D11SamplerState* pSampler = nullptr;
 	};
 
 	/*

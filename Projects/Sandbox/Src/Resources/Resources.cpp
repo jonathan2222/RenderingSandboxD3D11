@@ -14,6 +14,12 @@ std::string Resource::TypeToString(Type type)
 	case Type::TEXTURE:
 		res = "TEXTURE";
 		break;
+	case Type::CUBE_MAP:
+		res = "CUBE_MAP";
+		break;
+	case Type::SAMPLER:
+		res = "SAMPLER";
+		break;
 	case Type::MODEL:
 		res = "MODEL";
 		break;

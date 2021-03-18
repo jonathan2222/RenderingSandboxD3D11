@@ -33,9 +33,28 @@ namespace RS
 		bool		IsFromFile			= true;
 	};
 
+	struct SamplerLoadDesc
+	{
+		D3D11_FILTER				Filter			= D3D11_FILTER_ANISOTROPIC;
+		D3D11_TEXTURE_ADDRESS_MODE	AddressU		= D3D11_TEXTURE_ADDRESS_WRAP;
+		D3D11_TEXTURE_ADDRESS_MODE	AddressV		= D3D11_TEXTURE_ADDRESS_WRAP;
+		D3D11_TEXTURE_ADDRESS_MODE	AddressW		= D3D11_TEXTURE_ADDRESS_WRAP;
+		FLOAT						MipLODBias		= 0.f;
+		UINT						MaxAnisotropy	= 16;
+		D3D11_COMPARISON_FUNC		ComparisonFunc	= D3D11_COMPARISON_GREATER_EQUAL;
+		FLOAT						MinLOD			= 0;
+		FLOAT						MaxLOD			= D3D11_FLOAT32_MAX;
+		FLOAT						BorderColor[4]	= {0.f, 0.f, 0.f, 0.f};
+	};
+
 	struct TextureLoadDesc
 	{
 		ImageLoadDesc ImageDesc;
+	};
+
+	struct CubeMapLoadDesc
+	{
+		ImageLoadDesc ImageDescs[6]; // [x, -x, y, -y, z, -z]
 	};
 
 	struct ModelLoadDesc
