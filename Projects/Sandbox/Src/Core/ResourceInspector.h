@@ -15,6 +15,7 @@ namespace RS
 		static void Draw();
 
 	private:
+		static void DrawSamplerResource(SamplerResource* pSampler);
 		static void DrawTextureResource(TextureResource* pTexture);
 		static void DrawCubeMapResource(CubeMapResource* pCubeMap);
 		static void DrawImageResource(ImageResource* pImage);
@@ -24,7 +25,7 @@ namespace RS
 		static void DrawImGuiAABB(int index, const AABB& aabb);
 
 		static std::string GetKeyStringFromID(ResourceID id);
-		static void DrawTexture(TextureResource* pTexture, uint32 width, uint32 height);
+		static void DrawTextureSRV(ID3D11ShaderResourceView* pTextureSRV, uint32 width, uint32 height);
 		static void DrawCubeMap(CubeMapResource* pTexture, uint32 width, uint32 height);
 
 	private:

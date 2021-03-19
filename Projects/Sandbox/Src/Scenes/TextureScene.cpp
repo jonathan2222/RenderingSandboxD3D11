@@ -257,9 +257,7 @@ void TextureScene::Tick(float dt)
 	ID3D11DeviceContext* pContext = renderAPI->GetDeviceContext();
 	renderer->BeginScene(0.0f, 0.2f, 0.2f, 1.0f);
 
-
 	m_Shader.Bind();
-
 
 	// Update data
 	{
@@ -287,7 +285,7 @@ void TextureScene::Tick(float dt)
 	pContext->PSSetShaderResources(0, 1, &m_pTextureSRV);
 	pContext->PSSetSamplers(0, 1, &m_pSampler);
 	pContext->DrawIndexed(6, 0, 0);
-
+	
 	{
 		m_SkyboxShader.Bind();
 
@@ -296,6 +294,8 @@ void TextureScene::Tick(float dt)
 		RS_D311_ASSERT_CHECK(result, "Failed to map constant buffer!");
 		FrameData* data = (FrameData*)mappedResource.pData;
 		data->world = glm::scale(glm::vec3(10.f));
+		data->view = m_Camera.GetView();
+		data->proj = m_Camera.GetProj();
 		pContext->Unmap(m_pConstantBuffer, 0);
 
 		SamplerResource* pSampler = ResourceManager::Get()->GetResource<SamplerResource>(ResourceManager::Get()->DefaultSamplerLinear);

@@ -52,6 +52,9 @@ namespace RS
 		ResourceID					ImageHandlers[6]	= { 0 };	// Contains images of a cube in this order [x, -x, y, -y, z, -z]
 		ID3D11Texture2D*			pTexture			= nullptr;
 		ID3D11ShaderResourceView*	pTextureSRV			= nullptr;
+		
+		// Debug textures SRV (One for each side of the cube)
+		ID3D11ShaderResourceView*	pTextureSRVs[6]		= { nullptr };
 	};
 
 	struct SamplerResource : public Resource

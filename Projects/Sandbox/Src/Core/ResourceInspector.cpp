@@ -86,6 +86,17 @@ void ResourceInspector::Draw()
 								ImGui::TreePop();
 							}
 						}
+						else if (type == Resource::Type::SAMPLER)
+						{
+							SamplerResource* pResource = dynamic_cast<SamplerResource*>(resources[index].second);
+							if (ImGui::TreeNode((void*)(intptr_t)index, resourceKeyStringEnding.c_str()))
+							{
+								ImGui::Text("Ref. count: %d", refCount);
+								ImGui::Text("Key: %s", resourceKeyString.c_str());
+								DrawSamplerResource(pResource);
+								ImGui::TreePop();
+							}
+						}
 						else if (type == Resource::Type::MATERIAL)
 						{
 							MaterialResource* pResource = dynamic_cast<MaterialResource*>(resources[index].second);
@@ -129,12 +140,17 @@ void ResourceInspector::Draw()
 	});
 }
 
+void ResourceInspector::DrawSamplerResource(SamplerResource* pSampler)
+{
+	ImGui::Text("This is a sampler!");
+}
+
 void ResourceInspector::DrawTextureResource(TextureResource* pTexture)
 {
 	ImageResource* pImageResource = s_ResourceManager->GetResource<ImageResource>(pTexture->ImageHandler);
 	DrawImageResource(pImageResource);
 	
-	DrawTexture(pTexture, 200, 200);
+	DrawTextureSRV(pTexture->pTextureSRV, 200, 200);
 }
 
 void ResourceInspector::DrawCubeMapResource(CubeMapResource* pCubeMap)
@@ -273,14 +289,14 @@ std::string ResourceInspector::GetKeyStringFromID(ResourceID id)
 	return "";
 }
 
-void ResourceInspector::DrawTexture(TextureResource* pTexture, uint32 width, uint32 height)
+void ResourceInspector::DrawTextureSRV(ID3D11ShaderResourceView* pTextureSRV, uint32 width, uint32 height)
 {
 	ImVec2 size = ImVec2((float)width, (float)height);
 	ImVec2 uv_min = ImVec2(0.0f, 0.0f);                 // Top-left
 	ImVec2 uv_max = ImVec2(1.0f, 1.0f);                 // Lower-right
 	ImVec4 tint_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);   // No tint
 	ImVec4 border_col = ImVec4(1.0f, 1.0f, 1.0f, 0.5f); // 50% opaque white
-	ImGui::Image((ImTextureID)pTexture->pTextureSRV, size, uv_min, uv_max, tint_col, border_col);
+	ImGui::Image((ImTextureID)pTextureSRV, size, uv_min, uv_max, tint_col, border_col);
 
 	// Display a larger image when the mouse is hovering the image.
 	if (ImGui::IsItemHovered())
@@ -289,28 +305,13 @@ void ResourceInspector::DrawTexture(TextureResource* pTexture, uint32 width, uin
 		float zoom = 4.0f;
 		ImVec2 uv0 = ImVec2(0.f, 0.f);
 		ImVec2 uv1 = ImVec2(1.f, 1.f);
-		ImGui::Image((ImTextureID)pTexture->pTextureSRV, ImVec2(width * zoom, height * zoom), uv0, uv1, tint_col, border_col);
+		ImGui::Image((ImTextureID)pTextureSRV, ImVec2(width * zoom, height * zoom), uv0, uv1, tint_col, border_col);
 		ImGui::EndTooltip();
 	}
 }
 
-void ResourceInspector::DrawCubeMap(CubeMapResource* pTexture, uint32 width, uint32 height)
+void ResourceInspector::DrawCubeMap(CubeMapResource* pCubeMap, uint32 width, uint32 height)
 {
-	ImVec2 size = ImVec2((float)width, (float)height);
-	ImVec2 uv_min = ImVec2(0.0f, 0.0f);                 // Top-left
-	ImVec2 uv_max = ImVec2(1.0f, 1.0f);                 // Lower-right
-	ImVec4 tint_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);   // No tint
-	ImVec4 border_col = ImVec4(1.0f, 1.0f, 1.0f, 0.5f); // 50% opaque white
-	ImGui::Image((ImTextureID)pTexture->pTextureSRV, size, uv_min, uv_max, tint_col, border_col);
-
-	// Display a larger image when the mouse is hovering the image.
-	if (ImGui::IsItemHovered())
-	{
-		ImGui::BeginTooltip();
-		float zoom = 4.0f;
-		ImVec2 uv0 = ImVec2(0.f, 0.f);
-		ImVec2 uv1 = ImVec2(1.f, 1.f);
-		ImGui::Image((ImTextureID)pTexture->pTextureSRV, ImVec2(width * zoom, height * zoom), uv0, uv1, tint_col, border_col);
-		ImGui::EndTooltip();
-	}
+	for (uint32 i = 0; i < 6; i++)
+		DrawTextureSRV(pCubeMap->pTextureSRVs[i], width, height);
 }

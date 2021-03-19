@@ -321,13 +321,29 @@ std::pair<CubeMapResource*, ResourceID> ResourceManager::LoadCubeMapResource(Cub
 			HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, &dataArr[0], &pTexture->pTexture);
 			RS_D311_ASSERT_CHECK(result, "Failed to create cube map texture!");
 
-			D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-			srvDesc.Format = textureDesc.Format;
-			srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-			srvDesc.Texture2D.MostDetailedMip = 0;
-			srvDesc.Texture2D.MipLevels = 1;
-			result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, & pTexture->pTextureSRV);
-			RS_D311_ASSERT_CHECK(result, "Failed to create cube map texture RSV!");
+			{
+				D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+				srvDesc.Format = textureDesc.Format;
+				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+				srvDesc.TextureCube.MipLevels = 1;
+				srvDesc.TextureCube.MostDetailedMip = 0;
+				result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->pTextureSRV);
+				RS_D311_ASSERT_CHECK(result, "Failed to create cube map texture RSV!");
+			}
+
+			// Debug SRVs for each side of the cube.
+			for (uint32 i = 0; i < 6; i++)
+			{
+				D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+				srvDesc.Format = textureDesc.Format;
+				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+				srvDesc.Texture2DArray.MipLevels = 1;
+				srvDesc.Texture2DArray.MostDetailedMip = 0;
+				srvDesc.Texture2DArray.ArraySize = 1;
+				srvDesc.Texture2DArray.FirstArraySlice = i;
+				result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->pTextureSRVs[i]);
+				RS_D311_ASSERT_CHECK(result, "Failed to create debug texture RSV for one of the sides on the cube map!");
+			}
 		}
 	}
 
@@ -650,6 +666,12 @@ void ResourceManager::FreeCubeMap(CubeMapResource* pTexture, bool fullRemoval)
 		else if (fullRemoval == false)
 			LOG_ERROR("Trying to free a cube map resource {}, without one or more image resources!", pTexture->key);
 		pTexture->ImageHandlers[0] = 0;
+
+		if (pTexture->pTextureSRVs[i])
+		{
+			pTexture->pTextureSRVs[i]->Release();
+			pTexture->pTextureSRVs[i] = nullptr;
+		}
 	}
 
 	if (pTexture->pTexture)

@@ -11,6 +11,7 @@ struct VSOut
 {
     float4 position : SV_POSITION;
     float4 localPos : POSITION;
+    float2 uv : UV;
 };
 
 cbuffer MeshData : register(b0)
@@ -29,8 +30,16 @@ VSOut main(VSIn input)
 {
     VSOut output;
     output.position = mul(worldMat, float4(input.position, 1.f));
-    output.position = mul(viewMat, output.position);
+
+    // Remove translation from the view matrix. (Make the skybox follow the player)
+    float4x4 view = viewMat;
+    view[0][3] = 0.f;
+    view[1][3] = 0.f;
+    view[2][3] = 0.f;
+    output.position = mul(view, output.position);
     output.position = mul(projMat, output.position);
     output.localPos = float4(input.position, 1.f);
+
+    output.uv = input.uv;
 	return output;
 }
