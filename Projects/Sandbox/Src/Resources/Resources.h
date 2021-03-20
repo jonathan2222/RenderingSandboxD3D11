@@ -42,19 +42,24 @@ namespace RS
 
 	struct TextureResource : public Resource
 	{
+		uint32						NumMipLevels	= 0;
 		ResourceID					ImageHandler	= 0;
 		ID3D11Texture2D*			pTexture		= nullptr;
 		ID3D11ShaderResourceView*	pTextureSRV		= nullptr;
+
+		// Debug texture SRV (One for each mip level, excluding the highest)
+		std::vector<ID3D11ShaderResourceView*> DebugMipmapSRVs;
 	};
 
 	struct CubeMapResource : public Resource
 	{
+		uint32						NumMipLevels		= 0;
 		ResourceID					ImageHandlers[6]	= { 0 };	// Contains images of a cube in this order [x, -x, y, -y, z, -z]
 		ID3D11Texture2D*			pTexture			= nullptr;
 		ID3D11ShaderResourceView*	pTextureSRV			= nullptr;
 		
-		// Debug textures SRV (One for each side of the cube)
-		ID3D11ShaderResourceView*	pTextureSRVs[6]		= { nullptr };
+		// Debug textures SRV (One for each side of the cube and for each mip level in that side)
+		std::vector<std::vector<ID3D11ShaderResourceView*>> DebugMipmapSRVs;
 	};
 
 	struct SamplerResource : public Resource

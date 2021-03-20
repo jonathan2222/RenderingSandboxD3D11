@@ -150,7 +150,18 @@ void ResourceInspector::DrawTextureResource(TextureResource* pTexture)
 	ImageResource* pImageResource = s_ResourceManager->GetResource<ImageResource>(pTexture->ImageHandler);
 	DrawImageResource(pImageResource);
 	
-	DrawTextureSRV(pTexture->pTextureSRV, 200, 200);
+	float zoom = 4.f;
+	ImGui::Text("Num Mip levels: %d", pTexture->NumMipLevels);
+	DrawTextureSRV(pTexture->pTextureSRV, 200, 200, 0, 0, zoom);
+
+	float scale = 1.f;
+	for (auto& mipSRV : pTexture->DebugMipmapSRVs)
+	{
+		ImGui::SameLine();
+		zoom *= 2.f;
+		scale *= 0.5f;
+		DrawTextureSRV(mipSRV, 200 * scale, 200 * scale, 10, 10, zoom);
+	}
 }
 
 void ResourceInspector::DrawCubeMapResource(CubeMapResource* pCubeMap)
@@ -158,7 +169,8 @@ void ResourceInspector::DrawCubeMapResource(CubeMapResource* pCubeMap)
 	ImageResource* pImageResource = s_ResourceManager->GetResource<ImageResource>(pCubeMap->ImageHandlers[0]);
 	DrawImageResource(pImageResource);
 
-	DrawCubeMap(pCubeMap, 200, 200);
+	ImGui::Text("Num Mip levels: %d", pCubeMap->NumMipLevels);
+	DrawCubeMap(pCubeMap);
 }
 
 void ResourceInspector::DrawImageResource(ImageResource* pImage)
@@ -289,9 +301,9 @@ std::string ResourceInspector::GetKeyStringFromID(ResourceID id)
 	return "";
 }
 
-void ResourceInspector::DrawTextureSRV(ID3D11ShaderResourceView* pTextureSRV, uint32 width, uint32 height)
+void ResourceInspector::DrawTextureSRV(ID3D11ShaderResourceView* pTextureSRV, uint32 width, uint32 height, uint32 minWidth, uint32 minHeight, float zoom)
 {
-	ImVec2 size = ImVec2((float)width, (float)height);
+	ImVec2 size = ImVec2((float)glm::max(width, minWidth), (float)glm::max(height, minHeight));
 	ImVec2 uv_min = ImVec2(0.0f, 0.0f);                 // Top-left
 	ImVec2 uv_max = ImVec2(1.0f, 1.0f);                 // Lower-right
 	ImVec4 tint_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);   // No tint
@@ -302,7 +314,6 @@ void ResourceInspector::DrawTextureSRV(ID3D11ShaderResourceView* pTextureSRV, ui
 	if (ImGui::IsItemHovered())
 	{
 		ImGui::BeginTooltip();
-		float zoom = 4.0f;
 		ImVec2 uv0 = ImVec2(0.f, 0.f);
 		ImVec2 uv1 = ImVec2(1.f, 1.f);
 		ImGui::Image((ImTextureID)pTextureSRV, ImVec2(width * zoom, height * zoom), uv0, uv1, tint_col, border_col);
@@ -310,8 +321,24 @@ void ResourceInspector::DrawTextureSRV(ID3D11ShaderResourceView* pTextureSRV, ui
 	}
 }
 
-void ResourceInspector::DrawCubeMap(CubeMapResource* pCubeMap, uint32 width, uint32 height)
+void ResourceInspector::DrawCubeMap(CubeMapResource* pCubeMap)
 {
-	for (uint32 i = 0; i < 6; i++)
-		DrawTextureSRV(pCubeMap->pTextureSRVs[i], width, height);
+	if (pCubeMap->DebugMipmapSRVs.size() == 6)
+	{
+		for (uint32 i = 0; i < 6; i++)
+		{
+			float scale = 1.f;
+			float zoom = 1.f;
+			for (auto& mipSRV : pCubeMap->DebugMipmapSRVs[i])
+			{
+				if(scale < 1.0f)
+					ImGui::SameLine();
+				DrawTextureSRV(mipSRV, 200 * scale, 200 * scale, 10, 10, zoom);
+				scale *= 0.5f;
+				zoom *= 2.f;
+			}
+		}
+	}
+	else
+		LOG_WARNING("'DebugMipmapSRVs' for the Cube map did not have a size of 6!");
 }

@@ -11,6 +11,5 @@ SamplerState    texSampler;
 float4 main(PSIn input) : SV_TARGET
 {
     float3 textureColor = skyboxTexture.Sample(texSampler, input.localPos.xyz).rgb;
-    //float3 textureColor = skyboxTexture.Sample(texSampler, float3(input.uv.x, input.uv.y, 0.f)).rgb;
 	return float4(textureColor, 1.0f);
 }

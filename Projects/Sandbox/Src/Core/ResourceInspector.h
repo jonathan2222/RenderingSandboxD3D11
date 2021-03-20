@@ -25,8 +25,8 @@ namespace RS
 		static void DrawImGuiAABB(int index, const AABB& aabb);
 
 		static std::string GetKeyStringFromID(ResourceID id);
-		static void DrawTextureSRV(ID3D11ShaderResourceView* pTextureSRV, uint32 width, uint32 height);
-		static void DrawCubeMap(CubeMapResource* pTexture, uint32 width, uint32 height);
+		static void DrawTextureSRV(ID3D11ShaderResourceView* pTextureSRV, uint32 width, uint32 height, uint32 minWidth, uint32 minHeight, float zoom);
+		static void DrawCubeMap(CubeMapResource* pTexture);
 
 	private:
 		inline static ResourceManager* s_ResourceManager = nullptr;

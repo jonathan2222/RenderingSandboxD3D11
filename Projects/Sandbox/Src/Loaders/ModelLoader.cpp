@@ -551,6 +551,7 @@ ResourceID ModelLoader::LoadTextureResource(aiTextureType type, uint32 index, co
                 loadDesc.ImageDesc.IsFromFile           = false;
                 loadDesc.ImageDesc.NumChannels          = ImageLoadDesc::Channels::RGBA;
                 loadDesc.ImageDesc.Name                 = std::string(path.C_Str()); // Use the path as a key!
+                loadDesc.GenerateMipmaps                = true;
                 auto [pTexture, ID] = pResourceManager->LoadTextureResource(loadDesc);
                 textureID = ID;
                 succeeded = true;
@@ -570,11 +571,12 @@ ResourceID ModelLoader::LoadTextureResource(aiTextureType type, uint32 index, co
 
             // Load Texture with ResourceManger!
             TextureLoadDesc loadDesc = {};
-            loadDesc.ImageDesc.IsFromFile   = true;
-            loadDesc.ImageDesc.File.Path    = folderPath + newPath;
-            loadDesc.ImageDesc.File.UseDefaultFolder = false; // Use the same folder as the model.
-            loadDesc.ImageDesc.Name         = loadDesc.ImageDesc.File.Path;
-            loadDesc.ImageDesc.NumChannels  = ImageLoadDesc::Channels::RGBA;
+            loadDesc.ImageDesc.IsFromFile               = true;
+            loadDesc.ImageDesc.File.Path                = folderPath + newPath;
+            loadDesc.ImageDesc.File.UseDefaultFolder    = false; // Use the same folder as the model.
+            loadDesc.ImageDesc.Name                     = loadDesc.ImageDesc.File.Path;
+            loadDesc.ImageDesc.NumChannels              = ImageLoadDesc::Channels::RGBA;
+            loadDesc.GenerateMipmaps                    = true;
             auto [pTexture, ID] = ResourceManager::Get()->LoadTextureResource(loadDesc);
             RS_UNREFERENCED_VARIABLE(pTexture);
             textureID = ID;

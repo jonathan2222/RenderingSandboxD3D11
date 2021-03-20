@@ -50,11 +50,13 @@ namespace RS
 	struct TextureLoadDesc
 	{
 		ImageLoadDesc ImageDesc;
+		bool GenerateMipmaps = false;
 	};
 
 	struct CubeMapLoadDesc
 	{
 		ImageLoadDesc ImageDescs[6]; // [x, -x, y, -y, z, -z]
+		bool GenerateMipmaps =  false;
 	};
 
 	struct ModelLoadDesc

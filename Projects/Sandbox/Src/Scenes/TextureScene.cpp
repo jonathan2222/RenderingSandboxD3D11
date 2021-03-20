@@ -198,6 +198,8 @@ void TextureScene::Start()
 		cubeMapLoadDesc.ImageDescs[3].File.Path = "Skybox/bottom.jpg";
 		cubeMapLoadDesc.ImageDescs[4].File.Path = "Skybox/front.jpg";
 		cubeMapLoadDesc.ImageDescs[5].File.Path = "Skybox/back.jpg";
+
+		cubeMapLoadDesc.GenerateMipmaps = false; // Will only use the highest mip level.
 		auto [pCubeMap, handler2] = ResourceManager::Get()->LoadCubeMapResource(cubeMapLoadDesc);
 		m_pCubeMap = pCubeMap;
 	}

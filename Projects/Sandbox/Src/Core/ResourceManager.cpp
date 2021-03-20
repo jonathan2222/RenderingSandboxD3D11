@@ -36,9 +36,10 @@ void ResourceManager::Init()
 			loadDesc.ImageDesc.Memory.Width			= 1;
 			loadDesc.ImageDesc.Memory.Height		= 1;
 			loadDesc.ImageDesc.Memory.IsCompressed	= false;
-			loadDesc.ImageDesc.IsFromFile	= false;
-			loadDesc.ImageDesc.NumChannels	= ImageLoadDesc::Channels::RGBA;
-			loadDesc.ImageDesc.Name			= "RS_WHITE_PIXEL";
+			loadDesc.ImageDesc.IsFromFile			= false;
+			loadDesc.ImageDesc.NumChannels			= ImageLoadDesc::Channels::RGBA;
+			loadDesc.ImageDesc.Name					= "RS_WHITE_PIXEL";
+			loadDesc.GenerateMipmaps				= false; // Dose not need mipmaps because this is a 1x1 pixel image.
 			auto [pTexture, ID] = LoadTextureResource(loadDesc);
 			DefaultTextureOnePixelWhite = ID;
 		}
@@ -52,9 +53,10 @@ void ResourceManager::Init()
 			loadDesc.ImageDesc.Memory.Width			= 1;
 			loadDesc.ImageDesc.Memory.Height		= 1;
 			loadDesc.ImageDesc.Memory.IsCompressed	= false;
-			loadDesc.ImageDesc.IsFromFile	= false;
-			loadDesc.ImageDesc.NumChannels	= ImageLoadDesc::Channels::RGBA;
-			loadDesc.ImageDesc.Name			= "RS_BLACK_PIXEL";
+			loadDesc.ImageDesc.IsFromFile			= false;
+			loadDesc.ImageDesc.NumChannels			= ImageLoadDesc::Channels::RGBA;
+			loadDesc.ImageDesc.Name					= "RS_BLACK_PIXEL";
+			loadDesc.GenerateMipmaps				= false; // Dose not need mipmaps because this is a 1x1 pixel image.
 			auto [pTexture, ID] = LoadTextureResource(loadDesc);
 			DefaultTextureOnePixelBlack = ID;
 		}
@@ -68,9 +70,10 @@ void ResourceManager::Init()
 			loadDesc.ImageDesc.Memory.Width			= 1;
 			loadDesc.ImageDesc.Memory.Height		= 1;
 			loadDesc.ImageDesc.Memory.IsCompressed	= false;
-			loadDesc.ImageDesc.IsFromFile	= false;
-			loadDesc.ImageDesc.NumChannels	= ImageLoadDesc::Channels::RGBA;
-			loadDesc.ImageDesc.Name			= "RS_NORMAL_PIXEL";
+			loadDesc.ImageDesc.IsFromFile			= false;
+			loadDesc.ImageDesc.NumChannels			= ImageLoadDesc::Channels::RGBA;
+			loadDesc.ImageDesc.Name					= "RS_NORMAL_PIXEL";
+			loadDesc.GenerateMipmaps				= false; // Dose not need mipmaps because this is a 1x1 pixel image.
 			auto [pTexture, ID] = LoadTextureResource(loadDesc);
 			DefaultTextureOnePixelNormal = ID;
 		}
@@ -241,26 +244,71 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 			textureDesc.ArraySize			= 1;
 			textureDesc.SampleDesc.Count	= 1;
 			textureDesc.SampleDesc.Quality	= 0;
-			textureDesc.Usage				= D3D11_USAGE_IMMUTABLE;
+			textureDesc.Usage				= textureDescription.GenerateMipmaps ? D3D11_USAGE_DEFAULT : D3D11_USAGE_IMMUTABLE;
 			textureDesc.CPUAccessFlags		= 0;
 			textureDesc.BindFlags			= D3D11_BIND_SHADER_RESOURCE;
 			textureDesc.MiscFlags			= 0;
-			
-			D3D11_SUBRESOURCE_DATA data = {};
-			data.pSysMem				= pImage->Data.data();
-			data.SysMemPitch			= pImage->Width * 4;
-			data.SysMemSlicePitch		= 0;
 
-			HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, &data, &pTexture->pTexture);
+			if (textureDescription.GenerateMipmaps)
+			{
+				textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+				textureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+				textureDesc.MipLevels = (uint32)glm::ceil(glm::max(glm::log2(glm::min((float)textureDesc.Width, (float)textureDesc.Height)), 1.f));
+			}
+
+			pTexture->NumMipLevels = textureDesc.MipLevels;
+			
+			std::vector<D3D11_SUBRESOURCE_DATA> subData;
+			if (textureDescription.GenerateMipmaps)
+			{
+				uint32 width = pImage->Width;
+				for (uint32 mip = 0; mip < textureDesc.MipLevels; mip++)
+				{
+					D3D11_SUBRESOURCE_DATA data = {};
+					data.pSysMem = pImage->Data.data();
+					data.SysMemPitch = width * 4;
+					data.SysMemSlicePitch = 0;
+					subData.push_back(data);
+
+					width /= 2;
+				}
+			}
+			else
+			{
+				D3D11_SUBRESOURCE_DATA data = {};
+				data.pSysMem = pImage->Data.data();
+				data.SysMemPitch = pImage->Width * 4;
+				data.SysMemSlicePitch = pImage->Width * pImage->Height * 4; // This is not used, only used for 3D textures!
+				subData.push_back(data);
+			}
+
+			HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, subData.data(), &pTexture->pTexture);
 			RS_D311_ASSERT_CHECK(result, "Failed to create texture!");
 
 			D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 			srvDesc.Format						= textureDesc.Format;
 			srvDesc.ViewDimension				= D3D11_SRV_DIMENSION_TEXTURE2D;
 			srvDesc.Texture2D.MostDetailedMip	= 0;
-			srvDesc.Texture2D.MipLevels			= 1;
+			srvDesc.Texture2D.MipLevels			= textureDescription.GenerateMipmaps ? -1 : 1;
 			result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->pTextureSRV);
 			RS_D311_ASSERT_CHECK(result, "Failed to create texture RSV!");
+
+			if (textureDescription.GenerateMipmaps)
+				RenderAPI::Get()->GetDeviceContext()->GenerateMips(pTexture->pTextureSRV);
+
+			// Debug SRVs for each mip level.
+			if(pTexture->NumMipLevels > 1)
+				pTexture->DebugMipmapSRVs.resize(pTexture->NumMipLevels-1);
+			for (uint32 mip = 1; mip < pTexture->NumMipLevels; mip++)
+			{
+				D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+				srvDesc.Format = textureDesc.Format;
+				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+				srvDesc.Texture2D.MipLevels = 1;
+				srvDesc.Texture2D.MostDetailedMip = mip;
+				result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->DebugMipmapSRVs[mip-1]);
+				RS_D311_ASSERT_CHECK(result, "Failed to create debug texture SRV for one of the mip levels in the texture!");
+			}
 		}
 	}
 
@@ -305,44 +353,83 @@ std::pair<CubeMapResource*, ResourceID> ResourceManager::LoadCubeMapResource(Cub
 			textureDesc.ArraySize = 6;
 			textureDesc.SampleDesc.Count = 1;
 			textureDesc.SampleDesc.Quality = 0;
-			textureDesc.Usage = D3D11_USAGE_IMMUTABLE;
+			textureDesc.Usage = cubeMapDescription.GenerateMipmaps ? D3D11_USAGE_DEFAULT : D3D11_USAGE_IMMUTABLE;
 			textureDesc.CPUAccessFlags = 0;
 			textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 			textureDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
 
-			D3D11_SUBRESOURCE_DATA dataArr[6];
-			for (uint32 i = 0; i < 6; i++)
+			if (cubeMapDescription.GenerateMipmaps)
 			{
-				dataArr[i].pSysMem = pImageResources[i]->Data.data();
-				dataArr[i].SysMemPitch = pImageResources[i]->Width * 4;
-				dataArr[i].SysMemSlicePitch = 0;
+				textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+				textureDesc.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
+				textureDesc.MipLevels = (uint32)glm::ceil(glm::max(glm::log2(glm::min((float)textureDesc.Width, (float)textureDesc.Height)), 1.f));
 			}
 
-			HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, &dataArr[0], &pTexture->pTexture);
+			pTexture->NumMipLevels = textureDesc.MipLevels;
+
+			std::vector<D3D11_SUBRESOURCE_DATA> subData;
+			if (cubeMapDescription.GenerateMipmaps)
+			{
+				for (uint32 i = 0; i < 6; i++)
+				{
+					uint32 width = pImageResources[i]->Width;
+					for (uint32 mip = 0; mip < textureDesc.MipLevels; mip++)
+					{
+						D3D11_SUBRESOURCE_DATA data = {};
+						data.pSysMem = pImageResources[i]->Data.data();
+						data.SysMemPitch = width * 4;
+						data.SysMemSlicePitch = 0;
+						subData.push_back(data);
+
+						width /= 2;
+					}
+				}
+			}
+			else
+			{
+				for (uint32 i = 0; i < 6; i++)
+				{
+					D3D11_SUBRESOURCE_DATA data = {};
+					data.pSysMem = pImageResources[i]->Data.data();
+					data.SysMemPitch = pImageResources[i]->Width * 4;
+					data.SysMemSlicePitch = 0; // This is not used, only used for 3D textures!
+					subData.push_back(data);
+				}
+			}
+
+			HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, subData.data(), &pTexture->pTexture);
 			RS_D311_ASSERT_CHECK(result, "Failed to create cube map texture!");
 
 			{
 				D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 				srvDesc.Format = textureDesc.Format;
 				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-				srvDesc.TextureCube.MipLevels = 1;
+				srvDesc.TextureCube.MipLevels = cubeMapDescription.GenerateMipmaps ? -1 : 1;
 				srvDesc.TextureCube.MostDetailedMip = 0;
 				result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->pTextureSRV);
 				RS_D311_ASSERT_CHECK(result, "Failed to create cube map texture RSV!");
 			}
 
-			// Debug SRVs for each side of the cube.
-			for (uint32 i = 0; i < 6; i++)
+			if (cubeMapDescription.GenerateMipmaps)
+				RenderAPI::Get()->GetDeviceContext()->GenerateMips(pTexture->pTextureSRV);
+
+			// Debug SRVs for each side of the cube and for each mip level.
+			pTexture->DebugMipmapSRVs.resize(6);
+			for (uint32 side = 0; side < 6; side++)
 			{
-				D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-				srvDesc.Format = textureDesc.Format;
-				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-				srvDesc.Texture2DArray.MipLevels = 1;
-				srvDesc.Texture2DArray.MostDetailedMip = 0;
-				srvDesc.Texture2DArray.ArraySize = 1;
-				srvDesc.Texture2DArray.FirstArraySlice = i;
-				result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->pTextureSRVs[i]);
-				RS_D311_ASSERT_CHECK(result, "Failed to create debug texture RSV for one of the sides on the cube map!");
+				pTexture->DebugMipmapSRVs[side].resize(pTexture->NumMipLevels);
+				for (uint32 mip = 0; mip < pTexture->NumMipLevels; mip++)
+				{
+					D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+					srvDesc.Format = textureDesc.Format;
+					srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+					srvDesc.Texture2DArray.MipLevels = 1;
+					srvDesc.Texture2DArray.MostDetailedMip = mip;
+					srvDesc.Texture2DArray.ArraySize = 1;
+					srvDesc.Texture2DArray.FirstArraySlice = side;
+					result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->DebugMipmapSRVs[side][mip]);
+					RS_D311_ASSERT_CHECK(result, "Failed to create debug texture SRV for one of the sides on the cube map!");
+				}
 			}
 		}
 	}
@@ -653,6 +740,13 @@ void ResourceManager::FreeTexture(TextureResource* pTexture, bool fullRemoval)
 		pTexture->pTextureSRV->Release();
 		pTexture->pTextureSRV = nullptr;
 	}
+
+	for (auto& mipSRV : pTexture->DebugMipmapSRVs)
+	{
+		if (mipSRV)
+			mipSRV->Release();
+	}
+	pTexture->DebugMipmapSRVs.clear();
 }
 
 void ResourceManager::FreeCubeMap(CubeMapResource* pTexture, bool fullRemoval)
@@ -667,12 +761,13 @@ void ResourceManager::FreeCubeMap(CubeMapResource* pTexture, bool fullRemoval)
 			LOG_ERROR("Trying to free a cube map resource {}, without one or more image resources!", pTexture->key);
 		pTexture->ImageHandlers[0] = 0;
 
-		if (pTexture->pTextureSRVs[i])
+		for (auto& mipSRV : pTexture->DebugMipmapSRVs[i])
 		{
-			pTexture->pTextureSRVs[i]->Release();
-			pTexture->pTextureSRVs[i] = nullptr;
+			if (mipSRV)
+				mipSRV->Release();
 		}
 	}
+	pTexture->DebugMipmapSRVs.clear();
 
 	if (pTexture->pTexture)
 	{
