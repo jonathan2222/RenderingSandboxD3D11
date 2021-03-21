@@ -3,6 +3,7 @@
 
 #include "Loaders/ModelLoader.h"
 #include "Renderer/ImGuiRenderer.h"
+#include "Renderer/RenderUtils.h"
 #include <unordered_set>
 
 #pragma warning( push )
@@ -258,6 +259,7 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 
 			pTexture->NumMipLevels = textureDesc.MipLevels;
 			
+			uint32 pixelSize = RenderUtils::GetSizeOfFormat(textureDesc.Format);
 			std::vector<D3D11_SUBRESOURCE_DATA> subData;
 			if (textureDescription.GenerateMipmaps)
 			{
@@ -266,7 +268,7 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 				{
 					D3D11_SUBRESOURCE_DATA data = {};
 					data.pSysMem = pImage->Data.data();
-					data.SysMemPitch = width * 4;
+					data.SysMemPitch = width * pixelSize;
 					data.SysMemSlicePitch = 0;
 					subData.push_back(data);
 
@@ -277,8 +279,8 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 			{
 				D3D11_SUBRESOURCE_DATA data = {};
 				data.pSysMem = pImage->Data.data();
-				data.SysMemPitch = pImage->Width * 4;
-				data.SysMemSlicePitch = pImage->Width * pImage->Height * 4; // This is not used, only used for 3D textures!
+				data.SysMemPitch = pImage->Width * pixelSize;
+				data.SysMemSlicePitch = pImage->Width * pImage->Height * pixelSize; // This is not used, only used for 3D textures!
 				subData.push_back(data);
 			}
 
@@ -367,6 +369,8 @@ std::pair<CubeMapResource*, ResourceID> ResourceManager::LoadCubeMapResource(Cub
 
 			pTexture->NumMipLevels = textureDesc.MipLevels;
 
+			uint32 pixelSize = RenderUtils::GetSizeOfFormat(textureDesc.Format);
+
 			std::vector<D3D11_SUBRESOURCE_DATA> subData;
 			if (cubeMapDescription.GenerateMipmaps)
 			{
@@ -377,7 +381,7 @@ std::pair<CubeMapResource*, ResourceID> ResourceManager::LoadCubeMapResource(Cub
 					{
 						D3D11_SUBRESOURCE_DATA data = {};
 						data.pSysMem = pImageResources[i]->Data.data();
-						data.SysMemPitch = width * 4;
+						data.SysMemPitch = width * pixelSize;
 						data.SysMemSlicePitch = 0;
 						subData.push_back(data);
 
@@ -391,7 +395,7 @@ std::pair<CubeMapResource*, ResourceID> ResourceManager::LoadCubeMapResource(Cub
 				{
 					D3D11_SUBRESOURCE_DATA data = {};
 					data.pSysMem = pImageResources[i]->Data.data();
-					data.SysMemPitch = pImageResources[i]->Width * 4;
+					data.SysMemPitch = pImageResources[i]->Width * pixelSize;
 					data.SysMemSlicePitch = 0; // This is not used, only used for 3D textures!
 					subData.push_back(data);
 				}
@@ -553,11 +557,20 @@ void ResourceManager::LoadImageFromFile(ImageResource*& outImage, ImageLoadDesc&
 		break;
 	}
 
+	bool isHDR = false;
+	size_t dotPos = imageDescription.File.Path.rfind('.');
+	if (dotPos == std::string::npos)
+		LOG_WARNING("File extension is missing from path {}!", imageDescription.File.Path.c_str());
+	else
+	{
+		std::string extension = imageDescription.File.Path.substr(dotPos+1);
+		isHDR = extension == "hdr";
+	}
+
 	std::string path = imageDescription.File.Path;
 	if(imageDescription.File.UseDefaultFolder)
 		path = std::string(RS_TEXTURE_PATH) + imageDescription.File.Path;
 	int width = 0, height = 0, channelCount = 0;
-	uint8* pPixels = nullptr;
 	if (nChannels < 0 || nChannels > 4)
 	{
 		outImage->Data.clear();
@@ -565,18 +578,37 @@ void ResourceManager::LoadImageFromFile(ImageResource*& outImage, ImageLoadDesc&
 	}
 	else
 	{
-		pPixels = (uint8*)stbi_load(path.c_str(), &width, &height, &channelCount, nChannels);
-		if (!pPixels)
-			LOG_WARNING("Unable to load image [{0}]: File not found!", path.c_str());
+		if (isHDR)
+		{
+			// Loading HDR images will ignore channelCount and instead always use a R16G16B16A16_FLOAT format.
+			float* pPixels = stbi_loadf(path.c_str(), &width, &height, &channelCount, 4);
+			if (!pPixels)
+				LOG_WARNING("Unable to load HDR image [{0}]: File not found!", path.c_str());
+			else
+			{
+				outImage->Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+				size_t size = (size_t)width * (size_t)height * (size_t)RenderUtils::GetSizeOfFormat(outImage->Format);
+				outImage->Data.resize(size, 0);
+				memcpy(outImage->Data.data(), pPixels, size);
+				stbi_image_free(pPixels);
+				pPixels = nullptr;
+			}
+		}
 		else
 		{
-			size_t size = (size_t)(width * height * (nChannels == 0 ? channelCount : nChannels));
-			outImage->Data.resize(size, 0);
-			memcpy(outImage->Data.data(), pPixels, size);
-			stbi_image_free(pPixels);
-			pPixels = nullptr;
+			uint8* pPixels = (uint8*)stbi_load(path.c_str(), &width, &height, &channelCount, nChannels);
+			if (!pPixels)
+				LOG_WARNING("Unable to load image [{0}]: File not found!", path.c_str());
+			else
+			{
+				size_t size = (size_t)width * (size_t)height * (size_t)(nChannels == 0 ? channelCount : nChannels);
+				outImage->Data.resize(size, 0);
+				memcpy(outImage->Data.data(), pPixels, size);
+				stbi_image_free(pPixels);
+				pPixels = nullptr;
 
-			outImage->Format = GetFormatFromChannelCount(nChannels == 0 ? channelCount : nChannels);
+				outImage->Format = GetFormatFromChannelCount(nChannels == 0 ? channelCount : nChannels);
+			}
 		}
 	}
 

@@ -47,6 +47,16 @@ void PBRScene::Start()
 		m_pModel = pModel;
 	}
 
+	{
+		TextureLoadDesc textureDesc			= {};
+		textureDesc.GenerateMipmaps			= false;
+		textureDesc.ImageDesc.File.Path		= "HDRs/arches.hdr";
+		textureDesc.ImageDesc.Name			= textureDesc.ImageDesc.File.Path;
+		textureDesc.ImageDesc.NumChannels	= ImageLoadDesc::Channels::DEFAULT; // Not needed for hdr files.
+		auto [pTexture, handler] = ResourceManager::Get()->LoadTextureResource(textureDesc);
+		TextureResource* pTextureResource = pTexture;
+	}
+
 	RS_ASSERT(m_pModel != nullptr, "Could not load model!");
 
 	{
