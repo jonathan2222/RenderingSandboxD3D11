@@ -46,6 +46,7 @@ namespace RS
 		ResourceID					ImageHandler	= 0;
 		ID3D11Texture2D*			pTexture		= nullptr;
 		ID3D11ShaderResourceView*	pTextureSRV		= nullptr;
+		bool						UseAsRTV		= false;
 
 		// Debug texture SRV (One for each mip level, excluding the highest)
 		std::vector<ID3D11ShaderResourceView*> DebugMipmapSRVs;

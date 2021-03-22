@@ -4,6 +4,8 @@
 #include "Core/Display.h"
 #include "Renderer/ImGuiRenderer.h"
 #include "Renderer/DebugRenderer.h"
+#include "Renderer/RenderUtils.h"
+#include "Renderer/ShaderHotReloader.h"
 
 #include "Utils/Config.h"
 
@@ -37,10 +39,50 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 	CreateRasterizer();
 
 	m_DefaultPipeline.SetViewport(0.f, 0.f, (float)displayDescriptor.Width, (float)displayDescriptor.Height);
+
+	// Texture format conversion resources.
+	{
+		m_TextureFormatConvertionPipeline.Init();
+
+		AttributeLayout layout;
+		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "POSITION", 0);
+		Shader::Descriptor shaderDesc	= {};
+		shaderDesc.Vertex				= "RenderTools/FormatConverterVert.hlsl";
+		shaderDesc.Fragment				= "RenderTools/FormatConverterFrag.hlsl";
+		m_TextureFormatConvertionShader.Load(shaderDesc, layout);
+		ShaderHotReloader::AddShader(&m_TextureFormatConvertionShader);
+
+		// Make a triangle to cover the viewport.
+		{
+			std::vector<glm::vec2> vertices =
+			{
+				glm::vec2(-1.f, -3.f),
+				glm::vec2(-1.f, 1.f),
+				glm::vec2(3.f, 1.f)
+			};
+
+			D3D11_BUFFER_DESC bufferDesc	= {};
+			bufferDesc.ByteWidth			= (UINT)(sizeof(glm::vec2) * vertices.size());
+			bufferDesc.Usage				= D3D11_USAGE_IMMUTABLE;
+			bufferDesc.BindFlags			= D3D11_BIND_VERTEX_BUFFER;
+			bufferDesc.CPUAccessFlags		= 0;
+			bufferDesc.MiscFlags			= 0;
+			bufferDesc.StructureByteStride	= 0;
+
+			D3D11_SUBRESOURCE_DATA data = {};
+			data.pSysMem				= vertices.data();
+			data.SysMemPitch			= 0;
+			data.SysMemSlicePitch		= 0;
+
+			HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pScreenTriangleVertexBuffer);
+			RS_D311_ASSERT_CHECK(result, "Failed to create vertex buffer for screen triangle!");
+		}
+	}
 }
 
 void Renderer::Release()
 {
+	m_TextureFormatConvertionPipeline.Release();
 	m_DefaultPipeline.Release();
 	ClearRTV();
 }
@@ -115,6 +157,110 @@ ID3D11RenderTargetView* Renderer::GetRenderTarget()
 Pipeline* Renderer::GetDefaultPipeline()
 {
 	return &m_DefaultPipeline;
+}
+
+void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFormat)
+{
+	D3D11_TEXTURE2D_DESC textureDesc = {};
+	pTexture->pTexture->GetDesc(&textureDesc);
+	std::string preFormatStr = RenderUtils::FormatToString(textureDesc.Format);
+	std::string newFormatStr = RenderUtils::FormatToString(newFormat);
+
+	if (!pTexture->UseAsRTV)
+	{
+		LOG_WARNING("Failed to convert texture format, from {} to {}, texture must allow RTV use!", preFormatStr.c_str(), newFormatStr.c_str());
+		return;
+	}
+
+	static ID3D11RenderTargetView* s_RTV = nullptr;
+	if (s_RTV != nullptr)
+	{
+		s_RTV->Release();
+	}
+	/*
+	{
+		D3D11_TEXTURE2D_DESC textureDesc = {};
+		textureDesc.Width = pImage->Width;
+		textureDesc.Height = pImage->Height;
+		textureDesc.Format = pImage->Format;
+		textureDesc.MipLevels = 1;
+		textureDesc.ArraySize = 1;
+		textureDesc.SampleDesc.Count = 1;
+		textureDesc.SampleDesc.Quality = 0;
+		textureDesc.Usage = D3D11_USAGE_IMMUTABLE;
+		textureDesc.CPUAccessFlags = 0;
+		textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		textureDesc.MiscFlags = 0;
+		textureDesc.Usage = D3D11_USAGE_DEFAULT;
+		textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+
+		pTexture->NumMipLevels = textureDesc.MipLevels;
+
+		uint32 pixelSize = RenderUtils::GetSizeOfFormat(textureDesc.Format);
+		std::vector<D3D11_SUBRESOURCE_DATA> subData;
+		if (textureDescription.GenerateMipmaps)
+		{
+			uint32 width = pImage->Width;
+			for (uint32 mip = 0; mip < textureDesc.MipLevels; mip++)
+			{
+				D3D11_SUBRESOURCE_DATA data = {};
+				data.pSysMem = pImage->Data.data();
+				data.SysMemPitch = width * pixelSize;
+				data.SysMemSlicePitch = 0;
+				subData.push_back(data);
+
+				width /= 2;
+			}
+		}
+		else
+		{
+			D3D11_SUBRESOURCE_DATA data = {};
+			data.pSysMem = pImage->Data.data();
+			data.SysMemPitch = pImage->Width * pixelSize;
+			data.SysMemSlicePitch = pImage->Width * pImage->Height * pixelSize; // This is not used, only used for 3D textures!
+			subData.push_back(data);
+		}
+
+		HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, subData.data(), &pTexture->pTexture);
+		RS_D311_ASSERT_CHECK(result, "Failed to create texture!");
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = textureDesc.Format;
+		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		srvDesc.Texture2D.MipLevels = textureDescription.GenerateMipmaps ? -1 : 1;
+		result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->pTextureSRV);
+		RS_D311_ASSERT_CHECK(result, "Failed to create texture RSV!");
+	}
+	*/
+
+	// TODO: Make a new texture and store it inside that.
+	D3D11_RENDER_TARGET_VIEW_DESC desc = {};
+	desc.Format = newFormat;
+	desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	desc.Texture2D.MipSlice = 0;
+	HRESULT hr = RenderAPI::Get()->GetDevice()->CreateRenderTargetView(pTexture->pTexture, &desc, &s_RTV);
+	if (FAILED(hr))
+	{
+		LOG_WARNING("Failed to convert texture format, from {} to {}!", preFormatStr.c_str(), newFormatStr.c_str());
+		return;
+	}
+
+	// Use a pipeline and draw to the texture as a rendertarget.
+	m_TextureFormatConvertionPipeline.SetRenderTargetView(s_RTV);
+	m_TextureFormatConvertionPipeline.BindDepthAndRTVs();
+
+	SamplerResource* pSamplerResource = ResourceManager::Get()->GetResource<SamplerResource>(ResourceManager::Get()->DefaultSamplerLinear);
+
+	m_TextureFormatConvertionShader.Bind();
+	ID3D11DeviceContext* pContext = RenderAPI::Get()->GetDeviceContext();
+	UINT strides = sizeof(glm::vec2);
+	UINT offsets = 0;
+	pContext->IASetVertexBuffers(0, 1, &m_pScreenTriangleVertexBuffer, &strides, &offsets);
+	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	pContext->PSSetSamplers(0, 1, &pSamplerResource->pSampler);
+	pContext->PSSetShaderResources(0, 1, &pTexture->pTextureSRV);
+	pContext->Draw(3, 0);
 }
 
 void Renderer::CreateRTV()

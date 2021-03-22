@@ -53,8 +53,11 @@ void PBRScene::Start()
 		textureDesc.ImageDesc.File.Path		= "HDRs/arches.hdr";
 		textureDesc.ImageDesc.Name			= textureDesc.ImageDesc.File.Path;
 		textureDesc.ImageDesc.NumChannels	= ImageLoadDesc::Channels::DEFAULT; // Not needed for hdr files.
+		textureDesc.UseAsRTV				= true; // Used in ConvertTextureFormat.
 		auto [pTexture, handler] = ResourceManager::Get()->LoadTextureResource(textureDesc);
 		TextureResource* pTextureResource = pTexture;
+
+		Renderer::Get()->ConvertTextureFormat(pTexture, DXGI_FORMAT_R16G16B16A16_FLOAT);
 	}
 
 	RS_ASSERT(m_pModel != nullptr, "Could not load model!");

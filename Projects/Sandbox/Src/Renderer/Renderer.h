@@ -3,6 +3,7 @@
 #include "Renderer/RenderAPI.h"
 
 #include "Renderer/Pipeline.h"
+#include "Renderer/Shader.h"
 
 #include "Core/ResourceManager.h"
 
@@ -41,6 +42,9 @@ namespace RS
 
 		Pipeline* GetDefaultPipeline();
 
+		// Useful function
+		void ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFormat);
+
 	private:
 		void CreateRTV();
 		void ClearRTV();
@@ -60,5 +64,8 @@ namespace RS
 		ID3D11RenderTargetView*		m_pRenderTargetView		= nullptr;
 
 		Pipeline					m_DefaultPipeline;
+		Pipeline					m_TextureFormatConvertionPipeline;
+		Shader						m_TextureFormatConvertionShader;
+		ID3D11Buffer*				m_pScreenTriangleVertexBuffer = nullptr;
 	};
 }

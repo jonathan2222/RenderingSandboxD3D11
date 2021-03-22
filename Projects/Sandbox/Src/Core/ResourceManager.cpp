@@ -4,6 +4,7 @@
 #include "Loaders/ModelLoader.h"
 #include "Renderer/ImGuiRenderer.h"
 #include "Renderer/RenderUtils.h"
+#include "Renderer/Renderer.h"
 #include <unordered_set>
 
 #pragma warning( push )
@@ -245,16 +246,24 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 			textureDesc.ArraySize			= 1;
 			textureDesc.SampleDesc.Count	= 1;
 			textureDesc.SampleDesc.Quality	= 0;
-			textureDesc.Usage				= textureDescription.GenerateMipmaps ? D3D11_USAGE_DEFAULT : D3D11_USAGE_IMMUTABLE;
+			textureDesc.Usage				= D3D11_USAGE_IMMUTABLE;
 			textureDesc.CPUAccessFlags		= 0;
 			textureDesc.BindFlags			= D3D11_BIND_SHADER_RESOURCE;
 			textureDesc.MiscFlags			= 0;
 
 			if (textureDescription.GenerateMipmaps)
 			{
+				textureDesc.Usage = D3D11_USAGE_DEFAULT;
 				textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
 				textureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 				textureDesc.MipLevels = (uint32)glm::ceil(glm::max(glm::log2(glm::min((float)textureDesc.Width, (float)textureDesc.Height)), 1.f));
+			}
+
+			pTexture->UseAsRTV = textureDescription.UseAsRTV;
+			if (pTexture->UseAsRTV)
+			{
+				textureDesc.Usage = D3D11_USAGE_DEFAULT;
+				textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
 			}
 
 			pTexture->NumMipLevels = textureDesc.MipLevels;
@@ -586,7 +595,7 @@ void ResourceManager::LoadImageFromFile(ImageResource*& outImage, ImageLoadDesc&
 				LOG_WARNING("Unable to load HDR image [{0}]: File not found!", path.c_str());
 			else
 			{
-				outImage->Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+				outImage->Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 				size_t size = (size_t)width * (size_t)height * (size_t)RenderUtils::GetSizeOfFormat(outImage->Format);
 				outImage->Data.resize(size, 0);
 				memcpy(outImage->Data.data(), pPixels, size);

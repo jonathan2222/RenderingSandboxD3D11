@@ -50,7 +50,8 @@ namespace RS
 	struct TextureLoadDesc
 	{
 		ImageLoadDesc ImageDesc;
-		bool GenerateMipmaps = false;
+		bool GenerateMipmaps	= false;
+		bool UseAsRTV			= false;
 	};
 
 	struct CubeMapLoadDesc
