@@ -179,7 +179,7 @@ void MeshScene::Tick(float dt)
 	UpdateCamera(dt);
 	DebugRenderer::Get()->UpdateCamera(m_Camera.GetView(), m_Camera.GetProj());
 
-	m_Pipeline.Bind();
+	m_Pipeline.Bind(BindType::BOTH);
 
 	auto display = Display::Get();
 	auto renderer = Renderer::Get();

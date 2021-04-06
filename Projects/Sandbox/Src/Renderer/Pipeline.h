@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Renderer/RenderAPI.h"
+#include "Renderer/PipelineDefines.h"
 
 namespace RS
 {
@@ -20,7 +21,7 @@ namespace RS
 		* Binds the raster sate, depth/stencil views and the RTVs.
 		* If one of the stats/views was not set by the pipeline, it will use the renderer's default objects.
 		*/
-		void Bind();
+		void Bind(BindType bindType);
 
 		/*
 		* Only bind the Depth stencil state
@@ -39,7 +40,7 @@ namespace RS
 		* If not the depth/stencil view was set, use the renderer's default view. 
 		* And if the RTVs was not set, use the renderer's defaut RTVs.
 		*/
-		void BindDepthAndRTVs();
+		void BindDepthAndRTVs(BindType bindType);
 
 		/*
 		* Set the depth stencil view and bind it to the pipeline.
@@ -115,6 +116,7 @@ namespace RS
 		DepthStencilSave			m_DepthStencilSave;
 
 		// Used for binding.
+		BindType					m_RTVAndDSVType					= BindType::BOTH;
 		bool						m_ShouldBindRasterizerState		= true;
 		bool						m_ShouldBindDepthStencilState	= true;
 		bool						m_ShouldBindDepthStencilView	= true;

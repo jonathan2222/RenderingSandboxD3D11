@@ -12,7 +12,7 @@ struct VSOut
 VSOut main(VSIn input)
 {
     VSOut output;
-    output.position = float4(input.position.x, input.position.y, 0.f, 1.f);
-    output.uv = float2(input.position.x+1.f, input.position.y+1.f);
+    output.position = float4(input.position.x, input.position.y, 0.5f, 1.f);
+    output.uv = float2((input.position.x+1.f)*.5f, 1.f - (input.position.y+1.f)*.5f);
 	return output;
 }

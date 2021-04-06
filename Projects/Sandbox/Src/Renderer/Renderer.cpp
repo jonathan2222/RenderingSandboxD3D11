@@ -33,7 +33,7 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 
 	// Bind the render target view and depth stencil buffer to the output render pipeline.
 	CreateDepthStencilView();
-	m_DefaultPipeline.BindDepthAndRTVs();
+	m_DefaultPipeline.BindDepthAndRTVs(BindType::BOTH);
 
 	// Set the rasterizer state.
 	CreateRasterizer();
@@ -112,7 +112,7 @@ void Renderer::BeginScene(float r, float g, float b, float a)
 
 void Renderer::BindWindowRTV()
 {
-	m_DefaultPipeline.BindDepthAndRTVs();
+	m_DefaultPipeline.BindDepthAndRTVs(BindType::BOTH);
 }
 
 void Renderer::Present()
@@ -161,9 +161,9 @@ Pipeline* Renderer::GetDefaultPipeline()
 
 void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFormat)
 {
-	D3D11_TEXTURE2D_DESC textureDesc = {};
-	pTexture->pTexture->GetDesc(&textureDesc);
-	std::string preFormatStr = RenderUtils::FormatToString(textureDesc.Format);
+	D3D11_TEXTURE2D_DESC oldTextureDesc = {};
+	pTexture->pTexture->GetDesc(&oldTextureDesc);
+	std::string preFormatStr = RenderUtils::FormatToString(oldTextureDesc.Format);
 	std::string newFormatStr = RenderUtils::FormatToString(newFormat);
 
 	if (!pTexture->UseAsRTV)
@@ -177,12 +177,17 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 	{
 		s_RTV->Release();
 	}
-	/*
+	
+	ImageResource* pImage = ResourceManager::Get()->GetResource<ImageResource>(pTexture->ImageHandler);
+
+	ID3D11Texture2D* pNewTexture = nullptr;
+	ID3D11ShaderResourceView* pNewTextureSRV = nullptr;
+
 	{
 		D3D11_TEXTURE2D_DESC textureDesc = {};
 		textureDesc.Width = pImage->Width;
 		textureDesc.Height = pImage->Height;
-		textureDesc.Format = pImage->Format;
+		textureDesc.Format = newFormat;
 		textureDesc.MipLevels = 1;
 		textureDesc.ArraySize = 1;
 		textureDesc.SampleDesc.Count = 1;
@@ -194,11 +199,23 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 		textureDesc.Usage = D3D11_USAGE_DEFAULT;
 		textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
 
-		pTexture->NumMipLevels = textureDesc.MipLevels;
+		if (pTexture->NumMipLevels > 1)
+		{
+			textureDesc.Usage = D3D11_USAGE_DEFAULT;
+			textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+			textureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+			textureDesc.MipLevels = (uint32)glm::ceil(glm::max(glm::log2(glm::min((float)textureDesc.Width, (float)textureDesc.Height)), 1.f));
+		}
+
+		if (pTexture->UseAsRTV)
+		{
+			textureDesc.Usage = D3D11_USAGE_DEFAULT;
+			textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+		}
 
 		uint32 pixelSize = RenderUtils::GetSizeOfFormat(textureDesc.Format);
 		std::vector<D3D11_SUBRESOURCE_DATA> subData;
-		if (textureDescription.GenerateMipmaps)
+		if (pTexture->NumMipLevels > 1)
 		{
 			uint32 width = pImage->Width;
 			for (uint32 mip = 0; mip < textureDesc.MipLevels; mip++)
@@ -221,25 +238,23 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 			subData.push_back(data);
 		}
 
-		HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, subData.data(), &pTexture->pTexture);
+		HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, subData.data(), &pNewTexture);
 		RS_D311_ASSERT_CHECK(result, "Failed to create texture!");
 
 		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Format = textureDesc.Format;
 		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MostDetailedMip = 0;
-		srvDesc.Texture2D.MipLevels = textureDescription.GenerateMipmaps ? -1 : 1;
-		result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->pTextureSRV);
+		srvDesc.Texture2D.MipLevels = pTexture->NumMipLevels > 1 ? -1 : 1;
+		result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pNewTexture, &srvDesc, &pNewTextureSRV);
 		RS_D311_ASSERT_CHECK(result, "Failed to create texture RSV!");
 	}
-	*/
-
-	// TODO: Make a new texture and store it inside that.
+	
 	D3D11_RENDER_TARGET_VIEW_DESC desc = {};
 	desc.Format = newFormat;
 	desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 	desc.Texture2D.MipSlice = 0;
-	HRESULT hr = RenderAPI::Get()->GetDevice()->CreateRenderTargetView(pTexture->pTexture, &desc, &s_RTV);
+	HRESULT hr = RenderAPI::Get()->GetDevice()->CreateRenderTargetView(pNewTexture, &desc, &s_RTV);
 	if (FAILED(hr))
 	{
 		LOG_WARNING("Failed to convert texture format, from {} to {}!", preFormatStr.c_str(), newFormatStr.c_str());
@@ -248,7 +263,7 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 
 	// Use a pipeline and draw to the texture as a rendertarget.
 	m_TextureFormatConvertionPipeline.SetRenderTargetView(s_RTV);
-	m_TextureFormatConvertionPipeline.BindDepthAndRTVs();
+	m_TextureFormatConvertionPipeline.Bind(BindType::RTV_ONLY);
 
 	SamplerResource* pSamplerResource = ResourceManager::Get()->GetResource<SamplerResource>(ResourceManager::Get()->DefaultSamplerLinear);
 
@@ -261,6 +276,37 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 	pContext->PSSetSamplers(0, 1, &pSamplerResource->pSampler);
 	pContext->PSSetShaderResources(0, 1, &pTexture->pTextureSRV);
 	pContext->Draw(3, 0);
+	
+	// Generate mips from the newly created texture with a new format and make that the texture instead. Also create debug SRVs for it.
+	{
+		if (pTexture->NumMipLevels > 1)
+			RenderAPI::Get()->GetDeviceContext()->GenerateMips(pNewTextureSRV);
+
+		// Release the previous textures.
+		pTexture->pTexture->Release();
+		pTexture->pTextureSRV->Release();
+
+		pTexture->pTexture = pNewTexture;
+		pTexture->pTextureSRV = pNewTextureSRV;
+
+		// Remove the previous debug SRVs
+		for (auto srv : pTexture->DebugMipmapSRVs)
+			srv->Release();
+
+		// Create the new debug SRVs
+		if (pTexture->NumMipLevels > 0)
+			pTexture->DebugMipmapSRVs.resize(pTexture->NumMipLevels - 1);
+		for (uint32 mip = 1; mip < pTexture->NumMipLevels; mip++)
+		{
+			D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Format = newFormat;
+			srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+			srvDesc.Texture2D.MipLevels = 1;
+			srvDesc.Texture2D.MostDetailedMip = mip;
+			HRESULT result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->DebugMipmapSRVs[mip - 1]);
+			RS_D311_ASSERT_CHECK(result, "Failed to create debug texture SRV for one of the mip levels in the texture!");
+		}
+	}
 }
 
 void Renderer::CreateRTV()

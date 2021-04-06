@@ -67,16 +67,16 @@ void Pipeline::Resize(uint32 width, uint32 height)
 		CreateDepthStencilView();
 
 		m_ShouldBindRTVs = true;
-		BindDepthAndRTVs();
+		BindDepthAndRTVs(m_RTVAndDSVType);
 
 		SetViewport(0.f, 0.f, (float)width, (float)height);
 	}
 }
 
-void Pipeline::Bind()
+void Pipeline::Bind(BindType bindType)
 {
 	BindDepthStencilState();
-	BindDepthAndRTVs();
+	BindDepthAndRTVs(bindType);
 	BindRasterState();
 }
 
@@ -132,8 +132,10 @@ void Pipeline::BindRasterState()
 	}
 }
 
-void Pipeline::BindDepthAndRTVs()
+void Pipeline::BindDepthAndRTVs(BindType bindType)
 {
+	m_RTVAndDSVType = bindType;
+
 	Pipeline* pDefaultPipeline = Renderer::Get()->GetDefaultPipeline();
 	if (m_RenderTargetViews.empty() == false)
 	{
@@ -143,7 +145,10 @@ void Pipeline::BindDepthAndRTVs()
 			if (s_CurrentBindedStates.RTVsID != m_ID || s_CurrentBindedStates.DepthStencilViewID != m_ID 
 				|| m_ShouldBindRTVs || m_ShouldBindDepthStencilView)
 			{
-				m_pContext->OMSetRenderTargets((UINT)m_RenderTargetViews.size(), m_RenderTargetViews.data(), m_pDepthStencilView);
+				UINT						numRTVs = bindType != BindType::DEPTH_STENCIL_ONLY	? (UINT)m_RenderTargetViews.size()	: 0;
+				ID3D11RenderTargetView**	rtvs	= bindType != BindType::DEPTH_STENCIL_ONLY	? m_RenderTargetViews.data()		: nullptr;
+				ID3D11DepthStencilView*		dsv		= bindType != BindType::RTV_ONLY			? m_pDepthStencilView				: nullptr;
+				m_pContext->OMSetRenderTargets(numRTVs, rtvs, dsv);
 				s_CurrentBindedStates.RTVsID				= m_ID;
 				s_CurrentBindedStates.DepthStencilViewID	= m_ID;
 				m_ShouldBindRTVs							= false;
@@ -157,7 +162,10 @@ void Pipeline::BindDepthAndRTVs()
 			if (s_CurrentBindedStates.RTVsID != m_ID || s_CurrentBindedStates.DepthStencilViewID != pDefaultPipeline->GetID()
 				|| m_ShouldBindRTVs || pDefaultPipeline->m_ShouldBindDepthStencilView)
 			{
-				m_pContext->OMSetRenderTargets((UINT)m_RenderTargetViews.size(), m_RenderTargetViews.data(), pDefaultDepthStencilView);
+				UINT						numRTVs = bindType != BindType::DEPTH_STENCIL_ONLY	? (UINT)m_RenderTargetViews.size()	: 0;
+				ID3D11RenderTargetView**	rtvs	= bindType != BindType::DEPTH_STENCIL_ONLY	? m_RenderTargetViews.data()		: nullptr;
+				ID3D11DepthStencilView*		dsv		= bindType != BindType::RTV_ONLY			? pDefaultDepthStencilView			: nullptr;
+				m_pContext->OMSetRenderTargets(numRTVs, rtvs, dsv);
 				s_CurrentBindedStates.RTVsID					= m_ID;
 				s_CurrentBindedStates.DepthStencilViewID		= pDefaultPipeline->GetID();
 				m_ShouldBindRTVs								= false;
@@ -172,7 +180,10 @@ void Pipeline::BindDepthAndRTVs()
 		if (s_CurrentBindedStates.RTVsID != pDefaultPipeline->GetID() || s_CurrentBindedStates.DepthStencilViewID != m_ID
 			|| pDefaultPipeline->m_ShouldBindRTVs || m_ShouldBindDepthStencilView)
 		{
-			m_pContext->OMSetRenderTargets((UINT)pDefaultRTVs.size(), pDefaultRTVs.data(), m_pDepthStencilView);
+			UINT						numRTVs = bindType != BindType::DEPTH_STENCIL_ONLY	? (UINT)pDefaultRTVs.size()	: 0;
+			ID3D11RenderTargetView**	rtvs	= bindType != BindType::DEPTH_STENCIL_ONLY	? pDefaultRTVs.data()		: nullptr;
+			ID3D11DepthStencilView*		dsv		= bindType != BindType::RTV_ONLY			? m_pDepthStencilView		: nullptr;
+			m_pContext->OMSetRenderTargets(numRTVs, rtvs, dsv);
 			s_CurrentBindedStates.RTVsID = pDefaultPipeline->GetID();
 			s_CurrentBindedStates.DepthStencilViewID = m_ID;
 			pDefaultPipeline->m_ShouldBindRTVs = false;
@@ -181,7 +192,7 @@ void Pipeline::BindDepthAndRTVs()
 	}
 	else
 	{
-		Renderer::Get()->GetDefaultPipeline()->BindDepthAndRTVs();
+		Renderer::Get()->GetDefaultPipeline()->BindDepthAndRTVs(bindType);
 	}
 }
 

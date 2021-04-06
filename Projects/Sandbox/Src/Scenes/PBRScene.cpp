@@ -55,8 +55,6 @@ void PBRScene::Start()
 		textureDesc.ImageDesc.NumChannels	= ImageLoadDesc::Channels::DEFAULT; // Not needed for hdr files.
 		textureDesc.UseAsRTV				= true; // Used in ConvertTextureFormat.
 		auto [pTexture, handler] = ResourceManager::Get()->LoadTextureResource(textureDesc);
-		TextureResource* pTextureResource = pTexture;
-
 		Renderer::Get()->ConvertTextureFormat(pTexture, DXGI_FORMAT_R16G16B16A16_FLOAT);
 	}
 
@@ -133,7 +131,7 @@ void PBRScene::Tick(float dt)
 	UpdateCamera(dt);
 	DebugRenderer::Get()->UpdateCamera(m_Camera.GetView(), m_Camera.GetProj());
 
-	m_Pipeline.Bind();
+	m_Pipeline.Bind(BindType::BOTH);
 
 	auto display = Display::Get();
 	auto renderer = Renderer::Get();

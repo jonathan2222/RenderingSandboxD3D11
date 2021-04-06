@@ -251,7 +251,7 @@ void TextureScene::Tick(float dt)
 {
 	UpdateCamera(dt);
 
-	m_Pipeline.Bind();
+	m_Pipeline.Bind(BindType::BOTH);
 
 	auto display = Display::Get();
 	auto renderer = Renderer::Get();
