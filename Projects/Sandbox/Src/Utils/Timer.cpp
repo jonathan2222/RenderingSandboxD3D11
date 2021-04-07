@@ -17,10 +17,11 @@ void Timer::Start()
     m_StartTime = std::chrono::high_resolution_clock::now();
 }
 
-void Timer::Stop()
+TimeStamp Timer::Stop()
 {
 	m_EndTime = std::chrono::high_resolution_clock::now();
 	m_TimeStamp.m_DT = std::chrono::duration<double, std::milli>(m_EndTime - m_StartTime).count();
+	return m_TimeStamp;
 }
 
 TimeStamp Timer::CalcDelta()

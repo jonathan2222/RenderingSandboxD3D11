@@ -22,7 +22,7 @@ namespace RS
 		~Timer();
 
 		void Start();
-		void Stop();
+		TimeStamp Stop();
 
 		/*
 		* This works like a stop and start. It will restart the timer and return the time since previous start/restart.

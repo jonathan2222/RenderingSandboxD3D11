@@ -39,7 +39,6 @@ namespace RS
 		void Tick(float dt) override;
 
 	private:
-		void UpdateCamera(float dt);
 		void DrawRecursiveImGui(int index, ModelResource& model);
 		void DrawImGuiAABB(int index, const AABB& aabb);
 

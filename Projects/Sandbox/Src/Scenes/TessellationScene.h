@@ -53,7 +53,6 @@ namespace RS
 		void Tick(float dt) override;
 
 	private:
-		void UpdateCamera(float dt);
 		void ToggleWireframe(bool forceToggle);
 		void CreateTexture(const std::string& fileName, ID3D11Texture2D*& pTexture, ID3D11ShaderResourceView*& pTextureView);
 		void CalcTangents(std::vector<Vertex>& vertices, const std::vector<uint32>& indices);
