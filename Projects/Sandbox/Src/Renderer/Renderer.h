@@ -66,5 +66,6 @@ namespace RS
 		Pipeline					m_DefaultPipeline;
 		Pipeline					m_TextureFormatConvertionPipeline;
 		Shader						m_TextureFormatConvertionShader;
+		ID3D11RenderTargetView*		m_TextureFormatConvertionRTV = nullptr;
 	};
 }

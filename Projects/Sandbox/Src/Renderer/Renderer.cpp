@@ -62,6 +62,11 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 
 void Renderer::Release()
 {
+	if (m_TextureFormatConvertionRTV)
+	{
+		m_TextureFormatConvertionRTV->Release();
+		m_TextureFormatConvertionRTV = nullptr;
+	}
 	m_TextureFormatConvertionShader.Release();
 	m_TextureFormatConvertionPipeline.Release();
 	m_DefaultPipeline.Release();
@@ -153,10 +158,10 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 		return;
 	}
 
-	static ID3D11RenderTargetView* s_RTV = nullptr;
-	if (s_RTV != nullptr)
+	if (m_TextureFormatConvertionRTV != nullptr)
 	{
-		s_RTV->Release();
+		m_TextureFormatConvertionRTV->Release();
+		m_TextureFormatConvertionRTV = nullptr;
 	}
 	
 	ImageResource* pImage = ResourceManager::Get()->GetResource<ImageResource>(pTexture->ImageHandler);
@@ -175,23 +180,14 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 		textureDesc.SampleDesc.Quality = 0;
 		textureDesc.Usage = D3D11_USAGE_IMMUTABLE;
 		textureDesc.CPUAccessFlags = 0;
-		textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 		textureDesc.MiscFlags = 0;
 		textureDesc.Usage = D3D11_USAGE_DEFAULT;
-		textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
 
 		if (pTexture->NumMipLevels > 1)
 		{
-			textureDesc.Usage = D3D11_USAGE_DEFAULT;
-			textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
 			textureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 			textureDesc.MipLevels = (uint32)glm::ceil(glm::max(glm::log2(glm::min((float)textureDesc.Width, (float)textureDesc.Height)), 1.f));
-		}
-
-		if (pTexture->UseAsRTV)
-		{
-			textureDesc.Usage = D3D11_USAGE_DEFAULT;
-			textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
 		}
 
 		uint32 pixelSize = RenderUtils::GetSizeOfFormat(textureDesc.Format);
@@ -235,7 +231,7 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 	desc.Format = newFormat;
 	desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 	desc.Texture2D.MipSlice = 0;
-	HRESULT hr = RenderAPI::Get()->GetDevice()->CreateRenderTargetView(pNewTexture, &desc, &s_RTV);
+	HRESULT hr = RenderAPI::Get()->GetDevice()->CreateRenderTargetView(pNewTexture, &desc, &m_TextureFormatConvertionRTV);
 	if (FAILED(hr))
 	{
 		LOG_WARNING("Failed to convert texture format, from {} to {}!", preFormatStr.c_str(), newFormatStr.c_str());
@@ -243,16 +239,16 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 	}
 
 	// Use a pipeline and draw to the texture as a rendertarget.
-	m_TextureFormatConvertionPipeline.SetRenderTargetView(s_RTV);
+	m_TextureFormatConvertionPipeline.SetRenderTargetView(m_TextureFormatConvertionRTV);
 	m_TextureFormatConvertionPipeline.Bind(BindType::RTV_ONLY);
 
 	SamplerResource* pSamplerResource = ResourceManager::Get()->GetResource<SamplerResource>(ResourceManager::Get()->DefaultSamplerLinear);
 
 	m_TextureFormatConvertionShader.Bind();
+	m_TextureFormatConvertionPipeline.SetViewport(0.f, 0.f, (float)pImage->Width, (float)pImage->Height);
 	ID3D11DeviceContext* pContext = RenderAPI::Get()->GetDeviceContext();
 	UINT strides = sizeof(glm::vec2);
 	UINT offsets = 0;
-	m_TextureFormatConvertionPipeline.SetViewport(0.f, 0.f, (float)pImage->Width, (float)pImage->Height);
 	pContext->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pContext->PSSetSamplers(0, 1, &pSamplerResource->pSampler);
