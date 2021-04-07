@@ -1,6 +1,7 @@
 struct VSIn
 {
-    float2 position : POSITION;
+    float2 position : POSITION; // This is not used.
+    uint vertexID : SV_VertexID;
 };
 
 struct VSOut
@@ -11,8 +12,10 @@ struct VSOut
 
 VSOut main(VSIn input)
 {
+    float x = -1.f + (float)((input.vertexID & 1) << 2);
+    float y = -1.f + (float)((input.vertexID & 2) << 1);
     VSOut output;
-    output.position = float4(input.position.x, input.position.y, 0.5f, 1.f);
-    output.uv = float2((input.position.x+1.f)*.5f, 1.f - (input.position.y+1.f)*.5f);
+    output.position = float4(x, y, 0.5f, 1.f);
+    output.uv = float2((x+1.f)*.5f, 1.f - (y+1.f)*.5f);
 	return output;
 }

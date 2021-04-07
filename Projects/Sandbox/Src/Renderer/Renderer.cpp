@@ -43,6 +43,12 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 	// Texture format conversion resources.
 	{
 		m_TextureFormatConvertionPipeline.Init();
+		D3D11_RASTERIZER_DESC rasterState = {};
+		rasterState.FillMode = D3D11_FILL_SOLID;
+		rasterState.CullMode = D3D11_CULL_NONE;
+		rasterState.ScissorEnable = false;
+		rasterState.DepthClipEnable = false;
+		m_TextureFormatConvertionPipeline.SetRasterState(rasterState);
 
 		AttributeLayout layout;
 		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "POSITION", 0);
@@ -51,37 +57,12 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 		shaderDesc.Fragment				= "RenderTools/FormatConverterFrag.hlsl";
 		m_TextureFormatConvertionShader.Load(shaderDesc, layout);
 		ShaderHotReloader::AddShader(&m_TextureFormatConvertionShader);
-
-		// Make a triangle to cover the viewport.
-		{
-			std::vector<glm::vec2> vertices =
-			{
-				glm::vec2(-1.f, -3.f),
-				glm::vec2(-1.f, 1.f),
-				glm::vec2(3.f, 1.f)
-			};
-
-			D3D11_BUFFER_DESC bufferDesc	= {};
-			bufferDesc.ByteWidth			= (UINT)(sizeof(glm::vec2) * vertices.size());
-			bufferDesc.Usage				= D3D11_USAGE_IMMUTABLE;
-			bufferDesc.BindFlags			= D3D11_BIND_VERTEX_BUFFER;
-			bufferDesc.CPUAccessFlags		= 0;
-			bufferDesc.MiscFlags			= 0;
-			bufferDesc.StructureByteStride	= 0;
-
-			D3D11_SUBRESOURCE_DATA data = {};
-			data.pSysMem				= vertices.data();
-			data.SysMemPitch			= 0;
-			data.SysMemSlicePitch		= 0;
-
-			HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pScreenTriangleVertexBuffer);
-			RS_D311_ASSERT_CHECK(result, "Failed to create vertex buffer for screen triangle!");
-		}
 	}
 }
 
 void Renderer::Release()
 {
+	m_TextureFormatConvertionShader.Release();
 	m_TextureFormatConvertionPipeline.Release();
 	m_DefaultPipeline.Release();
 	ClearRTV();
@@ -271,7 +252,8 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 	ID3D11DeviceContext* pContext = RenderAPI::Get()->GetDeviceContext();
 	UINT strides = sizeof(glm::vec2);
 	UINT offsets = 0;
-	pContext->IASetVertexBuffers(0, 1, &m_pScreenTriangleVertexBuffer, &strides, &offsets);
+	m_TextureFormatConvertionPipeline.SetViewport(0.f, 0.f, (float)pImage->Width, (float)pImage->Height);
+	pContext->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pContext->PSSetSamplers(0, 1, &pSamplerResource->pSampler);
 	pContext->PSSetShaderResources(0, 1, &pTexture->pTextureSRV);
