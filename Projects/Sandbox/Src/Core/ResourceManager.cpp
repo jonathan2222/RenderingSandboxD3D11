@@ -236,6 +236,7 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 	{
 		auto [pImage, imageId] = LoadImageResource(textureDescription.ImageDesc);
 		pTexture->ImageHandler = pImage->key;
+		pTexture->Format = pImage->Format;
 
 		{
 			D3D11_TEXTURE2D_DESC textureDesc = {};

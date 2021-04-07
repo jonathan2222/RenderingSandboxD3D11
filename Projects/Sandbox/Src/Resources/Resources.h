@@ -44,6 +44,7 @@ namespace RS
 	{
 		uint32						NumMipLevels	= 0;
 		ResourceID					ImageHandler	= 0;
+		DXGI_FORMAT					Format			= DXGI_FORMAT_UNKNOWN; // Can have another format than the ImageHandler.
 		ID3D11Texture2D*			pTexture		= nullptr;
 		ID3D11ShaderResourceView*	pTextureSRV		= nullptr;
 		bool						UseAsRTV		= false;

@@ -264,8 +264,9 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 		pTexture->pTexture->Release();
 		pTexture->pTextureSRV->Release();
 
-		pTexture->pTexture = pNewTexture;
-		pTexture->pTextureSRV = pNewTextureSRV;
+		pTexture->Format		= newFormat;
+		pTexture->pTexture		= pNewTexture;
+		pTexture->pTextureSRV	= pNewTextureSRV;
 
 		// Remove the previous debug SRVs
 		for (auto srv : pTexture->DebugMipmapSRVs)

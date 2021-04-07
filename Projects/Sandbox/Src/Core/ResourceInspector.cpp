@@ -150,6 +150,9 @@ void ResourceInspector::DrawTextureResource(TextureResource* pTexture)
 	ImageResource* pImageResource = s_ResourceManager->GetResource<ImageResource>(pTexture->ImageHandler);
 	DrawImageResource(pImageResource);
 	
+	std::string formatStr = RenderUtils::FormatToString(pTexture->Format);
+	ImGui::Text("Texture Format: %s", formatStr.c_str());
+
 	float zoom = 4.f;
 	ImGui::Text("Num Mip levels: %d", pTexture->NumMipLevels);
 	DrawTextureSRV(pTexture->pTextureSRV, 200, 200, 0, 0, zoom);
@@ -178,7 +181,7 @@ void ResourceInspector::DrawImageResource(ImageResource* pImage)
 	ImGui::Text("Width: %d", pImage->Width);
 	ImGui::Text("Height: %d", pImage->Height);
 	std::string formatStr = RenderUtils::FormatToString(pImage->Format);
-	ImGui::Text("Format: %s", formatStr.c_str());
+	ImGui::Text("Image Format: %s", formatStr.c_str());
 }
 
 void ResourceInspector::DrawMaterialResource(MaterialResource* pMaterial)
