@@ -3,6 +3,7 @@
 
 #include "Core/Display.h"
 
+#include "GUI/ImGuiAdapter.h"
 #include "Renderer/ImGuiRenderer.h"
 
 using namespace RS;
@@ -94,9 +95,10 @@ void Input::CenterMouse() const
     glfwSetCursorPos(wnd, (double)s_MousePos.x, (double)s_MousePos.y);
 }
 
-// TODO: Tell ImGui to ignore input!
 void Input::LockMouse() const
 {
+    ImGuiAdapter::DisableInput();
+
     GLFWwindow* wnd = static_cast<GLFWwindow*>(Display::Get()->GetGLFWWindow());
     glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     s_MousePosPre = s_MousePos;
@@ -104,9 +106,10 @@ void Input::LockMouse() const
     s_MouseDelta.y = 0.0f;
 }
 
-// TODO: Tell ImGui to listen to input!
 void Input::UnlockMouse() const
 {
+    ImGuiAdapter::EnableInput();
+
     GLFWwindow* wnd = static_cast<GLFWwindow*>(Display::Get()->GetGLFWWindow());
     glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     s_MousePosPre = s_MousePos;

@@ -1,6 +1,6 @@
 #include "ImGuiRenderer.h"
 
-#include <backends/imgui_impl_glfw.h>
+#include "GUI/ImGuiAdapter.h"
 #include <backends/imgui_impl_dx11.h>
 
 #include "Renderer/RenderAPI.h"
@@ -17,14 +17,14 @@ void ImGuiRenderer::Init(Display* pDisplay)
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
+	
 	//ImGui::SetWindowFontScale();
 	ImGui::StyleColorsDark();
 
 	ReScale(pDisplay->GetWidth(), pDisplay->GetHeight());
 
 	GLFWwindow* pWindow = pDisplay->GetGLFWWindow();
-	ImGui_ImplGlfw_InitForOpenGL(pWindow, true);
+	ImGuiAdapter::Init(pWindow, true, ImGuiAdapter::ClientAPI::OPEN_GL);
 
 	ID3D11Device* pDevice = RenderAPI::Get()->GetDevice();
 	ID3D11DeviceContext* pDeviceContext = RenderAPI::Get()->GetDeviceContext();
@@ -34,7 +34,7 @@ void ImGuiRenderer::Init(Display* pDisplay)
 void ImGuiRenderer::Release()
 {
 	ImGui_ImplDX11_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
+	ImGuiAdapter::Release();
 	ImGui::DestroyContext();
 }
 
@@ -89,7 +89,7 @@ float ImGuiRenderer::GetGuiScale()
 void ImGuiRenderer::BeginFrame()
 {
 	ImGui_ImplDX11_NewFrame();
-	ImGui_ImplGlfw_NewFrame();
+	ImGuiAdapter::NewFrame();
 	ImGui::NewFrame();
 }
 
