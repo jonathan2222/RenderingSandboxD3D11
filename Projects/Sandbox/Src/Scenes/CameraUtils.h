@@ -16,7 +16,7 @@ namespace RS
 		*		Pan:			Hold L_SHIFT and drag with the LMB.
 		*		Zoom:			Hold L_CTL and drag with the LBM up and down.
 		*		Orbit			Drag with the LMB.
-		*		Reset target:	Press the 'C' key.
+		*		Reset target:	Hold the 'C' key.
 		* @param camera: The camera to use.
 		*/
 		static void UpdateOrbitCamera(Camera& camera)
@@ -31,11 +31,43 @@ namespace RS
 			else if (input->IsKeyPressed(Key::LEFT_SHIFT))	s_CameraState = 2;
 			else											s_CameraState = 0;
 
-			if (input->IsKeyPressed(Key::C))
 			{
-				s_Target = s_StartingTarget;
-				glm::vec3 pos = s_StartingTarget + glm::vec3(0.f, 0.f, 2.0f);
-				camera.LookAt(pos, s_Target);
+				static Timer s_Timer;
+				static bool s_CWasDown = false;
+				static bool s_CWasHeld = false;
+				static bool s_StopHold = false;
+
+				bool cIsPressed = input->IsKeyPressed(Key::C);
+				if (cIsPressed && !s_CWasDown)
+				{
+					// Start the timer if it was first pressed/held
+					s_StopHold = false;
+					s_CWasDown = true;
+					s_CWasHeld = false;
+					s_Timer.Start();
+				}
+				else if (cIsPressed)
+				{
+					// Fetch the passed time and check if the button is held down.
+					s_CWasDown = true;
+					float time = s_Timer.Stop().GetDeltaTimeSec();
+					if (time > 0.5f && !s_StopHold)
+						s_CWasHeld = true;
+				}
+				else if (!cIsPressed && s_CWasDown)
+				{
+					// Release the button if it was not pressed. (This is only activated once)
+					s_CWasDown = false;
+				}
+
+				// Check if the button was held down. (This is only activated once)
+				if (s_CWasHeld && !s_StopHold)
+				{
+					s_StopHold = true;
+					s_Target = s_StartingTarget;
+					glm::vec3 pos = s_StartingTarget + glm::vec3(0.f, 0.f, 2.0f);
+					camera.LookAt(pos, s_Target);
+				}
 			}
 
 			if (input->IsMBPressed(MB::LEFT))
@@ -88,8 +120,8 @@ namespace RS
 		*		Faster:					Hold L_SHIFT to get a speed boost.
 		*		Look around:			Use LMB.
 		*		Move:					Use LMB.
-		*		Reset target:			Press the 'C' key.
-		*		Enable/Disable Camera:	Hold the 'C' key.
+		*		Reset target:			Hold the 'C' key.
+		*		Enable/Disable Camera:	Press the 'C' key.
 		* @param camera: The camera to use.
 		*/
 		static void UpdateFPSCamera(float dt, Camera& camera)
@@ -112,45 +144,46 @@ namespace RS
 			{
 				static Timer s_Timer;
 				static bool s_CWasDown = false;
-				static bool s_CWasHold = false;
+				static bool s_CWasHeld = false;
 				static bool s_StopHold = false;
 
 				bool cIsPressed = input->IsKeyPressed(Key::C);
 				if (cIsPressed && !s_CWasDown)
 				{
+					// Start the timer if it was first pressed/held
 					s_StopHold = false;
 					s_CWasDown = true;
-					s_CWasHold = false;
+					s_CWasHeld = false;
 					s_Timer.Start();
 				}
 				else if (cIsPressed)
 				{
+					// Fetch the passed time and check if the button is held down.
 					s_CWasDown = true;
 					float time = s_Timer.Stop().GetDeltaTimeSec();
 					if (time > 0.5f && !s_StopHold)
-					{
-						s_Timer.Start();
-						s_CWasHold = true;
-					}
+						s_CWasHeld = true;
 				}
 				else if (!cIsPressed && s_CWasDown)
 				{
+					// Release the button if it was not pressed. (This is only activated once)
 					s_CWasDown = false;
-					if (!s_CWasHold)
+					if (!s_CWasHeld)
 					{
-						camera.LookAt(s_StartingPos, s_StartingPos + s_StartingDir);
+						s_IsActive = !s_IsActive;
+
+						if (s_IsActive)
+							input->LockMouse();
+						else
+							input->UnlockMouse();
 					}
 				}
 
-				if (s_CWasHold && !s_StopHold)
+				// Check if the button was held down. (This is only activated once)
+				if (s_CWasHeld && !s_StopHold)
 				{
 					s_StopHold = true;
-					s_IsActive = !s_IsActive;
-
-					if (s_IsActive)
-						input->LockMouse();
-					else
-						input->UnlockMouse();
+					camera.LookAt(s_StartingPos, s_StartingPos + s_StartingDir);
 				}
 			}
 
