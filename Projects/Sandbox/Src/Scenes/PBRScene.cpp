@@ -48,8 +48,8 @@ void PBRScene::Start()
 		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "BITANGENT", 0);
 		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "TEXCOORD", 0);
 		Shader::Descriptor shaderDesc = {};
-		shaderDesc.Vertex = "TextureScene/SkyboxVert.hlsl";
-		shaderDesc.Fragment = "TextureScene/SkyboxFrag.hlsl";
+		shaderDesc.Vertex = "Utils/SkyboxVert.hlsl";
+		shaderDesc.Fragment = "Utils/SkyboxGammaCorrectionFrag.hlsl";
 		m_SkyboxShader.Load(shaderDesc, layout);
 		ShaderHotReloader::AddShader(&m_SkyboxShader);
 	}
@@ -72,7 +72,7 @@ void PBRScene::Start()
 		textureDesc.UseAsRTV				= true; // Used in ConvertTextureFormat.
 		auto [pTexture, id1] = ResourceManager::Get()->LoadTextureResource(textureDesc);
 		Renderer::Get()->ConvertTextureFormat(pTexture, DXGI_FORMAT_R16G16B16A16_FLOAT);
-		m_pCubemap = Renderer::Get()->ConvertEquirectangularToCubemap(pTexture, 512, 512);
+		m_pCubemap = Renderer::Get()->ConvertEquirectangularToCubemap(pTexture, 1024, 1024);
 
 		ModelLoadDesc modelLoadDesc = {};
 		modelLoadDesc.FilePath = "InvCube.glb";
@@ -237,7 +237,7 @@ void PBRScene::Tick(float dt)
 		debugInfo.DrawAABBs = false;
 		debugInfo.ID = 0;
 		debugInfo.RenderMode = 0;
-		renderer->Render(*m_pModel, transform, debugInfo, RenderFlag::RENDER_FLAG_NO_TEXTURES);
+		renderer->Render(*m_pInvCubeModel, transform, debugInfo, RenderFlag::RENDER_FLAG_NO_TEXTURES);
 	}
 }
 
