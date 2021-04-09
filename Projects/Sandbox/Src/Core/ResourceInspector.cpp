@@ -142,6 +142,7 @@ void ResourceInspector::Draw()
 
 void ResourceInspector::DrawSamplerResource(SamplerResource* pSampler)
 {
+	RS_UNREFERENCED_VARIABLE(pSampler);
 	ImGui::Text("This is a sampler!");
 }
 
@@ -163,14 +164,15 @@ void ResourceInspector::DrawTextureResource(TextureResource* pTexture)
 		ImGui::SameLine();
 		zoom *= 2.f;
 		scale *= 0.5f;
-		DrawTextureSRV(mipSRV, 200 * scale, 200 * scale, 10, 10, zoom);
+		DrawTextureSRV(mipSRV, (uint32_t)(200 * scale), (uint32_t)(200 * scale), 10, 10, zoom);
 	}
 }
 
 void ResourceInspector::DrawCubeMapResource(CubeMapResource* pCubeMap)
 {
 	ImageResource* pImageResource = s_ResourceManager->GetResource<ImageResource>(pCubeMap->ImageHandlers[0]);
-	DrawImageResource(pImageResource);
+	if(pImageResource != nullptr)
+		DrawImageResource(pImageResource);
 
 	ImGui::Text("Num Mip levels: %d", pCubeMap->NumMipLevels);
 	DrawCubeMap(pCubeMap);
@@ -336,7 +338,7 @@ void ResourceInspector::DrawCubeMap(CubeMapResource* pCubeMap)
 			{
 				if(scale < 1.0f)
 					ImGui::SameLine();
-				DrawTextureSRV(mipSRV, 200 * scale, 200 * scale, 10, 10, zoom);
+				DrawTextureSRV(mipSRV, (uint32_t)(200 * scale), (uint32_t)(200 * scale), 10, 10, zoom);
 				scale *= 0.5f;
 				zoom *= 2.f;
 			}

@@ -44,6 +44,7 @@ namespace RS
 
 		// Useful function
 		void ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFormat);
+		CubeMapResource* EquirectangularToCubemap(TextureResource* pTexture, uint32_t width, uint32_t height);
 
 	private:
 		void CreateRTV();
@@ -55,17 +56,31 @@ namespace RS
 		void InternalRender(ModelResource& model, const glm::mat4& transform, ID3D11DeviceContext* pContext, DebugInfo debugInfo, RenderFlags flags);
 		void InternalRenderWithMaterial(ModelResource& model, const glm::mat4& transform, ID3D11DeviceContext* pContext, DebugInfo debugInfo);
 
+		struct EquirectangularToCubemapFrameData
+		{
+			glm::mat4 View = glm::mat4(1.f);
+			glm::mat4 Proj = glm::mat4(1.f);
+		};
+
 	private:
-		ID3D11Device*				m_pDevice				= nullptr;
-		ID3D11DeviceContext*		m_pContext				= nullptr;
-		IDXGISwapChain1*			m_pSwapChain			= nullptr;
+		ID3D11Device*						m_pDevice									= nullptr;
+		ID3D11DeviceContext*				m_pContext									= nullptr;
+		IDXGISwapChain1*					m_pSwapChain								= nullptr;
 
 		// Color buffer
-		ID3D11RenderTargetView*		m_pRenderTargetView		= nullptr;
+		ID3D11RenderTargetView*				m_pRenderTargetView							= nullptr;
 
-		Pipeline					m_DefaultPipeline;
-		Pipeline					m_TextureFormatConvertionPipeline;
-		Shader						m_TextureFormatConvertionShader;
-		ID3D11RenderTargetView*		m_TextureFormatConvertionRTV = nullptr;
+		Pipeline							m_DefaultPipeline;
+
+		Pipeline							m_TextureFormatConvertionPipeline;
+		Shader								m_TextureFormatConvertionShader;
+		ID3D11RenderTargetView*				m_TextureFormatConvertionRTV				= nullptr;
+
+		Pipeline							m_EquirectangularToCubemapPipeline;
+		Shader								m_EquirectangularToCubemapShader;
+		ID3D11RenderTargetView*				m_EquirectangularToCubemapRTVs[6]			= { nullptr };
+		ID3D11Buffer*						m_pEquirectangularToCubemapConstantBuffer	= nullptr;
+		EquirectangularToCubemapFrameData	m_EquirectangularToCubemapFrameData;
+		glm::mat4							m_EquirectangularToCubemapCaptureViews[6];
 	};
 }

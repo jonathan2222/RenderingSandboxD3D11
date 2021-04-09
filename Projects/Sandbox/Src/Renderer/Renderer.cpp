@@ -58,6 +58,53 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 		m_TextureFormatConvertionShader.Load(shaderDesc, layout);
 		ShaderHotReloader::AddShader(&m_TextureFormatConvertionShader);
 	}
+
+	// Equirectangular To Cubemap
+	{
+		m_EquirectangularToCubemapPipeline.Init();
+		D3D11_RASTERIZER_DESC rasterState = {};
+		rasterState.FillMode = D3D11_FILL_SOLID;
+		rasterState.CullMode = D3D11_CULL_NONE;
+		rasterState.ScissorEnable = false;
+		rasterState.DepthClipEnable = false;
+		m_EquirectangularToCubemapPipeline.SetRasterState(rasterState);
+
+		AttributeLayout layout;
+		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "POSITION", 0);
+		Shader::Descriptor shaderDesc = {};
+		shaderDesc.Vertex = "RenderTools/EquirectangularToCubemapVert.hlsl";
+		shaderDesc.Fragment = "RenderTools/EquirectangularToCubemapFrag.hlsl";
+		m_EquirectangularToCubemapShader.Load(shaderDesc, layout);
+		ShaderHotReloader::AddShader(&m_EquirectangularToCubemapShader);
+
+		{
+			D3D11_BUFFER_DESC bufferDesc = {};
+			bufferDesc.ByteWidth = sizeof(m_EquirectangularToCubemapFrameData);
+			bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+			bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+			bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			bufferDesc.MiscFlags = 0;
+			bufferDesc.StructureByteStride = 0;
+
+			m_EquirectangularToCubemapFrameData.View = glm::mat4(1.f);
+			m_EquirectangularToCubemapFrameData.Proj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+
+			D3D11_SUBRESOURCE_DATA data;
+			data.pSysMem = &m_EquirectangularToCubemapFrameData;
+			data.SysMemPitch = 0;
+			data.SysMemSlicePitch = 0;
+
+			HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pEquirectangularToCubemapConstantBuffer);
+			RS_D311_ASSERT_CHECK(result, "Failed to create EquirectangularToCubemap constant buffer!");
+
+			m_EquirectangularToCubemapCaptureViews[0] = glm::lookAt(glm::vec3(0.f), glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
+			m_EquirectangularToCubemapCaptureViews[1] = glm::lookAt(glm::vec3(0.f), glm::vec3(-1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
+			m_EquirectangularToCubemapCaptureViews[2] = glm::lookAt(glm::vec3(0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+			m_EquirectangularToCubemapCaptureViews[3] = glm::lookAt(glm::vec3(0.f), glm::vec3(0.f, -1.f, 0.f), glm::vec3(0.f, 0.f, -1.f));
+			m_EquirectangularToCubemapCaptureViews[4] = glm::lookAt(glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, -1.f, 0.f));
+			m_EquirectangularToCubemapCaptureViews[5] = glm::lookAt(glm::vec3(0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, -1.f, 0.f));
+		}
+	}
 }
 
 void Renderer::Release()
@@ -69,6 +116,19 @@ void Renderer::Release()
 	}
 	m_TextureFormatConvertionShader.Release();
 	m_TextureFormatConvertionPipeline.Release();
+
+	for (auto& rtv : m_EquirectangularToCubemapRTVs)
+	{
+		if (rtv)
+		{
+			rtv->Release();
+			rtv = nullptr;
+		}
+	}
+	m_pEquirectangularToCubemapConstantBuffer->Release();
+	m_EquirectangularToCubemapShader.Release();
+	m_EquirectangularToCubemapPipeline.Release();
+
 	m_DefaultPipeline.Release();
 	ClearRTV();
 }
@@ -247,13 +307,15 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 	m_TextureFormatConvertionShader.Bind();
 	m_TextureFormatConvertionPipeline.SetViewport(0.f, 0.f, (float)pImage->Width, (float)pImage->Height);
 	ID3D11DeviceContext* pContext = RenderAPI::Get()->GetDeviceContext();
-	UINT strides = sizeof(glm::vec2);
-	UINT offsets = 0;
 	pContext->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	pContext->PSSetSamplers(0, 1, &pSamplerResource->pSampler);
 	pContext->PSSetShaderResources(0, 1, &pTexture->pTextureSRV);
 	pContext->Draw(3, 0);
+
+	// Reset render target
+	ID3D11RenderTargetView* nullRTVs = nullptr;
+	pContext->OMSetRenderTargets(1, &nullRTVs, nullptr);
 	
 	// Generate mips from the newly created texture with a new format and make that the texture instead. Also create debug SRVs for it.
 	{
@@ -286,6 +348,99 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 			RS_D311_ASSERT_CHECK(result, "Failed to create debug texture SRV for one of the mip levels in the texture!");
 		}
 	}
+}
+
+CubeMapResource* Renderer::EquirectangularToCubemap(TextureResource* pTexture, uint32_t width, uint32_t height)
+{
+	CubeMapLoadDesc cubemapLoadDesc = {};
+	// Will not generate mipmaps because of EmptyInitialization but it will enable us to do it later.
+	cubemapLoadDesc.GenerateMipmaps = pTexture->NumMipLevels > 1;
+	cubemapLoadDesc.EmptyInitialization = true;
+	cubemapLoadDesc.Width = width;
+	cubemapLoadDesc.Height = height;
+	cubemapLoadDesc.Format = pTexture->Format;
+	// As to not get a warning and to see it in the resource inspector we give it a name.
+	cubemapLoadDesc.ImageDescs[0].Name = ResourceManager::Get()->GetResourceName(pTexture->key);
+	auto [pCubemap, id] = ResourceManager::Get()->LoadCubeMapResource(cubemapLoadDesc);
+
+	D3D11_RENDER_TARGET_VIEW_DESC desc	= {};
+	desc.Format							= cubemapLoadDesc.Format;
+	desc.ViewDimension					= D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+	desc.Texture2DArray.ArraySize		= 1;
+	desc.Texture2DArray.MipSlice		= 0;
+	for (uint32_t i = 0; i < 6; i++)
+	{
+		desc.Texture2DArray.FirstArraySlice = i;
+		HRESULT hr = RenderAPI::Get()->GetDevice()->CreateRenderTargetView(pCubemap->pTexture, &desc, &m_EquirectangularToCubemapRTVs[i]);
+		if (FAILED(hr))
+		{
+			LOG_WARNING("Failed to convert a equirectangular texture to a cubemap!");
+			return pCubemap;
+		}
+	}
+
+	// Use a pipeline and draw to the texture as a rendertarget.
+	SamplerResource* pSamplerResource = ResourceManager::Get()->GetResource<SamplerResource>(ResourceManager::Get()->DefaultSamplerLinear);
+
+	m_EquirectangularToCubemapShader.Bind();
+	m_EquirectangularToCubemapPipeline.SetViewport(0.f, 0.f, (float)width, (float)height);
+	ID3D11DeviceContext* pContext = RenderAPI::Get()->GetDeviceContext();
+	pContext->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	pContext->PSSetSamplers(0, 1, &pSamplerResource->pSampler);
+	pContext->PSSetShaderResources(0, 1, &pTexture->pTextureSRV);
+
+	for (uint32_t i = 0; i < 6; i++)
+	{
+		m_EquirectangularToCubemapPipeline.SetRenderTargetView(m_EquirectangularToCubemapRTVs[i]);
+		m_EquirectangularToCubemapPipeline.Bind(BindType::RTV_ONLY);
+
+		m_EquirectangularToCubemapFrameData.View = m_EquirectangularToCubemapCaptureViews[i];
+		D3D11_MAPPED_SUBRESOURCE mappedResource;
+		{
+			HRESULT result = pContext->Map(m_pEquirectangularToCubemapConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+			RS_D311_ASSERT_CHECK(result, "Failed to map EquirectangularToCubemap constant buffer!");
+			memcpy(mappedResource.pData, &m_EquirectangularToCubemapFrameData, sizeof(EquirectangularToCubemapFrameData));
+			pContext->Unmap(m_pEquirectangularToCubemapConstantBuffer, 0);
+		}
+		pContext->VSSetConstantBuffers(0, 1, &m_pEquirectangularToCubemapConstantBuffer);
+		pContext->Draw(3, 0);
+	}
+
+	ID3D11RenderTargetView* nullRTVs = nullptr;
+	pContext->OMSetRenderTargets(1, &nullRTVs, nullptr);
+
+	if(cubemapLoadDesc.GenerateMipmaps)
+		ResourceManager::Get()->GenerateMipmaps(pCubemap);
+	else
+	{
+		for (auto& srvs : pCubemap->DebugMipmapSRVs)
+		{
+			for (auto& srv : srvs)
+			{
+				srv->Release();
+				srv = nullptr;
+			}
+		}
+
+		pCubemap->DebugMipmapSRVs.resize(6);
+		for (uint32 side = 0; side < 6; side++)
+		{
+			pCubemap->DebugMipmapSRVs[side].resize(1);
+			D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Format = pTexture->Format;
+			srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+			srvDesc.Texture2DArray.MipLevels = 1;
+			srvDesc.Texture2DArray.MostDetailedMip = 0;
+			srvDesc.Texture2DArray.ArraySize = 1;
+			srvDesc.Texture2DArray.FirstArraySlice = side;
+			HRESULT result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pCubemap->pTexture, &srvDesc, &pCubemap->DebugMipmapSRVs[side][0]);
+			if (FAILED(result))
+				LOG_WARNING("Failed to create debug texture SRV for one of the sides on the EquirectangularToCubemap cubemap!");
+		}
+	}
+
+	return pCubemap;
 }
 
 void Renderer::CreateRTV()

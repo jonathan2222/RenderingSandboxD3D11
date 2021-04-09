@@ -11,6 +11,7 @@
 namespace RS
 {
 	using ResourceID = uint32;
+	inline static const ResourceID NULL_RESOURCE = 0;
 
 	struct Resource : public RefObject
 	{
@@ -29,7 +30,7 @@ namespace RS
 		static std::string TypeToString(Type type);
 
 		Type		type;
-		ResourceID	key = 0;
+		ResourceID	key = NULL_RESOURCE;
 	};
 
 	struct ImageResource : public Resource
@@ -43,7 +44,7 @@ namespace RS
 	struct TextureResource : public Resource
 	{
 		uint32						NumMipLevels	= 0;
-		ResourceID					ImageHandler	= 0;
+		ResourceID					ImageHandler	= NULL_RESOURCE;
 		DXGI_FORMAT					Format			= DXGI_FORMAT_UNKNOWN; // Can have another format than the ImageHandler.
 		ID3D11Texture2D*			pTexture		= nullptr;
 		ID3D11ShaderResourceView*	pTextureSRV		= nullptr;
@@ -56,7 +57,7 @@ namespace RS
 	struct CubeMapResource : public Resource
 	{
 		uint32						NumMipLevels		= 0;
-		ResourceID					ImageHandlers[6]	= { 0 };	// Contains images of a cube in this order [x, -x, y, -y, z, -z]
+		ResourceID					ImageHandlers[6]	= { NULL_RESOURCE };	// Contains images of a cube in this order [x, -x, y, -y, z, -z]
 		ID3D11Texture2D*			pTexture			= nullptr;
 		ID3D11ShaderResourceView*	pTextureSRV			= nullptr;
 		
@@ -89,12 +90,12 @@ namespace RS
 
 	struct MaterialResource : public Resource
 	{
-		ResourceID		AlbedoTextureHandler			= 0;
-		ResourceID		NormalTextureHandler			= 0;
-		ResourceID		AOTextureHandler				= 0;
-		ResourceID		MetallicTextureHandler			= 0;
-		ResourceID		RoughnessTextureHandler			= 0;
-		ResourceID		MetallicRoughnessTextureHandler = 0;
+		ResourceID		AlbedoTextureHandler			= NULL_RESOURCE;
+		ResourceID		NormalTextureHandler			= NULL_RESOURCE;
+		ResourceID		AOTextureHandler				= NULL_RESOURCE;
+		ResourceID		MetallicTextureHandler			= NULL_RESOURCE;
+		ResourceID		RoughnessTextureHandler			= NULL_RESOURCE;
+		ResourceID		MetallicRoughnessTextureHandler = NULL_RESOURCE;
 		std::string		Name							= "";
 		MaterialBuffer	InfoBuffer						= {};
 		ID3D11Buffer*	pConstantBuffer					= nullptr;
@@ -126,7 +127,7 @@ namespace RS
 		ID3D11Buffer*		pIndexBuffer	= nullptr;
 		ID3D11Buffer*		pMeshBuffer		= nullptr;
 
-		ResourceID			MaterialHandler = 0;
+		ResourceID			MaterialHandler = NULL_RESOURCE;
 	};
 
 	struct ModelResource : public Resource

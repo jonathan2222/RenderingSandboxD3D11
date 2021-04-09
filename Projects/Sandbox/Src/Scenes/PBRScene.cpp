@@ -56,6 +56,7 @@ void PBRScene::Start()
 		textureDesc.UseAsRTV				= true; // Used in ConvertTextureFormat.
 		auto [pTexture, handler] = ResourceManager::Get()->LoadTextureResource(textureDesc);
 		Renderer::Get()->ConvertTextureFormat(pTexture, DXGI_FORMAT_R16G16B16A16_FLOAT);
+		Renderer::Get()->EquirectangularToCubemap(pTexture, 512, 512);
 	}
 
 	RS_ASSERT(m_pModel != nullptr, "Could not load model!");

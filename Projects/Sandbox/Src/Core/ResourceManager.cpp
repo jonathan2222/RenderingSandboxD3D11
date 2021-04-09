@@ -306,21 +306,7 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 			RS_D311_ASSERT_CHECK(result, "Failed to create texture RSV!");
 
 			if (textureDescription.GenerateMipmaps)
-				RenderAPI::Get()->GetDeviceContext()->GenerateMips(pTexture->pTextureSRV);
-
-			// Debug SRVs for each mip level.
-			if(pTexture->NumMipLevels > 1)
-				pTexture->DebugMipmapSRVs.resize(pTexture->NumMipLevels-1);
-			for (uint32 mip = 1; mip < pTexture->NumMipLevels; mip++)
-			{
-				D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-				srvDesc.Format = textureDesc.Format;
-				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-				srvDesc.Texture2D.MipLevels = 1;
-				srvDesc.Texture2D.MostDetailedMip = mip;
-				result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->DebugMipmapSRVs[mip-1]);
-				RS_D311_ASSERT_CHECK(result, "Failed to create debug texture SRV for one of the mip levels in the texture!");
-			}
+				GenerateTextureMipmaps(pTexture);
 		}
 	}
 
@@ -351,28 +337,38 @@ std::pair<CubeMapResource*, ResourceID> ResourceManager::LoadCubeMapResource(Cub
 		ImageResource* pImageResources[6];
 		for (uint32 i = 0; i < 6; i++)
 		{
-			auto [pImage, imageId]		= LoadImageResource(cubeMapDescription.ImageDescs[i]);
-			pImageResources[i]			= pImage;
-			pTexture->ImageHandlers[i]	= pImage->key;
+			if (cubeMapDescription.EmptyInitialization)
+			{
+				pTexture->ImageHandlers[i]	= NULL_RESOURCE;
+				pImageResources[i]			= nullptr;
+			}
+			else
+			{
+				auto [pImage, imageId]		= LoadImageResource(cubeMapDescription.ImageDescs[i]);
+				pImageResources[i]			= pImage;
+				pTexture->ImageHandlers[i]	= pImage->key;
+			}
 		}
 
 		{
 			D3D11_TEXTURE2D_DESC textureDesc = {};
-			textureDesc.Width = pImageResources[0]->Width;
-			textureDesc.Height = pImageResources[0]->Height;
-			textureDesc.Format = pImageResources[0]->Format;
-			textureDesc.MipLevels = 1;
-			textureDesc.ArraySize = 6;
-			textureDesc.SampleDesc.Count = 1;
-			textureDesc.SampleDesc.Quality = 0;
-			textureDesc.Usage = cubeMapDescription.GenerateMipmaps ? D3D11_USAGE_DEFAULT : D3D11_USAGE_IMMUTABLE;
-			textureDesc.CPUAccessFlags = 0;
-			textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-			textureDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+			textureDesc.Width				= cubeMapDescription.EmptyInitialization ? cubeMapDescription.Width		: pImageResources[0]->Width;
+			textureDesc.Height				= cubeMapDescription.EmptyInitialization ? cubeMapDescription.Height	: pImageResources[0]->Height;
+			textureDesc.Format				= cubeMapDescription.EmptyInitialization ? cubeMapDescription.Format	: pImageResources[0]->Format;
+			textureDesc.MipLevels			= 1;
+			textureDesc.ArraySize			= 6;
+			textureDesc.SampleDesc.Count	= 1;
+			textureDesc.SampleDesc.Quality	= 0;
+			textureDesc.Usage				= (cubeMapDescription.GenerateMipmaps || cubeMapDescription.EmptyInitialization) ? D3D11_USAGE_DEFAULT : D3D11_USAGE_IMMUTABLE;
+			textureDesc.CPUAccessFlags		= 0;
+			textureDesc.BindFlags			= D3D11_BIND_SHADER_RESOURCE;
+			textureDesc.MiscFlags			= D3D11_RESOURCE_MISC_TEXTURECUBE;
+
+			if (textureDesc.Usage == D3D11_USAGE_DEFAULT)
+				textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
 
 			if (cubeMapDescription.GenerateMipmaps)
 			{
-				textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
 				textureDesc.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
 				textureDesc.MipLevels = (uint32)glm::ceil(glm::max(glm::log2(glm::min((float)textureDesc.Width, (float)textureDesc.Height)), 1.f));
 			}
@@ -382,36 +378,39 @@ std::pair<CubeMapResource*, ResourceID> ResourceManager::LoadCubeMapResource(Cub
 			uint32 pixelSize = RenderUtils::GetSizeOfFormat(textureDesc.Format);
 
 			std::vector<D3D11_SUBRESOURCE_DATA> subData;
-			if (cubeMapDescription.GenerateMipmaps)
+			if (!cubeMapDescription.EmptyInitialization)
 			{
-				for (uint32 i = 0; i < 6; i++)
+				if (cubeMapDescription.GenerateMipmaps)
 				{
-					uint32 width = pImageResources[i]->Width;
-					for (uint32 mip = 0; mip < textureDesc.MipLevels; mip++)
+					for (uint32 i = 0; i < 6; i++)
+					{
+						uint32 width = pImageResources[i]->Width;
+						for (uint32 mip = 0; mip < textureDesc.MipLevels; mip++)
+						{
+							D3D11_SUBRESOURCE_DATA data = {};
+							data.pSysMem = pImageResources[i]->Data.data();
+							data.SysMemPitch = width * pixelSize;
+							data.SysMemSlicePitch = 0;
+							subData.push_back(data);
+
+							width /= 2;
+						}
+					}
+				}
+				else
+				{
+					for (uint32 i = 0; i < 6; i++)
 					{
 						D3D11_SUBRESOURCE_DATA data = {};
 						data.pSysMem = pImageResources[i]->Data.data();
-						data.SysMemPitch = width * pixelSize;
-						data.SysMemSlicePitch = 0;
+						data.SysMemPitch = pImageResources[i]->Width * pixelSize;
+						data.SysMemSlicePitch = 0; // This is not used, only used for 3D textures!
 						subData.push_back(data);
-
-						width /= 2;
 					}
 				}
 			}
-			else
-			{
-				for (uint32 i = 0; i < 6; i++)
-				{
-					D3D11_SUBRESOURCE_DATA data = {};
-					data.pSysMem = pImageResources[i]->Data.data();
-					data.SysMemPitch = pImageResources[i]->Width * pixelSize;
-					data.SysMemSlicePitch = 0; // This is not used, only used for 3D textures!
-					subData.push_back(data);
-				}
-			}
 
-			HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, subData.data(), &pTexture->pTexture);
+			HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, cubeMapDescription.EmptyInitialization ? nullptr : subData.data(), &pTexture->pTexture);
 			RS_D311_ASSERT_CHECK(result, "Failed to create cube map texture!");
 
 			{
@@ -424,25 +423,24 @@ std::pair<CubeMapResource*, ResourceID> ResourceManager::LoadCubeMapResource(Cub
 				RS_D311_ASSERT_CHECK(result, "Failed to create cube map texture RSV!");
 			}
 
-			if (cubeMapDescription.GenerateMipmaps)
-				RenderAPI::Get()->GetDeviceContext()->GenerateMips(pTexture->pTextureSRV);
-
-			// Debug SRVs for each side of the cube and for each mip level.
-			pTexture->DebugMipmapSRVs.resize(6);
-			for (uint32 side = 0; side < 6; side++)
+			if (!cubeMapDescription.EmptyInitialization && cubeMapDescription.GenerateMipmaps)
+				GenerateCubeMapMipmaps(pTexture);
+			else
 			{
-				pTexture->DebugMipmapSRVs[side].resize(pTexture->NumMipLevels);
-				for (uint32 mip = 0; mip < pTexture->NumMipLevels; mip++)
+				pTexture->DebugMipmapSRVs.resize(6);
+				for (uint32 side = 0; side < 6; side++)
 				{
+					pTexture->DebugMipmapSRVs[side].resize(1);
 					D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 					srvDesc.Format = textureDesc.Format;
 					srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
 					srvDesc.Texture2DArray.MipLevels = 1;
-					srvDesc.Texture2DArray.MostDetailedMip = mip;
+					srvDesc.Texture2DArray.MostDetailedMip = 0;
 					srvDesc.Texture2DArray.ArraySize = 1;
 					srvDesc.Texture2DArray.FirstArraySlice = side;
-					result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->DebugMipmapSRVs[side][mip]);
-					RS_D311_ASSERT_CHECK(result, "Failed to create debug texture SRV for one of the sides on the cube map!");
+					HRESULT result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->DebugMipmapSRVs[side][0]);
+					if (FAILED(result))
+						LOG_WARNING("Failed to create debug texture SRV for one of the sides on the cubemap!");
 				}
 			}
 		}
@@ -462,6 +460,27 @@ CubeMapResource* ResourceManager::LoadCubeMapResource(ResourceID id)
 			LoadImageResource(pTexture->ImageHandlers[i]);
 	}
 	return pTexture;
+}
+
+void ResourceManager::GenerateMipmaps(Resource* pResource)
+{
+	switch (pResource->type)
+	{
+	case Resource::Type::TEXTURE:
+		GenerateTextureMipmaps(dynamic_cast<TextureResource*>(pResource));
+		break;
+	case Resource::Type::CUBE_MAP:
+		GenerateCubeMapMipmaps(dynamic_cast<CubeMapResource*>(pResource));
+		break;
+	case Resource::Type::MATERIAL:
+		GenerateMaterialMipmaps(dynamic_cast<MaterialResource*>(pResource));
+		break;
+	case Resource::Type::MODEL:
+		GenerateModelMipmaps(dynamic_cast<ModelResource*>(pResource));
+		break;
+	default:
+		break;
+	}
 }
 
 std::pair<ModelResource*, ResourceID> ResourceManager::LoadModelResource(ModelLoadDesc& modelDescription)
@@ -550,6 +569,16 @@ ResourceManager::Stats ResourceManager::GetStats()
 		resourceIDs.push_back(id);
 	stats.ResourceIDs = resourceIDs;
 	return stats;
+}
+
+std::string ResourceManager::GetResourceName(ResourceID id)
+{
+	for(auto& nameEntry : m_StringToResourceIDMap)
+		if (nameEntry.second == id)
+			return nameEntry.first;
+
+	LOG_WARNING("Could not fetch name from resource id, resource does not exist or does not have a name!");
+	return "";
 }
 
 void ResourceManager::LoadImageFromFile(ImageResource*& outImage, ImageLoadDesc& imageDescription)
@@ -796,17 +825,23 @@ void ResourceManager::FreeCubeMap(CubeMapResource* pTexture, bool fullRemoval)
 	// This will only release it, if it is the last handler.
 	for (uint32 i = 0; i < 6; i++)
 	{
-		ImageResource* pImage = GetResource<ImageResource>(pTexture->ImageHandlers[i]);
-		if (pImage)
-			FreeImage(pImage, fullRemoval);
-		else if (fullRemoval == false)
-			LOG_ERROR("Trying to free a cube map resource {}, without one or more image resources!", pTexture->key);
-		pTexture->ImageHandlers[0] = 0;
-
-		for (auto& mipSRV : pTexture->DebugMipmapSRVs[i])
+		if (pTexture->ImageHandlers[i] != NULL_RESOURCE)
 		{
-			if (mipSRV)
-				mipSRV->Release();
+			ImageResource* pImage = GetResource<ImageResource>(pTexture->ImageHandlers[i]);
+			if (pImage)
+				FreeImage(pImage, fullRemoval);
+			else if (fullRemoval == false)
+				LOG_ERROR("Trying to free a cube map resource {}, without one or more image resources!", pTexture->key);
+			pTexture->ImageHandlers[0] = 0;
+		}
+
+		if (pTexture->DebugMipmapSRVs.size() == 6)
+		{
+			for (auto& mipSRV : pTexture->DebugMipmapSRVs[i])
+			{
+				if (mipSRV)
+					mipSRV->Release();
+			}
 		}
 	}
 	pTexture->DebugMipmapSRVs.clear();
@@ -1024,6 +1059,146 @@ std::string ResourceManager::GetCubeMapResourceStringKey(CubeMapLoadDesc& cubeMa
 		Resource::TypeToString(Resource::Type::CUBE_MAP);
 }
 
+void ResourceManager::GenerateTextureMipmaps(TextureResource* pResource)
+{
+	if (pResource->pTexture == nullptr)
+	{
+		LOG_WARNING("Failed generating mipmaps, texture pointer has not been created!");
+		return;
+	}
+	
+	D3D11_TEXTURE2D_DESC textureDesc = {};
+	pResource->pTexture->GetDesc(&textureDesc);
+	pResource->NumMipLevels = (uint32)glm::ceil(glm::max(glm::log2(glm::min((float)textureDesc.Width, (float)textureDesc.Height)), 1.f));
+	
+	RenderAPI::Get()->GetDeviceContext()->GenerateMips(pResource->pTextureSRV);
+
+	// Debug SRVs for each mip level.
+	for (auto& srv : pResource->DebugMipmapSRVs)
+	{
+		srv->Release();
+		srv = nullptr;
+	}
+
+	if (pResource->NumMipLevels > 1)
+		pResource->DebugMipmapSRVs.resize(pResource->NumMipLevels - 1);
+	for (uint32 mip = 1; mip < pResource->NumMipLevels; mip++)
+	{
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = textureDesc.Format;
+		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = 1;
+		srvDesc.Texture2D.MostDetailedMip = mip;
+		HRESULT result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pResource->pTexture, &srvDesc, &pResource->DebugMipmapSRVs[mip - 1]);
+		if (FAILED(result))
+		{
+			LOG_WARNING("Failed to create debug texture SRV for one of the mip levels in the texture when generating mipmaps!");
+			return;
+		}
+	}
+}
+
+void ResourceManager::GenerateCubeMapMipmaps(CubeMapResource* pResource)
+{
+	if (pResource->pTexture == nullptr)
+	{
+		LOG_WARNING("Failed generating mipmaps, texture pointer has not been created!");
+		return;
+	}
+
+	D3D11_TEXTURE2D_DESC textureDesc = {};
+	pResource->pTexture->GetDesc(&textureDesc);
+
+	RenderAPI::Get()->GetDeviceContext()->GenerateMips(pResource->pTextureSRV);
+
+	// Debug SRVs for each side of the cube and for each mip level.
+	for (auto& srvs : pResource->DebugMipmapSRVs)
+	{
+		for (auto& srv : srvs)
+		{
+			srv->Release();
+			srv = nullptr;
+		}
+	}
+
+	pResource->DebugMipmapSRVs.resize(6);
+	for (uint32 side = 0; side < 6; side++)
+	{
+		pResource->DebugMipmapSRVs[side].resize(pResource->NumMipLevels);
+		for (uint32 mip = 0; mip < pResource->NumMipLevels; mip++)
+		{
+			D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+			srvDesc.Format = textureDesc.Format;
+			srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+			srvDesc.Texture2DArray.MipLevels = 1;
+			srvDesc.Texture2DArray.MostDetailedMip = mip;
+			srvDesc.Texture2DArray.ArraySize = 1;
+			srvDesc.Texture2DArray.FirstArraySlice = side;
+			HRESULT result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pResource->pTexture, &srvDesc, &pResource->DebugMipmapSRVs[side][mip]);
+			if (FAILED(result))
+			{
+				LOG_WARNING("Failed to create debug texture SRV for one of the sides on the cube map when generating mipmaps!");
+				return;
+			}
+		}
+	}
+}
+
+void ResourceManager::GenerateMaterialMipmaps(MaterialResource* pResource)
+{
+	TextureResource* pTexture = nullptr;
+	if (pResource->AlbedoTextureHandler != NULL_RESOURCE)
+	{
+		pTexture = GetResource<TextureResource>(pResource->AlbedoTextureHandler);
+		GenerateTextureMipmaps(pTexture);
+	}
+
+	if (pResource->AOTextureHandler != NULL_RESOURCE)
+	{
+		pTexture = GetResource<TextureResource>(pResource->AOTextureHandler);
+		GenerateTextureMipmaps(pTexture);
+	}
+
+	if (pResource->NormalTextureHandler != NULL_RESOURCE)
+	{
+		pTexture = GetResource<TextureResource>(pResource->NormalTextureHandler);
+		GenerateTextureMipmaps(pTexture);
+	}
+
+	if (pResource->MetallicTextureHandler != NULL_RESOURCE)
+	{
+		pTexture = GetResource<TextureResource>(pResource->MetallicTextureHandler);
+		GenerateTextureMipmaps(pTexture);
+	}
+
+	if (pResource->RoughnessTextureHandler != NULL_RESOURCE)
+	{
+		pTexture = GetResource<TextureResource>(pResource->RoughnessTextureHandler);
+		GenerateTextureMipmaps(pTexture);
+	}
+
+	if (pResource->MetallicRoughnessTextureHandler != NULL_RESOURCE)
+	{
+		pTexture = GetResource<TextureResource>(pResource->MetallicRoughnessTextureHandler);
+		GenerateTextureMipmaps(pTexture);
+	}
+}
+
+void ResourceManager::GenerateModelMipmaps(ModelResource* pResource)
+{
+	for (MeshObject& mesh : pResource->Meshes)
+	{
+		if (mesh.MaterialHandler != NULL_RESOURCE)
+		{
+			MaterialResource* pMaterial = GetResource<MaterialResource>(mesh.MaterialHandler);
+			GenerateMaterialMipmaps(pMaterial);
+		}
+	}
+
+	for (ModelResource& child : pResource->Children)
+		GenerateModelMipmaps(&child);
+}
+
 ResourceID ResourceManager::GetAndAddIDFromString(const std::string& key)
 {
 	auto it = m_StringToResourceIDMap.find(key);
@@ -1038,6 +1213,7 @@ ResourceID ResourceManager::GetAndAddIDFromString(const std::string& key)
 
 ResourceID ResourceManager::GetNextID() const
 {
-	static ResourceID s_Generator = 0;
+	// GetNextID can never generate a NULL_RESOURCE.
+	static ResourceID s_Generator = NULL_RESOURCE;
 	return ++s_Generator;
 }

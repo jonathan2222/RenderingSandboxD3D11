@@ -58,6 +58,11 @@ namespace RS
 	{
 		ImageLoadDesc ImageDescs[6]; // [x, -x, y, -y, z, -z]
 		bool GenerateMipmaps =  false;
+
+		bool EmptyInitialization	= false; // Do not se default values, this will disable mipmaps and set the Image handlers to 0.
+		uint32_t Width				= 0; // Used for empty initialization.
+		uint32_t Height				= 0; // Used for empty initialization.		
+		DXGI_FORMAT Format			= DXGI_FORMAT_R8G8B8A8_UNORM; // Used for empty initialization.
 	};
 
 	struct ModelLoadDesc

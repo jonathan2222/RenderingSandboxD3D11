@@ -89,6 +89,17 @@ namespace RS
 		CubeMapResource* LoadCubeMapResource(ResourceID id);
 
 		/*
+		* Generates mipmaps for the resource if it can.
+		* If the resource is a TextureResource it will generate mipmaps for it.
+		* If the resource is a CubeMapResource it will generate mipmaps for all sides of the cubemap.
+		* If the resource is a MaterialResource it will generate mipmaps for all textures bound to it.
+		* If the resource is a ModelResource it will generate mipmaps for all materials bound to it.
+		* 
+		* PS: Do not forget to enable GenerateMipmaps when loading the resource which this will call!
+		*/
+		void GenerateMipmaps(Resource* pResource);
+
+		/*
 			Load a model from a file path.
 			Arguments:
 				* ModelLoadDesc: All information to load the model.
@@ -143,6 +154,8 @@ namespace RS
 
 		Stats GetStats();
 
+		std::string GetResourceName(ResourceID id);
+
 		// Default textures
 		ResourceID	DefaultTextureOnePixelWhite		= 0;
 		ResourceID	DefaultTextureOnePixelBlack		= 0;
@@ -187,6 +200,12 @@ namespace RS
 		std::string GetSamplerResourceStringKey(SamplerLoadDesc& samplerDescription);
 		std::string GetTextureResourceStringKey(TextureLoadDesc& textureDescription);
 		std::string GetCubeMapResourceStringKey(CubeMapLoadDesc& cubeMapDescription);
+
+		// --------------- Mipmaps generation -----------------
+		void GenerateTextureMipmaps(TextureResource* pResource);
+		void GenerateCubeMapMipmaps(CubeMapResource* pResource);
+		void GenerateMaterialMipmaps(MaterialResource* pResource);
+		void GenerateModelMipmaps(ModelResource* pResource);
 
 		/*
 		* This will return the ID associated with a string.
