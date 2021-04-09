@@ -16,12 +16,12 @@ struct VSOut
 
 cbuffer MeshData : register(b0)
 {
-    float4x4 worldMat2;
+    float4x4 worldMat2; // Not used
 }
 
 cbuffer FrameData : register(b1)
 {
-    float4x4 worldMat; // Not used
+    float4x4 worldMat;
     float4x4 viewMat;
     float4x4 projMat;
 }
@@ -39,6 +39,7 @@ VSOut main(VSIn input)
     output.position = mul(view, output.position);
     output.position = mul(projMat, output.position);
     output.localPos = float4(input.position, 1.f);
+    output.position = output.position.xyww; // Set the depth to be 1 (Furthest away from the camera)
 
     output.uv = input.uv;
 	return output;

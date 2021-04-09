@@ -28,6 +28,13 @@ namespace RS
 			glm::vec4 lightPos	= glm::vec4(0.f);
 		};
 
+		struct SkyboxFrameData
+		{
+			glm::mat4 world = glm::mat4(1.f);
+			glm::mat4 view = glm::mat4(1.f);
+			glm::mat4 proj = glm::mat4(1.f);
+		};
+
 	public:
 		PBRScene();
 		~PBRScene() = default;
@@ -48,19 +55,26 @@ namespace RS
 		void DrawImGui();
 
 	private:
-		Shader m_Shader;
+		Shader				m_Shader;
+		Shader				m_SkyboxShader;
 
-		ID3D11Buffer*	m_pConstantBufferFrame = nullptr;
-		ID3D11Buffer*	m_pConstantBufferCamera = nullptr;
+		ID3D11Buffer*		m_pConstantBufferFrame = nullptr;
+		ID3D11Buffer*		m_pConstantBufferCamera = nullptr;
+		ID3D11Buffer*		m_pConstantBufferSkybox = nullptr;
 
-		FrameData		m_FrameData;
-		CameraData		m_CameraData;
+		FrameData			m_FrameData;
+		CameraData			m_CameraData;
+		SkyboxFrameData		m_SkyboxFrameData;
 
-		ModelResource*	m_pModel		= nullptr;
-		int32			m_RenderMode	= 0;
+		ModelResource*		m_pModel		= nullptr;
+		int32				m_RenderMode	= 0;
 
-		Camera			m_Camera;
+		Camera				m_Camera;
 
-		Pipeline		m_Pipeline;
+		Pipeline			m_Pipeline;
+
+		// IBL textures
+		CubeMapResource*	m_pCubemap		= nullptr;
+		ModelResource*		m_pInvCubeModel = nullptr;
 	};
 }

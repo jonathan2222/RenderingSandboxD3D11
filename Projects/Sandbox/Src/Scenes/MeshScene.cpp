@@ -61,7 +61,7 @@ void MeshScene::Start()
 
 		{
 			// TODO: The debug rendering of the bounding boxes seems to not work for this model! 
-			//	     At least the AABBs for a model closer to the root.
+			//	     At least for the AABBs for a model closer to the root.
 			ModelLoadDesc modelLoadDesc = {};
 			modelLoadDesc.FilePath = "SurvivalGuitarBackpack/Survival_BackPack_2.fbx";
 			modelLoadDesc.Loader = ModelLoadDesc::Loader::ASSIMP;

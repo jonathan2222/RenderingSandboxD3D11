@@ -350,7 +350,7 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 	}
 }
 
-CubeMapResource* Renderer::EquirectangularToCubemap(TextureResource* pTexture, uint32_t width, uint32_t height)
+CubeMapResource* Renderer::ConvertEquirectangularToCubemap(TextureResource* pTexture, uint32_t width, uint32_t height)
 {
 	CubeMapLoadDesc cubemapLoadDesc = {};
 	// Will not generate mipmaps because of EmptyInitialization but it will enable us to do it later.
@@ -476,7 +476,7 @@ void Renderer::CreateDepthStencilState(DisplayDescription& displayDescriptor)
 	// Set up the description of the stencil state.
 	depthStencilDesc.DepthEnable					= true;
 	depthStencilDesc.DepthWriteMask					= D3D11_DEPTH_WRITE_MASK_ALL;
-	depthStencilDesc.DepthFunc						= D3D11_COMPARISON_LESS;
+	depthStencilDesc.DepthFunc						= D3D11_COMPARISON_LESS_EQUAL;
 
 	depthStencilDesc.StencilEnable					= true;
 	depthStencilDesc.StencilReadMask				= 0xFF;

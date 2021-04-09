@@ -44,7 +44,7 @@ namespace RS
 
 		// Useful function
 		void ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFormat);
-		CubeMapResource* EquirectangularToCubemap(TextureResource* pTexture, uint32_t width, uint32_t height);
+		CubeMapResource* ConvertEquirectangularToCubemap(TextureResource* pTexture, uint32_t width, uint32_t height);
 
 	private:
 		void CreateRTV();

@@ -26,17 +26,33 @@ void PBRScene::Start()
 	float nearPlane = 0.01f, farPlane = 100.f;
 	m_Camera.Init(camPos, camDir, glm::vec3{ 0.f, 1.f, 0.f }, nearPlane, farPlane, fov);
 
-	AttributeLayout layout;
-	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "POSITION", 0);
-	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "NORMAL", 0);
-	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "TANGENT", 0);
-	layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "BITANGENT", 0);
-	layout.Push(DXGI_FORMAT_R32G32_FLOAT, "TEXCOORD", 0);
-	Shader::Descriptor shaderDesc = {};
-	shaderDesc.Vertex = "PBRScene/PBRVert.hlsl";
-	shaderDesc.Fragment = "PBRScene/PBRFrag.hlsl";
-	m_Shader.Load(shaderDesc, layout);
-	ShaderHotReloader::AddShader(&m_Shader);
+	{
+		AttributeLayout layout;
+		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "POSITION", 0);
+		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "NORMAL", 0);
+		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "TANGENT", 0);
+		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "BITANGENT", 0);
+		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "TEXCOORD", 0);
+		Shader::Descriptor shaderDesc = {};
+		shaderDesc.Vertex = "PBRScene/PBRVert.hlsl";
+		shaderDesc.Fragment = "PBRScene/PBRFrag.hlsl";
+		m_Shader.Load(shaderDesc, layout);
+		ShaderHotReloader::AddShader(&m_Shader);
+	}
+
+	{
+		AttributeLayout layout;
+		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "POSITION", 0);
+		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "NORMAL", 0);
+		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "TANGENT", 0);
+		layout.Push(DXGI_FORMAT_R32G32B32_FLOAT, "BITANGENT", 0);
+		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "TEXCOORD", 0);
+		Shader::Descriptor shaderDesc = {};
+		shaderDesc.Vertex = "TextureScene/SkyboxVert.hlsl";
+		shaderDesc.Fragment = "TextureScene/SkyboxFrag.hlsl";
+		m_SkyboxShader.Load(shaderDesc, layout);
+		ShaderHotReloader::AddShader(&m_SkyboxShader);
+	}
 
 	// Load a model with assimp.
 	{
@@ -54,9 +70,16 @@ void PBRScene::Start()
 		textureDesc.ImageDesc.Name			= textureDesc.ImageDesc.File.Path;
 		textureDesc.ImageDesc.NumChannels	= ImageLoadDesc::Channels::DEFAULT; // Not needed for hdr files.
 		textureDesc.UseAsRTV				= true; // Used in ConvertTextureFormat.
-		auto [pTexture, handler] = ResourceManager::Get()->LoadTextureResource(textureDesc);
+		auto [pTexture, id1] = ResourceManager::Get()->LoadTextureResource(textureDesc);
 		Renderer::Get()->ConvertTextureFormat(pTexture, DXGI_FORMAT_R16G16B16A16_FLOAT);
-		Renderer::Get()->EquirectangularToCubemap(pTexture, 512, 512);
+		m_pCubemap = Renderer::Get()->ConvertEquirectangularToCubemap(pTexture, 512, 512);
+
+		ModelLoadDesc modelLoadDesc = {};
+		modelLoadDesc.FilePath = "InvCube.glb";
+		modelLoadDesc.Loader = ModelLoadDesc::Loader::ASSIMP;
+		modelLoadDesc.Flags = ModelLoadDesc::LOADER_FLAG_UPLOAD_MESH_DATA_TO_GUP | ModelLoadDesc::LOADER_FLAG_NO_MESH_DATA_IN_RAM | ModelLoadDesc::LOADER_FLAG_USE_UV_TOP_LEFT;
+		auto [pModel, id2] = ResourceManager::Get()->LoadModelResource(modelLoadDesc);
+		m_pInvCubeModel = pModel;
 	}
 
 	RS_ASSERT(m_pModel != nullptr, "Could not load model!");
@@ -78,10 +101,15 @@ void PBRScene::Start()
 		HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pConstantBufferFrame);
 		RS_D311_ASSERT_CHECK(result, "Failed to create frame constant buffer!");
 
-		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pConstantBufferCamera);
 		bufferDesc.ByteWidth	= sizeof(CameraData);
 		data.pSysMem			= &m_CameraData;
+		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pConstantBufferCamera);
 		RS_D311_ASSERT_CHECK(result, "Failed to create camera constant buffer!");
+
+		bufferDesc.ByteWidth = sizeof(SkyboxFrameData);
+		data.pSysMem = &m_SkyboxFrameData;
+		result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pConstantBufferSkybox);
+		RS_D311_ASSERT_CHECK(result, "Failed to create skybox constant buffer!");
 	}
 
 	m_Pipeline.Init();
@@ -117,8 +145,10 @@ void PBRScene::End()
 	m_Pipeline.Release();
 
 	m_Shader.Release();
+	m_SkyboxShader.Release();
 	m_pConstantBufferFrame->Release();
 	m_pConstantBufferCamera->Release();
+	m_pConstantBufferSkybox->Release();
 }
 
 void PBRScene::FixedTick()
@@ -183,6 +213,31 @@ void PBRScene::Tick(float dt)
 		debugInfo.ID = debugInfoID;
 		debugInfo.RenderMode = (uint32)m_RenderMode;
 		renderer->RenderWithMaterial(*m_pModel, transform, debugInfo);
+	}
+
+	{
+		m_SkyboxShader.Bind();
+
+		D3D11_MAPPED_SUBRESOURCE mappedResource;
+		HRESULT result = pContext->Map(m_pConstantBufferSkybox, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+		RS_D311_ASSERT_CHECK(result, "Failed to map constant buffer!");
+		SkyboxFrameData* data = (SkyboxFrameData*)mappedResource.pData;
+		data->world = glm::scale(glm::vec3(10.f));
+		data->view = m_Camera.GetView();
+		data->proj = m_Camera.GetProj();
+		pContext->Unmap(m_pConstantBufferSkybox, 0);
+
+		SamplerResource* pSampler = ResourceManager::Get()->GetResource<SamplerResource>(ResourceManager::Get()->DefaultSamplerLinear);
+		pContext->VSSetConstantBuffers(1, 1, &m_pConstantBufferSkybox);
+		pContext->PSSetShaderResources(0, 1, &m_pCubemap->pTextureSRV);
+		pContext->PSSetSamplers(0, 1, &pSampler->pSampler);
+
+		glm::mat4 transform(1.f);
+		Renderer::DebugInfo debugInfo = {};
+		debugInfo.DrawAABBs = false;
+		debugInfo.ID = 0;
+		debugInfo.RenderMode = 0;
+		renderer->Render(*m_pModel, transform, debugInfo, RenderFlag::RENDER_FLAG_NO_TEXTURES);
 	}
 }
 
