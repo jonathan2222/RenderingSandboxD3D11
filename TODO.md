@@ -16,6 +16,8 @@
 
 - [ ] Add a `name` tag to the **`Resource`** class and change the string key to use that instead.
 
+- [ ] Change names of equirectangular variables and shaders to match the use in the **`CreateIrradianceMapFromEnvironmentMap`** function.
+
 ## New stuff
 
 - [ ] Implement **IBL** in the **`PBRScene`** class.
@@ -23,3 +25,5 @@
 - [ ] Add a why of logging only once even when the function is called multiple times.
 
 - [ ] Add option to render text with the **`DebugRenderer`**.
+
+- [ ] Add functions for resizing textures and cubemaps.
