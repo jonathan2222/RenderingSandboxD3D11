@@ -215,6 +215,7 @@ void PBRScene::Tick(float dt)
 		renderer->RenderWithMaterial(*m_pModel, transform, debugInfo);
 	}
 
+	// Draw skybox
 	{
 		m_SkyboxShader.Bind();
 

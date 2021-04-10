@@ -6,6 +6,7 @@
 #include "Renderer/DebugRenderer.h"
 #include "Renderer/RenderUtils.h"
 #include "Renderer/ShaderHotReloader.h"
+#include "Renderer/D3D11/D3D11Helper.h"
 
 #include "Utils/Config.h"
 
@@ -230,19 +231,9 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 	ID3D11ShaderResourceView* pNewTextureSRV = nullptr;
 
 	{
-		D3D11_TEXTURE2D_DESC textureDesc = {};
-		textureDesc.Width = pImage->Width;
-		textureDesc.Height = pImage->Height;
-		textureDesc.Format = newFormat;
-		textureDesc.MipLevels = 1;
-		textureDesc.ArraySize = 1;
-		textureDesc.SampleDesc.Count = 1;
-		textureDesc.SampleDesc.Quality = 0;
-		textureDesc.Usage = D3D11_USAGE_IMMUTABLE;
-		textureDesc.CPUAccessFlags = 0;
-		textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-		textureDesc.MiscFlags = 0;
+		D3D11_TEXTURE2D_DESC textureDesc = D3D11Helper::GetTexture2DDesc(pImage->Width, pImage->Height, newFormat);
 		textureDesc.Usage = D3D11_USAGE_DEFAULT;
+		textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 
 		if (pTexture->NumMipLevels > 1)
 		{
@@ -250,30 +241,7 @@ void Renderer::ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFo
 			textureDesc.MipLevels = (uint32)glm::ceil(glm::max(glm::log2(glm::min((float)textureDesc.Width, (float)textureDesc.Height)), 1.f));
 		}
 
-		uint32 pixelSize = RenderUtils::GetSizeOfFormat(textureDesc.Format);
-		std::vector<D3D11_SUBRESOURCE_DATA> subData;
-		if (pTexture->NumMipLevels > 1)
-		{
-			uint32 width = pImage->Width;
-			for (uint32 mip = 0; mip < textureDesc.MipLevels; mip++)
-			{
-				D3D11_SUBRESOURCE_DATA data = {};
-				data.pSysMem = pImage->Data.data();
-				data.SysMemPitch = width * pixelSize;
-				data.SysMemSlicePitch = 0;
-				subData.push_back(data);
-
-				width /= 2;
-			}
-		}
-		else
-		{
-			D3D11_SUBRESOURCE_DATA data = {};
-			data.pSysMem = pImage->Data.data();
-			data.SysMemPitch = pImage->Width * pixelSize;
-			data.SysMemSlicePitch = pImage->Width * pImage->Height * pixelSize; // This is not used, only used for 3D textures!
-			subData.push_back(data);
-		}
+		std::vector<D3D11_SUBRESOURCE_DATA> subData = D3D11Helper::FillTexture2DSubdata(textureDesc, pImage->Data.data());
 
 		HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, subData.data(), &pNewTexture);
 		RS_D311_ASSERT_CHECK(result, "Failed to create texture!");
@@ -470,45 +438,10 @@ void Renderer::ClearRTV()
 
 void Renderer::CreateDepthStencilState(DisplayDescription& displayDescriptor)
 {
-	D3D11_DEPTH_STENCIL_DESC depthStencilDesc;
-	ZeroMemory(&depthStencilDesc, sizeof(depthStencilDesc));
+	D3D11_DEPTH_STENCIL_DESC depthStencilDesc = D3D11Helper::GetDepthStencilDesc();
 
-	// Set up the description of the stencil state.
-	depthStencilDesc.DepthEnable					= true;
-	depthStencilDesc.DepthWriteMask					= D3D11_DEPTH_WRITE_MASK_ALL;
-	depthStencilDesc.DepthFunc						= D3D11_COMPARISON_LESS_EQUAL;
-
-	depthStencilDesc.StencilEnable					= true;
-	depthStencilDesc.StencilReadMask				= 0xFF;
-	depthStencilDesc.StencilWriteMask				= 0xFF;
-
-	// Stencil operations if pixel is front-facing.
-	depthStencilDesc.FrontFace.StencilFailOp		= D3D11_STENCIL_OP_KEEP;
-	depthStencilDesc.FrontFace.StencilDepthFailOp	= D3D11_STENCIL_OP_INCR;
-	depthStencilDesc.FrontFace.StencilPassOp		= D3D11_STENCIL_OP_KEEP;
-	depthStencilDesc.FrontFace.StencilFunc			= D3D11_COMPARISON_ALWAYS;
-
-	// Stencil operations if pixel is back-facing.
-	depthStencilDesc.BackFace.StencilFailOp			= D3D11_STENCIL_OP_KEEP;
-	depthStencilDesc.BackFace.StencilDepthFailOp	= D3D11_STENCIL_OP_DECR;
-	depthStencilDesc.BackFace.StencilPassOp			= D3D11_STENCIL_OP_KEEP;
-	depthStencilDesc.BackFace.StencilFunc			= D3D11_COMPARISON_ALWAYS;
-
-	D3D11_TEXTURE2D_DESC depthBufferDesc;
-	ZeroMemory(&depthBufferDesc, sizeof(depthBufferDesc));
-
-	// Set up the description of the depth buffer.
-	depthBufferDesc.Width				= displayDescriptor.Width;
-	depthBufferDesc.Height				= displayDescriptor.Height;
-	depthBufferDesc.MipLevels			= 1;
-	depthBufferDesc.ArraySize			= 1;
-	depthBufferDesc.Format				= DXGI_FORMAT_D24_UNORM_S8_UINT;
-	depthBufferDesc.SampleDesc.Count	= 1;
-	depthBufferDesc.SampleDesc.Quality	= 0;
-	depthBufferDesc.Usage				= D3D11_USAGE_DEFAULT;
-	depthBufferDesc.BindFlags			= D3D11_BIND_DEPTH_STENCIL;
-	depthBufferDesc.CPUAccessFlags		= 0;
-	depthBufferDesc.MiscFlags			= 0;
+	D3D11_TEXTURE2D_DESC depthBufferDesc = D3D11Helper::GetTexture2DDesc(displayDescriptor.Width, displayDescriptor.Height, DXGI_FORMAT_D24_UNORM_S8_UINT);
+	depthBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 
 	m_DefaultPipeline.SetDepthState(depthStencilDesc, depthBufferDesc);
 }
@@ -529,17 +462,7 @@ void Renderer::CreateDepthStencilView()
 void Renderer::CreateRasterizer()
 {
 	// Setup the raster description which will determine how and what polygons will be drawn.
-	D3D11_RASTERIZER_DESC rasterizerDesc;
-	rasterizerDesc.AntialiasedLineEnable = false;
-	rasterizerDesc.CullMode = D3D11_CULL_BACK;
-	rasterizerDesc.DepthBias = 0;
-	rasterizerDesc.DepthBiasClamp = 0.0f;
-	rasterizerDesc.DepthClipEnable = true;
-	rasterizerDesc.FillMode = D3D11_FILL_SOLID;
-	rasterizerDesc.FrontCounterClockwise = false;
-	rasterizerDesc.MultisampleEnable = false;
-	rasterizerDesc.ScissorEnable = false;
-	rasterizerDesc.SlopeScaledDepthBias = 0.0f;
+	D3D11_RASTERIZER_DESC rasterizerDesc = D3D11Helper::GetRasterizerDesc();
 	m_DefaultPipeline.SetRasterState(rasterizerDesc);
 }
 

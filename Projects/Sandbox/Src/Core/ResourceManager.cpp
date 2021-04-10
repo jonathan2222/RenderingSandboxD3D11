@@ -5,6 +5,7 @@
 #include "Renderer/ImGuiRenderer.h"
 #include "Renderer/RenderUtils.h"
 #include "Renderer/Renderer.h"
+#include "Renderer/D3D11/D3D11Helper.h"
 #include <unordered_set>
 
 #pragma warning( push )
@@ -239,18 +240,9 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 		pTexture->Format = pImage->Format;
 
 		{
-			D3D11_TEXTURE2D_DESC textureDesc = {};
-			textureDesc.Width				= pImage->Width;
-			textureDesc.Height				= pImage->Height;
-			textureDesc.Format				= pImage->Format;
-			textureDesc.MipLevels			= 1;
-			textureDesc.ArraySize			= 1;
-			textureDesc.SampleDesc.Count	= 1;
-			textureDesc.SampleDesc.Quality	= 0;
-			textureDesc.Usage				= D3D11_USAGE_IMMUTABLE;
-			textureDesc.CPUAccessFlags		= 0;
-			textureDesc.BindFlags			= D3D11_BIND_SHADER_RESOURCE;
-			textureDesc.MiscFlags			= 0;
+			D3D11_TEXTURE2D_DESC textureDesc = D3D11Helper::GetTexture2DDesc(pImage->Width, pImage->Height, pImage->Format);
+			textureDesc.Usage = D3D11_USAGE_IMMUTABLE;
+			textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
 			if (textureDescription.GenerateMipmaps)
 			{
@@ -269,30 +261,7 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 
 			pTexture->NumMipLevels = textureDesc.MipLevels;
 			
-			uint32 pixelSize = RenderUtils::GetSizeOfFormat(textureDesc.Format);
-			std::vector<D3D11_SUBRESOURCE_DATA> subData;
-			if (textureDescription.GenerateMipmaps)
-			{
-				uint32 width = pImage->Width;
-				for (uint32 mip = 0; mip < textureDesc.MipLevels; mip++)
-				{
-					D3D11_SUBRESOURCE_DATA data = {};
-					data.pSysMem = pImage->Data.data();
-					data.SysMemPitch = width * pixelSize;
-					data.SysMemSlicePitch = 0;
-					subData.push_back(data);
-
-					width /= 2;
-				}
-			}
-			else
-			{
-				D3D11_SUBRESOURCE_DATA data = {};
-				data.pSysMem = pImage->Data.data();
-				data.SysMemPitch = pImage->Width * pixelSize;
-				data.SysMemSlicePitch = pImage->Width * pImage->Height * pixelSize; // This is not used, only used for 3D textures!
-				subData.push_back(data);
-			}
+			std::vector<D3D11_SUBRESOURCE_DATA> subData = D3D11Helper::FillTexture2DSubdata(textureDesc, pImage->Data.data());
 
 			HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, subData.data(), &pTexture->pTexture);
 			RS_D311_ASSERT_CHECK(result, "Failed to create texture!");
