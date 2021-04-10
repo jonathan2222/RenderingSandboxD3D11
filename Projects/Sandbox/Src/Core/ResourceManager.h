@@ -170,9 +170,6 @@ namespace RS
 		template<typename ResourceT>
 		std::pair<ResourceT*, bool> AddResource(ResourceID key, Resource::Type type);
 
-		void LoadImageFromFile(ImageResource*& outImage, ImageLoadDesc& imageDescription);
-		void LoadImageFromMemory(ImageResource*& outImage, ImageLoadDesc& imageDescription);
-
 		/*
 		* Remove data from a single resource. The resource is still in the system!
 		* FullRemoval: If true, the function will not give warnings if some resources are missing.
@@ -191,8 +188,6 @@ namespace RS
 		void FreeCubeMap(CubeMapResource* pTexture, bool fullRemoval);
 		void FreeMaterial(MaterialResource* pMaterial, bool fullRemoval);
 		void FreeModelRecursive(ModelResource* pModel, bool fullRemoval);
-
-		DXGI_FORMAT GetFormatFromChannelCount(int nChannels) const;
 
 		void UpdateStats(Resource* pResrouce, bool add);
 

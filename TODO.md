@@ -12,6 +12,10 @@
 
 - [ ] Fix problems with the **`ResourceInspector`** where it might display text when it should not. Make it also more robust to errors when some resources or parts of them are missing.
 
+- [ ] Hash the `ResourceLoad` descriptors and use that as the key. This needs to be done as to make each object unique.
+
+- [ ] Add a `name` tag to the **`Resource`** class and change the string key to use that instead.
+
 ## New stuff
 
 - [ ] Implement **IBL** in the **`PBRScene`** class.
