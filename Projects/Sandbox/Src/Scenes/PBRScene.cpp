@@ -73,6 +73,7 @@ void PBRScene::Start()
 		auto [pTexture, id1] = ResourceManager::Get()->LoadTextureResource(textureDesc);
 		Renderer::Get()->ConvertTextureFormat(pTexture, DXGI_FORMAT_R16G16B16A16_FLOAT);
 		m_pCubemap = Renderer::Get()->ConvertEquirectangularToCubemap(pTexture, 1024, 1024);
+		m_pIrradianceMap = Renderer::Get()->CreateIrradianceMapFromEnvironmentMap(m_pCubemap, 64, 64);
 
 		ModelLoadDesc modelLoadDesc = {};
 		modelLoadDesc.FilePath = "InvCube.glb";
