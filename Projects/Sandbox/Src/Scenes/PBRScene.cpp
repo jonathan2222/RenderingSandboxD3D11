@@ -65,7 +65,7 @@ void PBRScene::Start()
 
 	{
 		TextureLoadDesc textureDesc			= {};
-		textureDesc.GenerateMipmaps			= false;
+		textureDesc.GenerateMipmaps			= true;
 		textureDesc.ImageDesc.File.Path		= "HDRs/arches.hdr";
 		textureDesc.ImageDesc.Name			= textureDesc.ImageDesc.File.Path;
 		textureDesc.ImageDesc.NumChannels	= ImageLoadDesc::Channels::DEFAULT; // Not needed for hdr files.
@@ -74,6 +74,7 @@ void PBRScene::Start()
 		Renderer::Get()->ConvertTextureFormat(pTexture, DXGI_FORMAT_R16G16B16A16_FLOAT);
 		m_pCubemap = Renderer::Get()->ConvertEquirectangularToCubemap(pTexture, 1024, 1024);
 		m_pIrradianceMap = Renderer::Get()->CreateIrradianceMapFromEnvironmentMap(m_pCubemap, 64, 64);
+		m_pPreFilteredEnvMap = Renderer::Get()->CreatePreFilteredEnvironmentMap(m_pCubemap, 128, 128);
 
 		ModelLoadDesc modelLoadDesc = {};
 		modelLoadDesc.FilePath = "InvCube.glb";

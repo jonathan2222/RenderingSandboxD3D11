@@ -402,7 +402,7 @@ std::pair<CubeMapResource*, ResourceID> ResourceManager::LoadCubeMapResource(Cub
 					srvDesc.Texture2DArray.MostDetailedMip = 0;
 					srvDesc.Texture2DArray.ArraySize = 1;
 					srvDesc.Texture2DArray.FirstArraySlice = side;
-					HRESULT result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->DebugMipmapSRVs[side][0]);
+					result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->DebugMipmapSRVs[side][0]);
 					if (FAILED(result))
 						LOG_WARNING("Failed to create debug texture SRV for one of the sides on the cubemap!");
 				}

@@ -46,6 +46,7 @@ namespace RS
 		void ConvertTextureFormat(TextureResource* pTexture, DXGI_FORMAT newFormat);
 		CubeMapResource* ConvertEquirectangularToCubemap(TextureResource* pTexture, uint32_t width, uint32_t height);
 		CubeMapResource* CreateIrradianceMapFromEnvironmentMap(CubeMapResource* pEnvironmentMap, uint32_t width, uint32_t height);
+		CubeMapResource* CreatePreFilteredEnvironmentMap(CubeMapResource* pEnvironmentMap, uint32_t width, uint32_t height);
 
 	private:
 		void CreateRTV();
@@ -86,5 +87,9 @@ namespace RS
 
 		Shader								m_IrradianceMapShader;
 		ID3D11RenderTargetView*				m_IrradianceMapRTVs[6] = { nullptr };
+
+		ID3D11Buffer*							m_pPreFilteredMapConstantBuffer = nullptr;
+		Shader									m_PreFilteredMapShader;
+		std::vector< std::vector<ID3D11RenderTargetView*>>	m_PreFilteredMapRTVs;
 	};
 }

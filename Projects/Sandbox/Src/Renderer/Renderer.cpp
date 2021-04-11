@@ -98,6 +98,12 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 			HRESULT result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pEquirectangularToCubemapConstantBuffer);
 			RS_D311_ASSERT_CHECK(result, "Failed to create EquirectangularToCubemap constant buffer!");
 
+			bufferDesc.ByteWidth = sizeof(glm::vec4);
+			glm::vec4 v(0.f);
+			data.pSysMem = &v;
+			result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pPreFilteredMapConstantBuffer);
+			RS_D311_ASSERT_CHECK(result, "Failed to create PreFilteredMap constant buffer!");
+
 			m_EquirectangularToCubemapCaptureViews[0] = glm::lookAt(glm::vec3(0.f), glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
 			m_EquirectangularToCubemapCaptureViews[1] = glm::lookAt(glm::vec3(0.f), glm::vec3(-1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
 			m_EquirectangularToCubemapCaptureViews[2] = glm::lookAt(glm::vec3(0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
@@ -116,6 +122,17 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 		shaderDesc.Fragment = "PBRScene/IrradianceMapFrag.hlsl";
 		m_IrradianceMapShader.Load(shaderDesc, layout);
 		ShaderHotReloader::AddShader(&m_IrradianceMapShader);
+	}
+
+	// Pre-Filtered Environment Map
+	{
+		AttributeLayout layout;
+		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "POSITION", 0);
+		Shader::Descriptor shaderDesc = {};
+		shaderDesc.Vertex = "RenderTools/EquirectangularToCubemapVert.hlsl";
+		shaderDesc.Fragment = "PBRScene/PreFilteringFrag.hlsl";
+		m_PreFilteredMapShader.Load(shaderDesc, layout);
+		ShaderHotReloader::AddShader(&m_PreFilteredMapShader);
 	}
 }
 
@@ -150,6 +167,19 @@ void Renderer::Release()
 		}
 	}
 	m_IrradianceMapShader.Release();
+
+	for (auto& rtvs : m_PreFilteredMapRTVs)
+	{
+		for(auto& rtv : rtvs)
+			if (rtv)
+			{
+				rtv->Release();
+				rtv = nullptr;
+			}
+	}
+	m_PreFilteredMapRTVs.clear();
+	m_pPreFilteredMapConstantBuffer->Release();
+	m_PreFilteredMapShader.Release();
 
 	m_DefaultPipeline.Release();
 	ClearRTV();
@@ -452,7 +482,7 @@ CubeMapResource* Renderer::CreateIrradianceMapFromEnvironmentMap(CubeMapResource
 	cubemapLoadDesc.Height = height;
 	cubemapLoadDesc.Format = textureDesc.Format;
 	// As to not get a warning and to see it in the resource inspector we give it a name.
-	cubemapLoadDesc.ImageDescs[0].Name = ResourceManager::Get()->GetResourceName(pEnvironmentMap->key);
+	cubemapLoadDesc.ImageDescs[0].Name = ResourceManager::Get()->GetResourceName(pEnvironmentMap->key) + ".Irradiance";
 	auto [pCubemap, id] = ResourceManager::Get()->LoadCubeMapResource(cubemapLoadDesc);
 
 	D3D11_RENDER_TARGET_VIEW_DESC desc = {};
@@ -536,6 +566,138 @@ CubeMapResource* Renderer::CreateIrradianceMapFromEnvironmentMap(CubeMapResource
 			HRESULT result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pCubemap->pTexture, &srvDesc, &pCubemap->DebugMipmapSRVs[side][0]);
 			if (FAILED(result))
 				LOG_WARNING("Failed to create debug texture SRV for one of the sides on the IrradianceMap cubemap!");
+		}
+	}
+
+	return pCubemap;
+}
+
+CubeMapResource* Renderer::CreatePreFilteredEnvironmentMap(CubeMapResource* pEnvironmentMap, uint32_t width, uint32_t height)
+{
+	D3D11_TEXTURE2D_DESC textureDesc = {};
+	pEnvironmentMap->pTexture->GetDesc(&textureDesc);
+
+	CubeMapLoadDesc cubemapLoadDesc = {};
+	cubemapLoadDesc.GenerateMipmaps = true;
+	cubemapLoadDesc.EmptyInitialization = true;
+	cubemapLoadDesc.Width = width;
+	cubemapLoadDesc.Height = height;
+	cubemapLoadDesc.Format = textureDesc.Format;
+	// As to not get a warning and to see it in the resource inspector we give it a name.
+	cubemapLoadDesc.ImageDescs[0].Name = ResourceManager::Get()->GetResourceName(pEnvironmentMap->key) + ".PreFiltered";
+	auto [pCubemap, id] = ResourceManager::Get()->LoadCubeMapResource(cubemapLoadDesc);
+
+	D3D11_RENDER_TARGET_VIEW_DESC desc = {};
+	desc.Format = cubemapLoadDesc.Format;
+	desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+	desc.Texture2DArray.ArraySize = 1;
+
+	for (auto& rtvs : m_PreFilteredMapRTVs)
+	{
+		for(auto& rtv : rtvs)
+			if (rtv)
+			{
+				rtv->Release();
+				rtv = nullptr;
+			}
+	}
+
+	m_PreFilteredMapRTVs.resize(pCubemap->NumMipLevels);
+	for (uint32 mip = 0; mip < pCubemap->NumMipLevels; mip++)
+	{
+		m_PreFilteredMapRTVs[mip].resize(6);
+		desc.Texture2DArray.MipSlice = mip;
+		for (uint32 i = 0; i < 6; i++)
+		{
+			desc.Texture2DArray.FirstArraySlice = i;
+			HRESULT hr = RenderAPI::Get()->GetDevice()->CreateRenderTargetView(pCubemap->pTexture, &desc, &m_PreFilteredMapRTVs[mip][i]);
+			if (FAILED(hr))
+			{
+				LOG_WARNING("Failed to create the PreFilteredMap!");
+				return pCubemap;
+			}
+		}
+	}
+
+	// Use a pipeline and draw to the texture as a rendertarget.
+	SamplerResource* pSamplerResource = ResourceManager::Get()->GetResource<SamplerResource>(ResourceManager::Get()->DefaultSamplerLinear);
+
+	m_PreFilteredMapShader.Bind();
+	m_EquirectangularToCubemapPipeline.BindDepthStencilState();
+	m_EquirectangularToCubemapPipeline.BindRasterState();
+	ID3D11DeviceContext* pContext = RenderAPI::Get()->GetDeviceContext();
+	pContext->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	pContext->PSSetSamplers(0, 1, &pSamplerResource->pSampler);
+	pContext->PSSetShaderResources(0, 1, &pEnvironmentMap->pTextureSRV);
+
+	for (uint32_t i = 0; i < 6; i++)
+	{
+		m_EquirectangularToCubemapFrameData.View = m_EquirectangularToCubemapCaptureViews[i];
+		D3D11_MAPPED_SUBRESOURCE mappedResource;
+		{
+			HRESULT result = pContext->Map(m_pEquirectangularToCubemapConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+			RS_D311_ASSERT_CHECK(result, "Failed to map EquirectangularToCubemap constant buffer!");
+			memcpy(mappedResource.pData, &m_EquirectangularToCubemapFrameData, sizeof(EquirectangularToCubemapFrameData));
+			pContext->Unmap(m_pEquirectangularToCubemapConstantBuffer, 0);
+		}
+
+		float w = width;
+		float h = height;
+		for (uint32 mip = 0; mip < pCubemap->NumMipLevels; mip++)
+		{
+			m_EquirectangularToCubemapPipeline.SetRenderTargetView(m_PreFilteredMapRTVs[mip][i]);
+			m_EquirectangularToCubemapPipeline.BindDepthAndRTVs(BindType::RTV_ONLY);
+			m_EquirectangularToCubemapPipeline.SetViewport(0.f, 0.f, w, h);
+
+			pContext->VSSetConstantBuffers(0, 1, &m_pEquirectangularToCubemapConstantBuffer);
+			{
+				HRESULT result = pContext->Map(m_pPreFilteredMapConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+				RS_D311_ASSERT_CHECK(result, "Failed to map PreFilteredMap constant buffer!");
+				float roughness = (float)mip / (float)(pCubemap->NumMipLevels - 1);
+				glm::vec4 v(roughness, glm::min(width, height), 0.f, 0.f);
+				memcpy(mappedResource.pData, &roughness, sizeof(glm::vec4));
+				pContext->Unmap(m_pPreFilteredMapConstantBuffer, 0);
+			}
+			pContext->PSSetConstantBuffers(0, 1, &m_pPreFilteredMapConstantBuffer);
+			pContext->Draw(3, 0);
+
+			w *= 0.5f;
+			h *= 0.5f;
+		}
+	}
+
+	ID3D11RenderTargetView* nullRTVs = nullptr;
+	pContext->OMSetRenderTargets(1, &nullRTVs, nullptr);
+
+	{
+		// Debug SRVs for each side of the cube and for each mip level.
+		for (auto& srvs : pCubemap->DebugMipmapSRVs)
+		{
+			for (auto& srv : srvs)
+			{
+				srv->Release();
+				srv = nullptr;
+			}
+		}
+
+		pCubemap->DebugMipmapSRVs.resize(6);
+		for (uint32 side = 0; side < 6; side++)
+		{
+			pCubemap->DebugMipmapSRVs[side].resize(pCubemap->NumMipLevels);
+			for (uint32 mip = 0; mip < pCubemap->NumMipLevels; mip++)
+			{
+				D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+				srvDesc.Format = textureDesc.Format;
+				srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+				srvDesc.Texture2DArray.MipLevels = 1;
+				srvDesc.Texture2DArray.MostDetailedMip = mip;
+				srvDesc.Texture2DArray.ArraySize = 1;
+				srvDesc.Texture2DArray.FirstArraySlice = side;
+				HRESULT result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pCubemap->pTexture, &srvDesc, &pCubemap->DebugMipmapSRVs[side][mip]);
+				if (FAILED(result))
+					LOG_WARNING("Failed to create debug texture SRV for one of the sides on the cube map when generating mipmaps!");
+			}
 		}
 	}
 
