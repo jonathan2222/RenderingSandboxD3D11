@@ -64,13 +64,6 @@ float DistributionGGX(float3 nDotH, float roughness)
     return a2 / denom;
 }
 
-SamplerState g_SamplePoint
-{
-    Filter = MIN_MAG_MIP_LINEAR;
-    AddressU = Wrap;
-    AddressV = Wrap;
-};
-
 float4 main(PSIn input) : SV_TARGET
 {
     float3 normal = normalize(input.dir);
@@ -100,7 +93,7 @@ float4 main(PSIn input) : SV_TARGET
             float mipLevel = info.x == 0.f ? 0.f : 0.5f * log2(saSample / saTexel);
 
             L.y *= -1.f;
-            prefilteredColor += environmentMap.SampleLevel(g_SamplePoint, L, mipLevel).rgb * NdotL;
+            prefilteredColor += environmentMap.SampleLevel(linearSampler, L, mipLevel).rgb * NdotL;
             totalWeight      += NdotL;
         }
     }

@@ -916,6 +916,7 @@ void Renderer::InternalRenderWithMaterial(ModelResource& model, const glm::mat4&
 			RS_D311_ASSERT_CHECK(result, "Failed to map material constant buffer!");
 			MaterialBuffer* data = (MaterialBuffer*)mappedResource.pData;
 			pMaterial->InfoBuffer.Info.y = (float)debugInfo.RenderMode;
+			pMaterial->InfoBuffer.Info.z = (float)debugInfo.PreFilterMaxLOD;
 			memcpy(data, &pMaterial->InfoBuffer, sizeof(pMaterial->InfoBuffer));
 			pContext->Unmap(pMaterial->pConstantBuffer, 0);
 		}

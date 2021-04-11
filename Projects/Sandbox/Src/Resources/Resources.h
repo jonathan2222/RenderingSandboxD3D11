@@ -75,7 +75,7 @@ namespace RS
 	*/
 	struct MaterialBuffer
 	{
-		glm::vec4 Info = glm::vec4(0.f); // x: UseCombined, y: debug draw index, z: not used, w: not used
+		glm::vec4 Info = glm::vec4(0.f); // x: UseCombined, y: debug draw index, z: preFilterMaxLOD, w: not used
 		/*
 		Debug draw index:
 			0: Normal rendering

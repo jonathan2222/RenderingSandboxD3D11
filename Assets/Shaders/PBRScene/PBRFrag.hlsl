@@ -10,7 +10,7 @@ struct PSIn
 
 cbuffer MaterialData : register(b0)
 {
-    float4 materialInfo; // x: UseCombined, y: debug draw index, z: not used, w: not used
+    float4 materialInfo; // x: UseCombined, y: debug draw index, z: preFilterMaxLOD, w: not used
     /*
     Debug draw index:
         0: Normal rendering
@@ -36,7 +36,8 @@ cbuffer MaterialData : register(b0)
 #define INDEX_ROUGHNESS 5
 #define INDEX_METALLIC_ROUGHNESS 6
 
-#define FLAG_IBL 8
+#define FLAG_DIFF_IBL 8
+#define FLAG_SPEC_IBL 16
 
 #define INDEX(a) ((uint)a & 7)
 #define IS_INDEX(i) (INDEX(materialInfo.y) == i)
@@ -56,6 +57,8 @@ Texture2D       metallicTexture : register(t3);
 Texture2D       roughnessTexture : register(t4);
 Texture2D       metallicRoughnessTexture : register(t5);
 TextureCube     irradianceMap : register(t6);
+TextureCube     preFilterMap : register(t7);
+Texture2D       brdfLUT : register(t8);
 SamplerState    linearSampler;
 
 static const float PI = 3.14159265359f;
@@ -288,7 +291,7 @@ float4 main(PSIn input) : SV_TARGET
         float attenuation = 1.f / (distance*distance);
         float3 radiance = lightColor * attenuation;
 
-        float cosTheta = dot(material.normal, h);
+        float cosTheta = max(dot(material.normal, h), 0.f);
         float NDF   = DistributionGGX(material.normal, h, material.roughness);
         float G     = GeometrySmith(nDotVMax, nDotLMax, material.roughness);
         float3 F    = FresnelSchlick(cosTheta, F0, material.roughness);
@@ -305,13 +308,31 @@ float4 main(PSIn input) : SV_TARGET
     }
 
     float3 ambient = float3(0.f, 0.f, 0.f);
-    if(GET_FLAGS & FLAG_IBL)
+    if(GET_FLAGS & FLAG_DIFF_IBL || GET_FLAGS & FLAG_SPEC_IBL)
     {
-        float3 kS = FresnelSchlick(max(dot(material.normal, material.invViewDir), 0.f), F0, material.roughness);
-        float3 kD = 1.f - kS;
-        float3 irradiance = irradianceMap.Sample(linearSampler, material.normal).rgb;
-        float3 diffuse = irradiance * material.albedo;
-        ambient = kD * diffuse * GetAOData(materialData);
+        if(GET_FLAGS & FLAG_DIFF_IBL)
+        {
+            float3 kS = FresnelSchlick(max(dot(material.normal, material.invViewDir), 0.f), F0, material.roughness);
+            float3 kD = 1.f - kS;
+            float3 irradiance = irradianceMap.Sample(linearSampler, material.normal).rgb;
+            float3 diffuse = irradiance * material.albedo;
+            ambient = kD * diffuse;
+        }
+
+        if(GET_FLAGS & FLAG_SPEC_IBL)
+        {
+            float3 R = reflect(-material.invViewDir, material.normal);
+            float3 prefilteredColor = preFilterMap.SampleLevel(linearSampler, R, material.roughness * materialInfo.z).rgb;
+
+            float nDotV = max(dot(material.normal, material.invViewDir), 0.f);
+            float3 F = FresnelSchlick(nDotV, F0, material.roughness);
+            float2 envBRDF = brdfLUT.Sample(linearSampler, float2(nDotV, material.roughness)).rg;
+            float3 specular = prefilteredColor * (F * envBRDF.x + envBRDF.y);
+
+            ambient += specular;
+        }
+
+        ambient *= GetAOData(materialData);
     }
     else
     {

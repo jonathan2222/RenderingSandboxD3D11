@@ -73,8 +73,12 @@ void PBRScene::Start()
 		auto [pTexture, id1] = ResourceManager::Get()->LoadTextureResource(textureDesc);
 		Renderer::Get()->ConvertTextureFormat(pTexture, DXGI_FORMAT_R16G16B16A16_FLOAT);
 		m_pCubemap = Renderer::Get()->ConvertEquirectangularToCubemap(pTexture, 1024, 1024);
+
 		m_pIrradianceMap = Renderer::Get()->CreateIrradianceMapFromEnvironmentMap(m_pCubemap, 64, 64);
+
 		m_pPreFilteredEnvMap = Renderer::Get()->CreatePreFilteredEnvironmentMap(m_pCubemap, 128, 128);
+		m_PreFilterMaxLOD = m_pPreFilteredEnvMap->NumMipLevels;
+
 		m_pPreComputedBRDF = Renderer::Get()->CreatePreComputedBRDF(512, 512);
 
 		ModelLoadDesc modelLoadDesc = {};
@@ -211,11 +215,14 @@ void PBRScene::Tick(float dt)
 		pContext->VSSetConstantBuffers(1, 1, &m_pConstantBufferFrame);
 		pContext->PSSetConstantBuffers(1, 1, &m_pConstantBufferCamera);
 		pContext->PSSetShaderResources(6, 1, &m_pIrradianceMap->pTextureSRV);
+		pContext->PSSetShaderResources(7, 1, &m_pPreFilteredEnvMap->pTextureSRV);
+		pContext->PSSetShaderResources(8, 1, &m_pPreComputedBRDF->pTextureSRV);
 		Renderer::DebugInfo debugInfo = {};
 		debugInfo.DrawAABBs = false;
 		static uint32 debugInfoID = DebugRenderer::Get()->GenID();
 		debugInfo.ID = debugInfoID;
 		debugInfo.RenderMode = (uint32)m_RenderMode;
+		debugInfo.PreFilterMaxLOD = m_PreFilterMaxLOD;
 		renderer->RenderWithMaterial(*m_pModel, transform, debugInfo);
 	}
 
@@ -250,7 +257,7 @@ void PBRScene::DrawImGui()
 {
 	static bool s_MaterialDebugWindow = true;
 	static int32 renderMode = 0;
-	static int32 iblFlag = 0;
+	static int32 iblFlag = 8 | 16; // Activate IBL
 	ImGuiRenderer::Draw([&]()
 	{
 		if (ImGui::Begin("Material Debugger", &s_MaterialDebugWindow))
@@ -271,6 +278,7 @@ void PBRScene::DrawImGui()
 			{
 				// Flags
 				ImGui::CheckboxFlags("With Diffuse IBL", &iblFlag, 8);
+				ImGui::CheckboxFlags("With Specular IBL", &iblFlag, 16);
 				ImGui::TreePop();
 			}
 

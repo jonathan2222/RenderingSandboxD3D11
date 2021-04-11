@@ -31,9 +31,10 @@ namespace RS
 
 		struct DebugInfo
 		{
-			bool	DrawAABBs	= false;
-			uint32	ID			= 0;
-			uint32	RenderMode	= 0; // 0: Normal rendering, 1: Albedo, 2: Normals, 3: AO, 4: Metallic, 5: Roughness, 6: Combined Metallic-Roughness
+			bool	DrawAABBs		= false;
+			uint32	ID				= 0;
+			uint32	RenderMode		= 0; // 0: Normal rendering, 1: Albedo, 2: Normals, 3: AO, 4: Metallic, 5: Roughness, 6: Combined Metallic-Roughness
+			uint32	PreFilterMaxLOD = 0;
 		};
 		void Render(ModelResource& model, const glm::mat4& transform, DebugInfo debugInfo, RenderFlags flags);
 		void RenderWithMaterial(ModelResource& model, const glm::mat4& transform, DebugInfo debugInfo);
