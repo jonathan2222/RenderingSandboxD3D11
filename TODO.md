@@ -16,7 +16,7 @@
 
 - [ ] Add a `name` tag to the **`Resource`** class and change the string key to use that instead.
 
-- [ ] Change names of equirectangular variables and shaders to match the use in the **`CreateIrradianceMapFromEnvironmentMap`** function.
+- [x] Change names of equirectangular variables and shaders to match the use in the **`CreateIrradianceMapFromEnvironmentMap`** function.
 
 ## New stuff
 
