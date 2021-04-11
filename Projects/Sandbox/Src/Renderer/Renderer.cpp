@@ -54,7 +54,7 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 		AttributeLayout layout;
 		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "POSITION", 0);
 		Shader::Descriptor shaderDesc	= {};
-		shaderDesc.Vertex				= "RenderTools/FormatConverterVert.hlsl";
+		shaderDesc.Vertex				= "RenderTools/ScreenTriangleVert.hlsl";
 		shaderDesc.Fragment				= "RenderTools/FormatConverterFrag.hlsl";
 		m_TextureFormatConvertionShader.Load(shaderDesc, layout);
 		ShaderHotReloader::AddShader(&m_TextureFormatConvertionShader);
@@ -73,7 +73,7 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 		AttributeLayout layout;
 		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "POSITION", 0);
 		Shader::Descriptor shaderDesc = {};
-		shaderDesc.Vertex = "RenderTools/EquirectangularToCubemapVert.hlsl";
+		shaderDesc.Vertex = "RenderTools/ScreenCubeVert.hlsl";
 		shaderDesc.Fragment = "RenderTools/EquirectangularToCubemapFrag.hlsl";
 		m_EquirectangularToCubemapShader.Load(shaderDesc, layout);
 		ShaderHotReloader::AddShader(&m_EquirectangularToCubemapShader);
@@ -118,7 +118,7 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 		AttributeLayout layout;
 		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "POSITION", 0);
 		Shader::Descriptor shaderDesc = {};
-		shaderDesc.Vertex = "RenderTools/EquirectangularToCubemapVert.hlsl";
+		shaderDesc.Vertex = "RenderTools/ScreenCubeVert.hlsl";
 		shaderDesc.Fragment = "PBRScene/IrradianceMapFrag.hlsl";
 		m_IrradianceMapShader.Load(shaderDesc, layout);
 		ShaderHotReloader::AddShader(&m_IrradianceMapShader);
@@ -129,7 +129,7 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 		AttributeLayout layout;
 		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "POSITION", 0);
 		Shader::Descriptor shaderDesc = {};
-		shaderDesc.Vertex = "RenderTools/EquirectangularToCubemapVert.hlsl";
+		shaderDesc.Vertex = "RenderTools/ScreenCubeVert.hlsl";
 		shaderDesc.Fragment = "PBRScene/PreFilteringFrag.hlsl";
 		m_PreFilteredMapShader.Load(shaderDesc, layout);
 		ShaderHotReloader::AddShader(&m_PreFilteredMapShader);
@@ -140,7 +140,7 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 		AttributeLayout layout;
 		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "POSITION", 0);
 		Shader::Descriptor shaderDesc = {};
-		shaderDesc.Vertex = "RenderTools/FormatConverterVert.hlsl";
+		shaderDesc.Vertex = "RenderTools/ScreenTriangleVert.hlsl";
 		shaderDesc.Fragment = "PBRScene/PreComputedBRDF.hlsl";
 		m_PreComputedBRDFShader.Load(shaderDesc, layout);
 		ShaderHotReloader::AddShader(&m_PreComputedBRDFShader);
