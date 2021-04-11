@@ -20,7 +20,7 @@
 
 ## New stuff
 
-- [ ] Implement **IBL** in the **`PBRScene`** class.
+- [x] Implement **IBL** in the **`PBRScene`** class.
 
 - [ ] Add a why of logging only once even when the function is called multiple times.
 
