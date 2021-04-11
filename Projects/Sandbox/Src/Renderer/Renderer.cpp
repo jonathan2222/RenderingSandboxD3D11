@@ -113,7 +113,7 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "POSITION", 0);
 		Shader::Descriptor shaderDesc = {};
 		shaderDesc.Vertex = "RenderTools/EquirectangularToCubemapVert.hlsl";
-		shaderDesc.Fragment = "PBRScene/IrradianceFrag.hlsl";
+		shaderDesc.Fragment = "PBRScene/IrradianceMapFrag.hlsl";
 		m_IrradianceMapShader.Load(shaderDesc, layout);
 		ShaderHotReloader::AddShader(&m_IrradianceMapShader);
 	}

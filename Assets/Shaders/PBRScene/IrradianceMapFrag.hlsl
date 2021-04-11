@@ -9,7 +9,7 @@ SamplerState    linearSampler;
 
 float4 main(PSIn input) : SV_TARGET
 {
-    const float PI = 3.1415f;
+    const float PI = 3.14159265359f;
 
     float3 normal = normalize(input.dir);
     float3 irradiance = float3(0.f, 0.f, 0.f);  
