@@ -60,7 +60,7 @@ namespace RS
 		void InternalRender(ModelResource& model, const glm::mat4& transform, ID3D11DeviceContext* pContext, DebugInfo debugInfo, RenderFlags flags);
 		void InternalRenderWithMaterial(ModelResource& model, const glm::mat4& transform, ID3D11DeviceContext* pContext, DebugInfo debugInfo);
 
-		struct EquirectangularToCubemapFrameData
+		struct CubemapFrameData
 		{
 			glm::mat4 View = glm::mat4(1.f);
 			glm::mat4 Proj = glm::mat4(1.f);
@@ -80,12 +80,13 @@ namespace RS
 		Shader								m_TextureFormatConvertionShader;
 		ID3D11RenderTargetView*				m_TextureFormatConvertionRTV				= nullptr;
 
-		Pipeline							m_EquirectangularToCubemapPipeline;
-		Shader								m_EquirectangularToCubemapShader;
-		ID3D11RenderTargetView*				m_EquirectangularToCubemapRTVs[6]			= { nullptr };
-		ID3D11Buffer*						m_pEquirectangularToCubemapConstantBuffer	= nullptr;
-		EquirectangularToCubemapFrameData	m_EquirectangularToCubemapFrameData;
-		glm::mat4							m_EquirectangularToCubemapCaptureViews[6];
+		CubemapFrameData						m_CubemapFrameData;
+		glm::mat4								m_CubemapCaptureViews[6];
+		Pipeline								m_SolidNoneCullPipeline;
+
+		Shader									m_EquirectangularToCubemapShader;
+		ID3D11RenderTargetView*					m_EquirectangularToCubemapRTVs[6]			= { nullptr };
+		ID3D11Buffer*							m_pEquirectangularToCubemapConstantBuffer	= nullptr;
 
 		Shader									m_IrradianceMapShader;
 		ID3D11RenderTargetView*					m_IrradianceMapRTVs[6]			= { nullptr };

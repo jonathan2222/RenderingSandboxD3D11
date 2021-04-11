@@ -62,13 +62,13 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 
 	// Equirectangular To Cubemap
 	{
-		m_EquirectangularToCubemapPipeline.Init();
+		m_SolidNoneCullPipeline.Init();
 		D3D11_RASTERIZER_DESC rasterState = {};
 		rasterState.FillMode = D3D11_FILL_SOLID;
 		rasterState.CullMode = D3D11_CULL_NONE;
 		rasterState.ScissorEnable = false;
 		rasterState.DepthClipEnable = false;
-		m_EquirectangularToCubemapPipeline.SetRasterState(rasterState);
+		m_SolidNoneCullPipeline.SetRasterState(rasterState);
 
 		AttributeLayout layout;
 		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "POSITION", 0);
@@ -80,18 +80,18 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 
 		{
 			D3D11_BUFFER_DESC bufferDesc = {};
-			bufferDesc.ByteWidth = sizeof(m_EquirectangularToCubemapFrameData);
+			bufferDesc.ByteWidth = sizeof(m_CubemapFrameData);
 			bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 			bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 			bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 			bufferDesc.MiscFlags = 0;
 			bufferDesc.StructureByteStride = 0;
 
-			m_EquirectangularToCubemapFrameData.View = glm::mat4(1.f);
-			m_EquirectangularToCubemapFrameData.Proj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+			m_CubemapFrameData.View = glm::mat4(1.f);
+			m_CubemapFrameData.Proj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
 
 			D3D11_SUBRESOURCE_DATA data;
-			data.pSysMem = &m_EquirectangularToCubemapFrameData;
+			data.pSysMem = &m_CubemapFrameData;
 			data.SysMemPitch = 0;
 			data.SysMemSlicePitch = 0;
 
@@ -104,12 +104,12 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 			result = RenderAPI::Get()->GetDevice()->CreateBuffer(&bufferDesc, &data, &m_pPreFilteredMapConstantBuffer);
 			RS_D311_ASSERT_CHECK(result, "Failed to create PreFilteredMap constant buffer!");
 
-			m_EquirectangularToCubemapCaptureViews[0] = glm::lookAt(glm::vec3(0.f), glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
-			m_EquirectangularToCubemapCaptureViews[1] = glm::lookAt(glm::vec3(0.f), glm::vec3(-1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
-			m_EquirectangularToCubemapCaptureViews[2] = glm::lookAt(glm::vec3(0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
-			m_EquirectangularToCubemapCaptureViews[3] = glm::lookAt(glm::vec3(0.f), glm::vec3(0.f, -1.f, 0.f), glm::vec3(0.f, 0.f, -1.f));
-			m_EquirectangularToCubemapCaptureViews[4] = glm::lookAt(glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, -1.f, 0.f));
-			m_EquirectangularToCubemapCaptureViews[5] = glm::lookAt(glm::vec3(0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, -1.f, 0.f));
+			m_CubemapCaptureViews[0] = glm::lookAt(glm::vec3(0.f), glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
+			m_CubemapCaptureViews[1] = glm::lookAt(glm::vec3(0.f), glm::vec3(-1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
+			m_CubemapCaptureViews[2] = glm::lookAt(glm::vec3(0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+			m_CubemapCaptureViews[3] = glm::lookAt(glm::vec3(0.f), glm::vec3(0.f, -1.f, 0.f), glm::vec3(0.f, 0.f, -1.f));
+			m_CubemapCaptureViews[4] = glm::lookAt(glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, -1.f, 0.f));
+			m_CubemapCaptureViews[5] = glm::lookAt(glm::vec3(0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, -1.f, 0.f));
 		}
 	}
 
@@ -167,7 +167,7 @@ void Renderer::Release()
 	}
 	m_pEquirectangularToCubemapConstantBuffer->Release();
 	m_EquirectangularToCubemapShader.Release();
-	m_EquirectangularToCubemapPipeline.Release();
+	m_SolidNoneCullPipeline.Release();
 
 	for (auto& rtv : m_IrradianceMapRTVs)
 	{
@@ -425,9 +425,9 @@ CubeMapResource* Renderer::ConvertEquirectangularToCubemap(TextureResource* pTex
 	SamplerResource* pSamplerResource = ResourceManager::Get()->GetResource<SamplerResource>(ResourceManager::Get()->DefaultSamplerLinear);
 
 	m_EquirectangularToCubemapShader.Bind();
-	m_EquirectangularToCubemapPipeline.SetViewport(0.f, 0.f, (float)width, (float)height);
-	m_EquirectangularToCubemapPipeline.BindDepthStencilState();
-	m_EquirectangularToCubemapPipeline.BindRasterState();
+	m_SolidNoneCullPipeline.SetViewport(0.f, 0.f, (float)width, (float)height);
+	m_SolidNoneCullPipeline.BindDepthStencilState();
+	m_SolidNoneCullPipeline.BindRasterState();
 	ID3D11DeviceContext* pContext = RenderAPI::Get()->GetDeviceContext();
 	pContext->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -436,15 +436,15 @@ CubeMapResource* Renderer::ConvertEquirectangularToCubemap(TextureResource* pTex
 
 	for (uint32_t i = 0; i < 6; i++)
 	{
-		m_EquirectangularToCubemapPipeline.SetRenderTargetView(m_EquirectangularToCubemapRTVs[i]);
-		m_EquirectangularToCubemapPipeline.BindDepthAndRTVs(BindType::RTV_ONLY);
+		m_SolidNoneCullPipeline.SetRenderTargetView(m_EquirectangularToCubemapRTVs[i]);
+		m_SolidNoneCullPipeline.BindDepthAndRTVs(BindType::RTV_ONLY);
 
-		m_EquirectangularToCubemapFrameData.View = m_EquirectangularToCubemapCaptureViews[i];
+		m_CubemapFrameData.View = m_CubemapCaptureViews[i];
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
 		{
 			HRESULT result = pContext->Map(m_pEquirectangularToCubemapConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 			RS_D311_ASSERT_CHECK(result, "Failed to map EquirectangularToCubemap constant buffer!");
-			memcpy(mappedResource.pData, &m_EquirectangularToCubemapFrameData, sizeof(EquirectangularToCubemapFrameData));
+			memcpy(mappedResource.pData, &m_CubemapFrameData, sizeof(CubemapFrameData));
 			pContext->Unmap(m_pEquirectangularToCubemapConstantBuffer, 0);
 		}
 		pContext->VSSetConstantBuffers(0, 1, &m_pEquirectangularToCubemapConstantBuffer);
@@ -528,9 +528,9 @@ CubeMapResource* Renderer::CreateIrradianceMapFromEnvironmentMap(CubeMapResource
 	SamplerResource* pSamplerResource = ResourceManager::Get()->GetResource<SamplerResource>(ResourceManager::Get()->DefaultSamplerLinear);
 
 	m_IrradianceMapShader.Bind();
-	m_EquirectangularToCubemapPipeline.SetViewport(0.f, 0.f, (float)width, (float)height);
-	m_EquirectangularToCubemapPipeline.BindDepthStencilState();
-	m_EquirectangularToCubemapPipeline.BindRasterState();
+	m_SolidNoneCullPipeline.SetViewport(0.f, 0.f, (float)width, (float)height);
+	m_SolidNoneCullPipeline.BindDepthStencilState();
+	m_SolidNoneCullPipeline.BindRasterState();
 	ID3D11DeviceContext* pContext = RenderAPI::Get()->GetDeviceContext();
 	pContext->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -539,15 +539,15 @@ CubeMapResource* Renderer::CreateIrradianceMapFromEnvironmentMap(CubeMapResource
 
 	for (uint32_t i = 0; i < 6; i++)
 	{
-		m_EquirectangularToCubemapPipeline.SetRenderTargetView(m_IrradianceMapRTVs[i]);
-		m_EquirectangularToCubemapPipeline.BindDepthAndRTVs(BindType::RTV_ONLY);
+		m_SolidNoneCullPipeline.SetRenderTargetView(m_IrradianceMapRTVs[i]);
+		m_SolidNoneCullPipeline.BindDepthAndRTVs(BindType::RTV_ONLY);
 
-		m_EquirectangularToCubemapFrameData.View = m_EquirectangularToCubemapCaptureViews[i];
+		m_CubemapFrameData.View = m_CubemapCaptureViews[i];
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
 		{
 			HRESULT result = pContext->Map(m_pEquirectangularToCubemapConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 			RS_D311_ASSERT_CHECK(result, "Failed to map EquirectangularToCubemap constant buffer!");
-			memcpy(mappedResource.pData, &m_EquirectangularToCubemapFrameData, sizeof(EquirectangularToCubemapFrameData));
+			memcpy(mappedResource.pData, &m_CubemapFrameData, sizeof(CubemapFrameData));
 			pContext->Unmap(m_pEquirectangularToCubemapConstantBuffer, 0);
 		}
 		pContext->VSSetConstantBuffers(0, 1, &m_pEquirectangularToCubemapConstantBuffer);
@@ -641,8 +641,8 @@ CubeMapResource* Renderer::CreatePreFilteredEnvironmentMap(CubeMapResource* pEnv
 	SamplerResource* pSamplerResource = ResourceManager::Get()->GetResource<SamplerResource>(ResourceManager::Get()->DefaultSamplerLinear);
 
 	m_PreFilteredMapShader.Bind();
-	m_EquirectangularToCubemapPipeline.BindDepthStencilState();
-	m_EquirectangularToCubemapPipeline.BindRasterState();
+	m_SolidNoneCullPipeline.BindDepthStencilState();
+	m_SolidNoneCullPipeline.BindRasterState();
 	ID3D11DeviceContext* pContext = RenderAPI::Get()->GetDeviceContext();
 	pContext->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -651,12 +651,12 @@ CubeMapResource* Renderer::CreatePreFilteredEnvironmentMap(CubeMapResource* pEnv
 
 	for (uint32_t i = 0; i < 6; i++)
 	{
-		m_EquirectangularToCubemapFrameData.View = m_EquirectangularToCubemapCaptureViews[i];
+		m_CubemapFrameData.View = m_CubemapCaptureViews[i];
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
 		{
 			HRESULT result = pContext->Map(m_pEquirectangularToCubemapConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 			RS_D311_ASSERT_CHECK(result, "Failed to map EquirectangularToCubemap constant buffer!");
-			memcpy(mappedResource.pData, &m_EquirectangularToCubemapFrameData, sizeof(EquirectangularToCubemapFrameData));
+			memcpy(mappedResource.pData, &m_CubemapFrameData, sizeof(CubemapFrameData));
 			pContext->Unmap(m_pEquirectangularToCubemapConstantBuffer, 0);
 		}
 
@@ -664,9 +664,9 @@ CubeMapResource* Renderer::CreatePreFilteredEnvironmentMap(CubeMapResource* pEnv
 		float h = height;
 		for (uint32 mip = 0; mip < pCubemap->NumMipLevels; mip++)
 		{
-			m_EquirectangularToCubemapPipeline.SetRenderTargetView(m_PreFilteredMapRTVs[mip][i]);
-			m_EquirectangularToCubemapPipeline.BindDepthAndRTVs(BindType::RTV_ONLY);
-			m_EquirectangularToCubemapPipeline.SetViewport(0.f, 0.f, w, h);
+			m_SolidNoneCullPipeline.SetRenderTargetView(m_PreFilteredMapRTVs[mip][i]);
+			m_SolidNoneCullPipeline.BindDepthAndRTVs(BindType::RTV_ONLY);
+			m_SolidNoneCullPipeline.SetViewport(0.f, 0.f, w, h);
 
 			pContext->VSSetConstantBuffers(0, 1, &m_pEquirectangularToCubemapConstantBuffer);
 			{
@@ -754,11 +754,11 @@ TextureResource* Renderer::CreatePreComputedBRDF(uint32_t width, uint32_t height
 	}
 
 	m_PreComputedBRDFShader.Bind();
-	m_EquirectangularToCubemapPipeline.SetRenderTargetView(m_PreComputedBRDFRTV);
-	m_EquirectangularToCubemapPipeline.BindDepthAndRTVs(BindType::RTV_ONLY);
-	m_EquirectangularToCubemapPipeline.BindDepthStencilState();
-	m_EquirectangularToCubemapPipeline.BindRasterState();
-	m_EquirectangularToCubemapPipeline.SetViewport(0.f, 0.f, width, height);
+	m_SolidNoneCullPipeline.SetRenderTargetView(m_PreComputedBRDFRTV);
+	m_SolidNoneCullPipeline.BindDepthAndRTVs(BindType::RTV_ONLY);
+	m_SolidNoneCullPipeline.BindDepthStencilState();
+	m_SolidNoneCullPipeline.BindRasterState();
+	m_SolidNoneCullPipeline.SetViewport(0.f, 0.f, width, height);
 	ID3D11DeviceContext* pContext = RenderAPI::Get()->GetDeviceContext();
 	pContext->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
