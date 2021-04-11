@@ -20,8 +20,28 @@ cbuffer MaterialData : register(b0)
         4: Only metallic
         5: Only roughness
         6: Only combined metallic-roughness (If avaliable)
+        7: -------- Not used --------
+
+    Additional flags on the draw index (Three flags: 8, 16 and 32):
+        8: Use Diffuse IBL (Add contribution from an irradiance map)
+        16: -------- Not used --------
+        32: -------- Not used --------
     */
 }
+
+#define INDEX_ALBEDO 1
+#define INDEX_NORMAL 2
+#define INDEX_AO 3
+#define INDEX_METALLIC 4
+#define INDEX_ROUGHNESS 5
+#define INDEX_METALLIC_ROUGHNESS 6
+
+#define FLAG_IBL 8
+
+#define INDEX(a) ((uint)a & 7)
+#define IS_INDEX(i) (INDEX(materialInfo.y) == i)
+#define FLAGS(a) ((uint)a & (~7))
+#define GET_FLAGS FLAGS(materialInfo.y)
 
 cbuffer CameraData : register(b1)
 {
@@ -35,7 +55,8 @@ Texture2D       aoTexture : register(t2);
 Texture2D       metallicTexture : register(t3);
 Texture2D       roughnessTexture : register(t4);
 Texture2D       metallicRoughnessTexture : register(t5);
-SamplerState    texSampler;
+TextureCube     irradianceMap : register(t6);
+SamplerState    linearSampler;
 
 static const float PI = 3.14159265359f;
 
@@ -57,7 +78,7 @@ float3 CalcNormal(float3 t, float3 b, float3 n, float2 uv)
         float3x3 TBN = float3x3(t, b, n);
         TBN = transpose(TBN);
 
-        normal = normalTexture.SampleLevel(texSampler, uv, 0).xyz;
+        normal = normalTexture.SampleLevel(linearSampler, uv, 0).xyz;
         normal = normalize(normal*2.f - 1.f);
         normal = mul(TBN, normal);
     }
@@ -100,41 +121,41 @@ float3 DebugTextures(MaterialData materialData)
 {
     if(materialInfo.x > 0.5f)
     {
-        if(FLOAT_EQUAL(materialInfo.y, 3.f)) // AO
+        if(IS_INDEX(INDEX_AO)) // AO
         {
             return float3(materialData.metallicRoughness.r, materialData.metallicRoughness.r, materialData.metallicRoughness.r);
         }
-        else if(FLOAT_EQUAL(materialInfo.y, 4.f)) // Metallic
+        else if(IS_INDEX(INDEX_METALLIC)) // Metallic
         {
              return float3(materialData.metallicRoughness.b, materialData.metallicRoughness.b, materialData.metallicRoughness.b);
         }
-        else if(FLOAT_EQUAL(materialInfo.y, 5.f)) // Roughness
+        else if(IS_INDEX(INDEX_ROUGHNESS)) // Roughness
         {
              return float3(materialData.metallicRoughness.g, materialData.metallicRoughness.g, materialData.metallicRoughness.g);
         }
     }
 
-    if(FLOAT_EQUAL(materialInfo.y, 1.f))
+    if(IS_INDEX(INDEX_ALBEDO))
     {
         return  pow(materialData.albedo, 1.f/2.2f);
     }
-    else if(FLOAT_EQUAL(materialInfo.y, 2.f))
+    else if(IS_INDEX(INDEX_NORMAL))
     {
         return materialData.normal*0.5f + 0.5f;
     }
-    else if(FLOAT_EQUAL(materialInfo.y, 3.f))
+    else if(IS_INDEX(INDEX_AO))
     {
         return materialData.ao;
     }
-    else if(FLOAT_EQUAL(materialInfo.y, 4.f))
+    else if(IS_INDEX(INDEX_METALLIC))
     {
         return materialData.metallic;
     }
-    else if(FLOAT_EQUAL(materialInfo.y, 5.f))
+    else if(IS_INDEX(INDEX_ROUGHNESS))
     {
         return materialData.roughness;
     }
-    else if(FLOAT_EQUAL(materialInfo.y, 6.f))
+    else if(IS_INDEX(INDEX_METALLIC_ROUGHNESS))
     {
         return materialData.metallicRoughness;
     }
@@ -213,21 +234,23 @@ float GeometrySmith(float nDotV, float nDotL, float roughness)
     This uses the Fresnel-Schlick approximation.
     @param cosTheta: The angle between the normal and teh halfway (or view) direction.
     @param F0: Base reflectivity of the surface.
+    @param roughness: The roughness of the material.
 */
-float3 FresnelSchlick(float cosTheta, float3 F0)
+float3 FresnelSchlick(float cosTheta, float3 F0, float roughness)
 {
     float c = min(cosTheta, 1.f);
-    return F0 + (1.f - F0) * pow(max(1.f - c, 0.f), 5.f);
+    float3 v = float3(1.f - roughness, 1.f - roughness, 1.f - roughness);
+    return F0 + (max(v, F0) - F0) * pow(max(1.f - c, 0.f), 5.f);
 }
 
 float4 main(PSIn input) : SV_TARGET
 {
     MaterialData materialData;
-    materialData.albedo                 = pow(albedoTexture.Sample(texSampler, input.uv).rgb, 2.2f);
-    materialData.ao                     = aoTexture.Sample(texSampler, input.uv).rgb;
-    materialData.metallic               = metallicTexture.Sample(texSampler, input.uv).rgb;
-    materialData.roughness              = roughnessTexture.Sample(texSampler, input.uv).rgb;
-    materialData.metallicRoughness      = metallicRoughnessTexture.Sample(texSampler, input.uv).rgb;
+    materialData.albedo                 = pow(albedoTexture.Sample(linearSampler, input.uv).rgb, 2.2f);
+    materialData.ao                     = aoTexture.Sample(linearSampler, input.uv).rgb;
+    materialData.metallic               = metallicTexture.Sample(linearSampler, input.uv).rgb;
+    materialData.roughness              = roughnessTexture.Sample(linearSampler, input.uv).rgb;
+    materialData.metallicRoughness      = metallicRoughnessTexture.Sample(linearSampler, input.uv).rgb;
 
     input.normal = normalize(input.normal);
     input.tangent = normalize(input.tangent);
@@ -235,7 +258,7 @@ float4 main(PSIn input) : SV_TARGET
 
     materialData.normal = CalcNormal(input.tangent.xyz, input.bitangent.xyz, input.normal.xyz, input.uv);
 
-    if(materialInfo.y > 0.5f)
+    if(INDEX(materialInfo.y) > 0)
         return float4(DebugTextures(materialData), 1.f);
 
     PBRMaterial material;
@@ -268,7 +291,7 @@ float4 main(PSIn input) : SV_TARGET
         float cosTheta = dot(material.normal, h);
         float NDF   = DistributionGGX(material.normal, h, material.roughness);
         float G     = GeometrySmith(nDotVMax, nDotLMax, material.roughness);
-        float3 F    = FresnelSchlick(cosTheta, F0);
+        float3 F    = FresnelSchlick(cosTheta, F0, material.roughness);
 
         float3 ks = F;
         material.kd = float3(1.f, 1.f, 1.f) - ks;
@@ -281,7 +304,20 @@ float4 main(PSIn input) : SV_TARGET
         Lo += (material.kd * material.albedo / PI + specular) * radiance * nDotL;
     }
 
-    float3 ambient = float3(0.03f, 0.03f, 0.03f) * material.albedo * GetAOData(materialData);
+    float3 ambient = float3(0.f, 0.f, 0.f);
+    if(GET_FLAGS & FLAG_IBL)
+    {
+        float3 kS = FresnelSchlick(max(dot(material.normal, material.invViewDir), 0.f), F0, material.roughness);
+        float3 kD = 1.f - kS;
+        float3 irradiance = irradianceMap.Sample(linearSampler, material.normal).rgb;
+        float3 diffuse = irradiance * material.albedo;
+        ambient = kD * diffuse * GetAOData(materialData);
+    }
+    else
+    {
+        ambient = float3(0.03f, 0.03f, 0.03f) * material.albedo * GetAOData(materialData);
+    }
+
     float3 color = ambient + Lo;
 
     color = color / (color + 1.f);

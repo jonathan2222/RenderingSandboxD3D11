@@ -208,6 +208,7 @@ void PBRScene::Tick(float dt)
 		glm::mat4 transform = glm::translate(glm::vec3(0.f, 1.f, 0.f)) * glm::scale(glm::vec3(2.f)) * glm::rotate(glm::pi<float>(), glm::vec3(0.f, 1.f, 0.f));
 		pContext->VSSetConstantBuffers(1, 1, &m_pConstantBufferFrame);
 		pContext->PSSetConstantBuffers(1, 1, &m_pConstantBufferCamera);
+		pContext->PSSetShaderResources(6, 1, &m_pIrradianceMap->pTextureSRV);
 		Renderer::DebugInfo debugInfo = {};
 		debugInfo.DrawAABBs = false;
 		static uint32 debugInfoID = DebugRenderer::Get()->GenID();
@@ -246,17 +247,32 @@ void PBRScene::Tick(float dt)
 void PBRScene::DrawImGui()
 {
 	static bool s_MaterialDebugWindow = true;
+	static int32 renderMode = 0;
+	static int32 iblFlag = 0;
 	ImGuiRenderer::Draw([&]()
 	{
 		if (ImGui::Begin("Material Debugger", &s_MaterialDebugWindow))
 		{
-			ImGui::RadioButton("PBR", &m_RenderMode, 0);
-			ImGui::RadioButton("Only Albedo", &m_RenderMode, 1);
-			ImGui::RadioButton("Only Normal", &m_RenderMode, 2);
-			ImGui::RadioButton("Only AO", &m_RenderMode, 3);
-			ImGui::RadioButton("Only Mettalic", &m_RenderMode, 4);
-			ImGui::RadioButton("Only Roughness", &m_RenderMode, 5);
-			ImGui::RadioButton("Only Combined Metallic-Roughness", &m_RenderMode, 6);
+			if (ImGui::TreeNode("Render modes"))
+			{
+				ImGui::RadioButton("PBR", &renderMode, 0);
+				ImGui::RadioButton("Only Albedo", &renderMode, 1);
+				ImGui::RadioButton("Only Normal", &renderMode, 2);
+				ImGui::RadioButton("Only AO", &renderMode, 3);
+				ImGui::RadioButton("Only Mettalic", &renderMode, 4);
+				ImGui::RadioButton("Only Roughness", &renderMode, 5);
+				ImGui::RadioButton("Only Combined Metallic-Roughness", &renderMode, 6);
+				ImGui::TreePop();
+			}
+			
+			if (ImGui::TreeNode("Flags"))
+			{
+				// Flags
+				ImGui::CheckboxFlags("With Diffuse IBL", &iblFlag, 8);
+				ImGui::TreePop();
+			}
+
+			m_RenderMode = renderMode | iblFlag;
 		}
 		ImGui::End();
 	});
