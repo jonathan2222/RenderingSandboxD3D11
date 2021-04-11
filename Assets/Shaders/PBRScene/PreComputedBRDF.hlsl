@@ -1,16 +1,8 @@
 struct PSIn
 {
     float4 position : SV_POSITION;
-    float3 dir : DIRECTION;
+    float2 uv : UV;
 };
-
-TextureCube     environmentMap : register(t0);
-SamplerState    linearSampler;
-
-cbuffer InfoData : register(b0)
-{
-    float4 info;
-}
 
 static const float PI = 3.14159265359f;
 
@@ -52,59 +44,64 @@ float3 ImportanceSampleGGX(float2 Xi, float3 N, float roughness)
     return normalize(sampleVec);
 }
 
-float DistributionGGX(float3 nDotH, float roughness)
+float GeometrySchlickGGX(float nDotV, float roughness)
 {
-    float a         = roughness*roughness;
-    float a2        = a*a;
-    float nDotH2    = nDotH*nDotH;
+    float k = roughness;
+    k = (k*k) / 2.f;
 
-    float denom     = nDotH2 * (a2 - 1.f) + 1.f;
-    denom           = PI * denom * denom;
-
-    return a2 / denom;
+    float denom = nDotV * (1.f - k) + k;
+    return nDotV / denom;
 }
 
-SamplerState g_SamplePoint
+float GeometrySmith(float3 N, float3 V, float3 L, float roughness)
 {
-    Filter = MIN_MAG_MIP_LINEAR;
-    AddressU = Wrap;
-    AddressV = Wrap;
-};
+    float nDotV = max(dot(N, V), 0.f);
+    float nDotL = max(dot(N, L), 0.f);
+    float ggx1 = GeometrySchlickGGX(nDotV, roughness);
+    float ggx2 = GeometrySchlickGGX(nDotL, roughness);
+    return ggx1 * ggx2;
+}
 
-float4 main(PSIn input) : SV_TARGET
+float2 IntegrateBRDF(float NdotV, float roughness)
 {
-    float3 normal = normalize(input.dir);
-    float3 R = normal;
-    float3 V = R;
+    float3 V;
+    V.x = sqrt(1.0f - NdotV*NdotV);
+    V.y = 0.0f;
+    V.z = NdotV;
+
+    float A = 0.0f;
+    float B = 0.0f;
+
+    float3 N = float3(0.0f, 0.0f, 1.0f);
 
     const uint SAMPLE_COUNT = 1024u;
-    float totalWeight = 0.0f;   
-    float3 prefilteredColor = float3(0.f, 0.f, 0.f);     
     for(uint i = 0u; i < SAMPLE_COUNT; ++i)
     {
         float2 Xi = Hammersley(i, SAMPLE_COUNT);
-        float3 H  = ImportanceSampleGGX(Xi, normal, info.x);
-        float vDotH = dot(V, H);
-        float3 L  = normalize(2.0 * vDotH * H - V);
+        float3 H  = ImportanceSampleGGX(Xi, N, roughness);
+        float3 L  = normalize(2.0f * dot(V, H) * H - V);
 
-        float NdotL = max(dot(normal, L), 0.0);
+        float NdotL = max(L.z, 0.0f);
+        float NdotH = max(H.z, 0.0f);
+        float VdotH = max(dot(V, H), 0.0f);
+
         if(NdotL > 0.0)
         {
-            float nDotH = max(dot(normal, H), 0.f);
-            float D = DistributionGGX(nDotH, info.x);
-            float pdf = (D * nDotH / (4.f - vDotH)) + 0.0001f;
+            float G = GeometrySmith(N, V, L, roughness);
+            float G_Vis = (G * VdotH) / (NdotH * NdotV);
+            float Fc = pow(1.0f - VdotH, 5.0f);
 
-            float resolution = info.y; // resolution of source cubemap (per face)
-            float saTexel = 4.f * PI / (6.f * resolution * resolution);
-            float saSample = 1.f / ((float)SAMPLE_COUNT * pdf + 0.0001f);
-            float mipLevel = info.x == 0.f ? 0.f : 0.5f * log2(saSample / saTexel);
-
-            L.y *= -1.f;
-            prefilteredColor += environmentMap.SampleLevel(g_SamplePoint, L, mipLevel).rgb * NdotL;
-            totalWeight      += NdotL;
+            A += (1.0f - Fc) * G_Vis;
+            B += Fc * G_Vis;
         }
     }
-    prefilteredColor = prefilteredColor / totalWeight;
+    A /= float(SAMPLE_COUNT);
+    B /= float(SAMPLE_COUNT);
+    return float2(A, B);
+}
 
-	return float4(prefilteredColor, 1.0f);
+float4 main(PSIn input) : SV_TARGET
+{
+    float2 integratedBRDF = IntegrateBRDF(input.uv.x, input.uv.y);
+	return float4(integratedBRDF, 0.f, 1.0f);
 }

@@ -75,6 +75,7 @@ void PBRScene::Start()
 		m_pCubemap = Renderer::Get()->ConvertEquirectangularToCubemap(pTexture, 1024, 1024);
 		m_pIrradianceMap = Renderer::Get()->CreateIrradianceMapFromEnvironmentMap(m_pCubemap, 64, 64);
 		m_pPreFilteredEnvMap = Renderer::Get()->CreatePreFilteredEnvironmentMap(m_pCubemap, 128, 128);
+		m_pPreComputedBRDF = Renderer::Get()->CreatePreComputedBRDF(512, 512);
 
 		ModelLoadDesc modelLoadDesc = {};
 		modelLoadDesc.FilePath = "InvCube.glb";

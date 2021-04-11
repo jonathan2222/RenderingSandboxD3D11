@@ -47,6 +47,7 @@ namespace RS
 		CubeMapResource* ConvertEquirectangularToCubemap(TextureResource* pTexture, uint32_t width, uint32_t height);
 		CubeMapResource* CreateIrradianceMapFromEnvironmentMap(CubeMapResource* pEnvironmentMap, uint32_t width, uint32_t height);
 		CubeMapResource* CreatePreFilteredEnvironmentMap(CubeMapResource* pEnvironmentMap, uint32_t width, uint32_t height);
+		TextureResource* CreatePreComputedBRDF(uint32_t width, uint32_t height);
 
 	private:
 		void CreateRTV();
@@ -85,11 +86,14 @@ namespace RS
 		EquirectangularToCubemapFrameData	m_EquirectangularToCubemapFrameData;
 		glm::mat4							m_EquirectangularToCubemapCaptureViews[6];
 
-		Shader								m_IrradianceMapShader;
-		ID3D11RenderTargetView*				m_IrradianceMapRTVs[6] = { nullptr };
+		Shader									m_IrradianceMapShader;
+		ID3D11RenderTargetView*					m_IrradianceMapRTVs[6]			= { nullptr };
 
 		ID3D11Buffer*							m_pPreFilteredMapConstantBuffer = nullptr;
 		Shader									m_PreFilteredMapShader;
 		std::vector< std::vector<ID3D11RenderTargetView*>>	m_PreFilteredMapRTVs;
+
+		Shader									m_PreComputedBRDFShader;
+		ID3D11RenderTargetView*					m_PreComputedBRDFRTV			= nullptr;
 	};
 }

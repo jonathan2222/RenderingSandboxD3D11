@@ -230,6 +230,8 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 	// Only load the texture if it has not been loaded.
 	if (isNewTexture)
 	{
+		bool isEmpty = !textureDescription.ImageDesc.IsFromFile && (textureDescription.ImageDesc.Memory.pData == nullptr);
+
 		auto [pImage, imageId] = LoadImageResource(textureDescription.ImageDesc);
 		pTexture->ImageHandler = pImage->key;
 		pTexture->Format = pImage->Format;
@@ -247,6 +249,11 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 				textureDesc.MipLevels = (uint32)glm::ceil(glm::max(glm::log2(glm::min((float)textureDesc.Width, (float)textureDesc.Height)), 1.f));
 			}
 
+			if (isEmpty)
+			{
+				textureDesc.Usage = D3D11_USAGE_DEFAULT;
+			}
+
 			pTexture->UseAsRTV = textureDescription.UseAsRTV;
 			if (pTexture->UseAsRTV)
 			{
@@ -256,9 +263,14 @@ std::pair<TextureResource*, ResourceID> ResourceManager::LoadTextureResource(Tex
 
 			pTexture->NumMipLevels = textureDesc.MipLevels;
 			
-			std::vector<D3D11_SUBRESOURCE_DATA> subData = D3D11Helper::FillTexture2DSubdata(textureDesc, pImage->Data.data());
-
-			HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, subData.data(), &pTexture->pTexture);
+			std::vector<D3D11_SUBRESOURCE_DATA> subData;
+			D3D11_SUBRESOURCE_DATA* pSubData = nullptr;
+			if (!isEmpty)
+			{
+				subData = D3D11Helper::FillTexture2DSubdata(textureDesc, pImage->Data.data());
+				pSubData = subData.data();
+			}
+			HRESULT result = RenderAPI::Get()->GetDevice()->CreateTexture2D(&textureDesc, pSubData, &pTexture->pTexture);
 			RS_D311_ASSERT_CHECK(result, "Failed to create texture!");
 
 			D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};

@@ -74,6 +74,7 @@ namespace RS
 		Pipeline			m_Pipeline;
 
 		// IBL textures
+		TextureResource*	m_pPreComputedBRDF = nullptr;
 		CubeMapResource*	m_pPreFilteredEnvMap	= nullptr;
 		CubeMapResource*	m_pIrradianceMap		= nullptr;
 		CubeMapResource*	m_pCubemap				= nullptr;

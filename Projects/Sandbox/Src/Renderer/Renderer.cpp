@@ -134,6 +134,17 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 		m_PreFilteredMapShader.Load(shaderDesc, layout);
 		ShaderHotReloader::AddShader(&m_PreFilteredMapShader);
 	}
+
+	// Pre-Computed BRDF
+	{
+		AttributeLayout layout;
+		layout.Push(DXGI_FORMAT_R32G32_FLOAT, "POSITION", 0);
+		Shader::Descriptor shaderDesc = {};
+		shaderDesc.Vertex = "RenderTools/FormatConverterVert.hlsl";
+		shaderDesc.Fragment = "PBRScene/PreComputedBRDF.hlsl";
+		m_PreComputedBRDFShader.Load(shaderDesc, layout);
+		ShaderHotReloader::AddShader(&m_PreComputedBRDFShader);
+	}
 }
 
 void Renderer::Release()
@@ -180,6 +191,13 @@ void Renderer::Release()
 	m_PreFilteredMapRTVs.clear();
 	m_pPreFilteredMapConstantBuffer->Release();
 	m_PreFilteredMapShader.Release();
+
+	if (m_PreComputedBRDFRTV)
+	{
+		m_PreComputedBRDFRTV->Release();
+		m_PreComputedBRDFRTV = nullptr;
+	}
+	m_PreComputedBRDFShader.Release();
 
 	m_DefaultPipeline.Release();
 	ClearRTV();
@@ -702,6 +720,54 @@ CubeMapResource* Renderer::CreatePreFilteredEnvironmentMap(CubeMapResource* pEnv
 	}
 
 	return pCubemap;
+}
+
+TextureResource* Renderer::CreatePreComputedBRDF(uint32_t width, uint32_t height)
+{
+	static uint32 s_Counter = 0;
+	TextureLoadDesc textureLoadDesc = {};
+	textureLoadDesc.ImageDesc.IsFromFile = false;
+	textureLoadDesc.ImageDesc.Memory.pData = nullptr; // Create an empty texture.
+	textureLoadDesc.ImageDesc.Memory.Width = width;
+	textureLoadDesc.ImageDesc.Memory.Height = height;
+	textureLoadDesc.ImageDesc.NumChannels = ImageLoadDesc::Channels::RGBA;
+	textureLoadDesc.ImageDesc.Name = "PreComputedBRDF_" + std::to_string(++s_Counter);
+	textureLoadDesc.GenerateMipmaps = false;
+	textureLoadDesc.UseAsRTV = true;
+	auto [pTexture, id] = ResourceManager::Get()->LoadTextureResource(textureLoadDesc);
+
+	D3D11_RENDER_TARGET_VIEW_DESC desc = {};
+	desc.Format				= pTexture->Format;
+	desc.ViewDimension		= D3D11_RTV_DIMENSION_TEXTURE2D;
+	desc.Texture2D.MipSlice = 0;
+
+	if (m_PreComputedBRDFRTV)
+	{
+		m_PreComputedBRDFRTV->Release();
+		m_PreComputedBRDFRTV = nullptr;
+	}
+	HRESULT hr = RenderAPI::Get()->GetDevice()->CreateRenderTargetView(pTexture->pTexture, &desc, &m_PreComputedBRDFRTV);
+	if (FAILED(hr))
+	{
+		LOG_WARNING("Failed to create the PreComputedBRDF!");
+		return pTexture;
+	}
+
+	m_PreComputedBRDFShader.Bind();
+	m_EquirectangularToCubemapPipeline.SetRenderTargetView(m_PreComputedBRDFRTV);
+	m_EquirectangularToCubemapPipeline.BindDepthAndRTVs(BindType::RTV_ONLY);
+	m_EquirectangularToCubemapPipeline.BindDepthStencilState();
+	m_EquirectangularToCubemapPipeline.BindRasterState();
+	m_EquirectangularToCubemapPipeline.SetViewport(0.f, 0.f, width, height);
+	ID3D11DeviceContext* pContext = RenderAPI::Get()->GetDeviceContext();
+	pContext->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	pContext->Draw(3, 0);
+
+	ID3D11RenderTargetView* nullRTVs = nullptr;
+	pContext->OMSetRenderTargets(1, &nullRTVs, nullptr);
+
+	return pTexture;
 }
 
 void Renderer::CreateRTV()

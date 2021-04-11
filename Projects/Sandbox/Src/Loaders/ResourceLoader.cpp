@@ -133,7 +133,10 @@ void ResourceLoader::LoadImageFromMemory(ImageResource*& outImage, ImageLoadDesc
 	}
 	else
 	{
-		LOG_WARNING("Unable to load image from memory: Data was nullptr!");
+		outImage->Data.clear();
+		width = imageDescription.Memory.Width;
+		height = imageDescription.Memory.Height;
+		outImage->Format = GetFormatFromChannelCount(nChannels == 0 ? channelCount : nChannels);
 	}
 
 	outImage->Width = (unsigned int)width;
