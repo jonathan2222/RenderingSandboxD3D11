@@ -58,9 +58,12 @@ bool ImGuiAdapter::Init(GLFWwindow* window, bool install_callbacks, ClientAPI cl
     io.SetClipboardTextFn = ImGuiAdapter::SetClipboardText;
     io.GetClipboardTextFn = ImGuiAdapter::GetClipboardText;
     io.ClipboardUserData = s_Window;
+
+/*   ImGuiPlatformIO& pio = ImGui::GetPlatformIO();
 #if defined(_WIN32)
     io.ImeWindowHandle = (void*)glfwGetWin32Window(s_Window);
 #endif
+*/
 
     // Create mouse cursors
     // (By design, on X11 cursors are user configurable and some cursors may be missing. When a cursor doesn't exist,
