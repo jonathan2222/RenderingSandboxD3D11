@@ -18,8 +18,9 @@ std::shared_ptr<Renderer> Renderer::Get()
     return s_Renderer;
 }
 
-void Renderer::Init(DisplayDescription& displayDescriptor)
+void Renderer::Init(uint32 width, uint32 height, bool useBackBuffer)
 {
+	m_UseBackBuffer = useBackBuffer;
 	m_DefaultPipeline.Init();
 
 	// Fetch the device, device context and the swap chain from the DirectX api.
@@ -27,10 +28,10 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 	m_pContext		= RenderAPI::Get()->GetDeviceContext();
 	m_pSwapChain	= RenderAPI::Get()->GetSwapChain();
 
-	CreateRTV();
+	CreateRTV(width, height);
 
 	// Set the depth stencil state.
-	CreateDepthStencilState(displayDescriptor);
+	CreateDepthStencilState(width, height);
 
 	// Bind the render target view and depth stencil buffer to the output render pipeline.
 	CreateDepthStencilView();
@@ -39,7 +40,7 @@ void Renderer::Init(DisplayDescription& displayDescriptor)
 	// Set the rasterizer state.
 	CreateRasterizer();
 
-	m_DefaultPipeline.SetViewport(0.f, 0.f, (float)displayDescriptor.Width, (float)displayDescriptor.Height);
+	m_DefaultPipeline.SetViewport(0.f, 0.f, (float)width, (float)height);
 
 	// Texture format conversion resources.
 	{
@@ -209,7 +210,7 @@ void Renderer::Resize(uint32 width, uint32 height)
 	{
 		ClearRTV();
 		m_pSwapChain->ResizeBuffers(0, (UINT)width, (UINT)height, DXGI_FORMAT_UNKNOWN, 0);
-		CreateRTV();
+		CreateRTV(width, height);
 
 		m_DefaultPipeline.Resize(width, height);
 
@@ -770,20 +771,63 @@ TextureResource* Renderer::CreatePreComputedBRDF(uint32_t width, uint32_t height
 	return pTexture;
 }
 
-void Renderer::CreateRTV()
-{
-	HRESULT result;
-	ID3D11Texture2D* pBackBufferPtr = 0;
-	result = m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBufferPtr);
-	RS_D311_ASSERT_CHECK(result, "Could not initiate DirectX11: Failed to fetch the back buffer pointer!");
+void Renderer::CreateRTV(uint32 width, uint32 height)
+{	
+	if (m_BackBufferTextureID != NULL_RESOURCE)
+	{
+		TextureResource* pTexture = ResourceManager::Get()->GetResource<TextureResource>(m_BackBufferTextureID);
+		if (pTexture)
+		{
+			ResourceManager::Get()->FreeResource(pTexture);
+			m_BackBufferTextureID = NULL_RESOURCE;
+		}
+		else
+			LOG_WARNING("Cloud not clear back buffer texture resource [{}], the resource was not found!", m_BackBufferTextureID);
+	}
+
+	TextureLoadDesc loadDesc = {};
+	loadDesc.ImageDesc.Memory.pData			= nullptr;
+	loadDesc.ImageDesc.Memory.Size			= 0;
+	loadDesc.ImageDesc.Memory.Width			= width;
+	loadDesc.ImageDesc.Memory.Height		= height;
+	loadDesc.ImageDesc.Memory.IsCompressed	= false;
+	loadDesc.ImageDesc.IsFromFile			= false;
+	loadDesc.ImageDesc.NumChannels			= ImageLoadDesc::Channels::RGBA;
+	loadDesc.ImageDesc.Name					= "RS_BACK_BUFFER";
+	loadDesc.GenerateMipmaps				= false;
+	loadDesc.UseAsRTV						= true;
+	auto [pTexture, textureID] = ResourceManager::Get()->LoadTextureResource(loadDesc);
+	m_BackBufferTextureID = textureID;
+
+	HRESULT result = 0;
+	if (m_UseBackBuffer)
+	{
+		// Empty the texture resource's content.
+		pTexture->pTexture->Release();
+		pTexture->pTextureSRV->Release();
+
+		// Set the new content to point to the swapChains back buffer.
+		HRESULT result = m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pTexture->pTexture);
+		RS_D311_ASSERT_CHECK(result, "Could not initiate DirectX11: Failed to fetch the back buffer pointer!");
+
+		D3D11_TEXTURE2D_DESC textureDesc = {};
+		pTexture->pTexture->GetDesc(&textureDesc);
+
+		// Create an SRV (Used for debug)
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format						= textureDesc.Format;
+		srvDesc.ViewDimension				= D3D11_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MostDetailedMip	= 0;
+		srvDesc.Texture2D.MipLevels			= 1;
+		result = RenderAPI::Get()->GetDevice()->CreateShaderResourceView(pTexture->pTexture, &srvDesc, &pTexture->pTextureSRV);
+		RS_D311_ASSERT_CHECK(result, "Failed to create texture SVR!");
+	}
+
 	// Create the render target view with the back buffer pointer.
-	result = m_pDevice->CreateRenderTargetView(pBackBufferPtr, NULL, &m_pRenderTargetView);
+	result = m_pDevice->CreateRenderTargetView(pTexture->pTexture, NULL, &m_pRenderTargetView);
 	RS_D311_ASSERT_CHECK(result, "Could not initiate DirectX11: Failed to create the RTV!");
 
 	m_DefaultPipeline.SetRenderTargetView(m_pRenderTargetView);
-
-	pBackBufferPtr->Release();
-	pBackBufferPtr = 0;
 }
 
 void Renderer::ClearRTV()
@@ -793,13 +837,21 @@ void Renderer::ClearRTV()
 		m_pRenderTargetView->Release();
 		m_pRenderTargetView = nullptr;
 	}
+
+	// Remove back buffer resource
+	TextureResource* pTexture = ResourceManager::Get()->GetResource<TextureResource>(m_BackBufferTextureID);
+	if (pTexture)
+	{
+		ResourceManager::Get()->FreeResource(pTexture);
+		m_BackBufferTextureID = NULL_RESOURCE;
+	}
 }
 
-void Renderer::CreateDepthStencilState(DisplayDescription& displayDescriptor)
+void Renderer::CreateDepthStencilState(uint32 width, uint32 height)
 {
 	D3D11_DEPTH_STENCIL_DESC depthStencilDesc = D3D11Helper::GetDepthStencilDesc();
 
-	D3D11_TEXTURE2D_DESC depthBufferDesc = D3D11Helper::GetTexture2DDesc(displayDescriptor.Width, displayDescriptor.Height, DXGI_FORMAT_D24_UNORM_S8_UINT);
+	D3D11_TEXTURE2D_DESC depthBufferDesc = D3D11Helper::GetTexture2DDesc(width, height, DXGI_FORMAT_D24_UNORM_S8_UINT);
 	depthBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 
 	m_DefaultPipeline.SetDepthState(depthStencilDesc, depthBufferDesc);

@@ -151,6 +151,7 @@ DXGI_FORMAT ResourceLoader::GetFormatFromChannelCount(int nChannels)
 	case 2: return DXGI_FORMAT_R8G8_UNORM; break;
 	case 3:
 		LOG_WARNING("A texture format with 3 channels are not supported!");
+		[[fallthrough]];
 	case 4: return DXGI_FORMAT_R8G8B8A8_UNORM; break;
 	default:
 		return DXGI_FORMAT_R8_UNORM; break;

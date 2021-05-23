@@ -38,7 +38,7 @@ void RS::EngineLoop::Init(std::function<void(void)> fixedTickCallback, std::func
     Input::Get()->Init();
     displayDesc = Display::Get()->GetDescription();
     RenderAPI::Get()->Init(displayDesc);
-    Renderer::Get()->Init(displayDesc);
+    Renderer::Get()->Init(displayDesc.Width, displayDesc.Height, true);
     DebugRenderer::Get()->Init();
     ImGuiRenderer::Init(Display::Get().get());
 

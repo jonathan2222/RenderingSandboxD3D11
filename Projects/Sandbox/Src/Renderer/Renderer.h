@@ -19,7 +19,7 @@ namespace RS
 
 		static std::shared_ptr<Renderer> Get();
 
-		void Init(DisplayDescription& displayDescriptor);
+		void Init(uint32 width, uint32 height, bool useBackBuffer);
 		void Release();
 
 		void Resize(uint32 width, uint32 height);
@@ -51,9 +51,9 @@ namespace RS
 		TextureResource* CreatePreComputedBRDF(uint32_t width, uint32_t height);
 
 	private:
-		void CreateRTV();
+		void CreateRTV(uint32 width, uint32 height);
 		void ClearRTV();
-		void CreateDepthStencilState(DisplayDescription& displayDescriptor);
+		void CreateDepthStencilState(uint32 width, uint32 height);
 		void CreateDepthStencilView();
 		void CreateRasterizer();
 
@@ -67,18 +67,20 @@ namespace RS
 		};
 
 	private:
-		ID3D11Device*						m_pDevice									= nullptr;
-		ID3D11DeviceContext*				m_pContext									= nullptr;
-		IDXGISwapChain1*					m_pSwapChain								= nullptr;
+		ID3D11Device*							m_pDevice									= nullptr;
+		ID3D11DeviceContext*					m_pContext									= nullptr;
+		IDXGISwapChain1*						m_pSwapChain								= nullptr;
 
 		// Color buffer
-		ID3D11RenderTargetView*				m_pRenderTargetView							= nullptr;
+		ID3D11RenderTargetView*					m_pRenderTargetView							= nullptr;
+		ResourceID								m_BackBufferTextureID						= NULL_RESOURCE;
+		bool									m_UseBackBuffer								= false;
 
-		Pipeline							m_DefaultPipeline;
+		Pipeline								m_DefaultPipeline;
 
-		Pipeline							m_TextureFormatConvertionPipeline;
-		Shader								m_TextureFormatConvertionShader;
-		ID3D11RenderTargetView*				m_TextureFormatConvertionRTV				= nullptr;
+		Pipeline								m_TextureFormatConvertionPipeline;
+		Shader									m_TextureFormatConvertionShader;
+		ID3D11RenderTargetView*					m_TextureFormatConvertionRTV				= nullptr;
 
 		CubemapFrameData						m_CubemapFrameData;
 		glm::mat4								m_CubemapCaptureViews[6];
