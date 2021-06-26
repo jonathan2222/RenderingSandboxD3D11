@@ -74,6 +74,7 @@ void RS::EngineLoop::Run()
         frameTimer.Begin();
 
         pDisplay->PollEvents();
+        Input::Get()->PreUpdate();
 
         // Quit by pressing ESCAPE
         {
@@ -93,11 +94,11 @@ void RS::EngineLoop::Run()
             else if (f11State == KeyState::RELEASED)
                 s_F11Active = true;
         }
-
-        Input::Get()->Update();
         
         frameTimer.FixedTick([&]() { FixedTick(); });
         Tick(frameStats);
+
+        Input::Get()->PostUpdate(frameStats.frame.currentDT);
 
         frameTimer.End();
     }
