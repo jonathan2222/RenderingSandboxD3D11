@@ -89,8 +89,11 @@ void FileWatcher::Watcher()
 			}
 
 			// Call all callers, clear the list and start over.
-			for (FileCallback& fileCallback : m_CallbackList)
-				fileCallback.callback(m_ModifiedFiles);
+			std::for_each(m_CallbackList.begin(), m_CallbackList.end(),
+				[&](auto fCallBack) {
+					fCallBack.callback(m_ModifiedFiles);
+				}
+			);
 
 			m_ModifiedFiles.clear();
 		}
