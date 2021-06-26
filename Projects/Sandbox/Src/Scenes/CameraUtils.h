@@ -19,55 +19,31 @@ namespace RS
 		*		Reset target:	Hold the 'C' key.
 		* @param camera: The camera to use.
 		*/
-		static void UpdateOrbitCamera(Camera& camera)
+		static void UpdateOrbitCamera(Camera& camera, const glm::vec3& startingTarget = glm::vec3(0.f, 0.5f, 0.f), bool toTarget = false)
 		{
 			auto input = Input::Get();
 			glm::vec2 delta = input->GetCursorDelta();
 
-			static const glm::vec3 s_StartingTarget = glm::vec3(0.f, 0.5f, 0.f);
+			static const glm::vec3 s_StartingTarget = startingTarget;
 			static glm::vec3 s_Target = s_StartingTarget;
 			uint32 s_CameraState = 0;
 			if (input->IsKeyPressed(Key::LEFT_CONTROL))		s_CameraState = 1;
 			else if (input->IsKeyPressed(Key::LEFT_SHIFT))	s_CameraState = 2;
 			else											s_CameraState = 0;
 
+			Input::Get()->WasKeyClickedOrHeld(Key::C,
+				[&]() { // Clicked
+				},
+				[&]() { // Held
+					toTarget = true;
+				}, 0.5f, Input::ModFlag::IGNORED);
+
+			if (toTarget)
 			{
-				static Timer s_Timer;
-				static bool s_CWasDown = false;
-				static bool s_CWasHeld = false;
-				static bool s_StopHold = false;
-
-				bool cIsPressed = input->IsKeyPressed(Key::C);
-				if (cIsPressed && !s_CWasDown)
-				{
-					// Start the timer if it was first pressed/held
-					s_StopHold = false;
-					s_CWasDown = true;
-					s_CWasHeld = false;
-					s_Timer.Start();
-				}
-				else if (cIsPressed)
-				{
-					// Fetch the passed time and check if the button is held down.
-					s_CWasDown = true;
-					float time = s_Timer.Stop().GetDeltaTimeSec();
-					if (time > 0.5f && !s_StopHold)
-						s_CWasHeld = true;
-				}
-				else if (!cIsPressed && s_CWasDown)
-				{
-					// Release the button if it was not pressed. (This is only activated once)
-					s_CWasDown = false;
-				}
-
-				// Check if the button was held down. (This is only activated once)
-				if (s_CWasHeld && !s_StopHold)
-				{
-					s_StopHold = true;
-					s_Target = s_StartingTarget;
-					glm::vec3 pos = s_StartingTarget + glm::vec3(0.f, 0.f, 2.0f);
-					camera.LookAt(pos, s_Target);
-				}
+				s_Target = s_StartingTarget;
+				glm::vec3 pos = s_StartingTarget + glm::vec3(0.f, 0.f, 2.0f);
+				camera.LookAt(pos, s_Target);
+				toTarget = false;
 			}
 
 			if (input->IsMBPressed(MB::LEFT))
@@ -88,9 +64,9 @@ namespace RS
 				{
 					float zoom = delta.y * mouseSensitivity * zoomFactor;
 					glm::vec3 dir = glm::normalize(s_Target - pos);
-					
+
 					// Only zoom if the not too close.
-					glm::vec3 dirNext = glm::normalize(s_Target - pos - dir*zoom);
+					glm::vec3 dirNext = glm::normalize(s_Target - pos - dir * zoom);
 					// Check the polarity of this dir to the next dir. 
 					// If the result is negative, the direction was flipped and the zoom should not be applied.
 					if (glm::dot(dir, dirNext) > 0.f)
@@ -140,52 +116,18 @@ namespace RS
 				speed *= s_BoostFactor;
 
 			static bool s_IsActive = false;
+			Input::Get()->WasKeyClickedOrHeld(Key::C,
+				[&]() { // Clicked
+					s_IsActive = !s_IsActive;
 
-			{
-				static Timer s_Timer;
-				static bool s_CWasDown = false;
-				static bool s_CWasHeld = false;
-				static bool s_StopHold = false;
-
-				bool cIsPressed = input->IsKeyPressed(Key::C);
-				if (cIsPressed && !s_CWasDown)
-				{
-					// Start the timer if it was first pressed/held
-					s_StopHold = false;
-					s_CWasDown = true;
-					s_CWasHeld = false;
-					s_Timer.Start();
-				}
-				else if (cIsPressed)
-				{
-					// Fetch the passed time and check if the button is held down.
-					s_CWasDown = true;
-					float time = s_Timer.Stop().GetDeltaTimeSec();
-					if (time > 0.5f && !s_StopHold)
-						s_CWasHeld = true;
-				}
-				else if (!cIsPressed && s_CWasDown)
-				{
-					// Release the button if it was not pressed. (This is only activated once)
-					s_CWasDown = false;
-					if (!s_CWasHeld)
-					{
-						s_IsActive = !s_IsActive;
-
-						if (s_IsActive)
-							input->LockMouse();
-						else
-							input->UnlockMouse();
-					}
-				}
-
-				// Check if the button was held down. (This is only activated once)
-				if (s_CWasHeld && !s_StopHold)
-				{
-					s_StopHold = true;
+					if (s_IsActive)
+						input->LockMouse();
+					else
+						input->UnlockMouse();
+				},
+				[&]() { // Held
 					camera.LookAt(s_StartingPos, s_StartingPos + s_StartingDir);
-				}
-			}
+				}, 0.5f, Input::ModFlag::IGNORED);
 
 			if (s_IsActive)
 			{
@@ -200,7 +142,7 @@ namespace RS
 				dir = glm::rotate(dir, -delta.x * s_MouseSensitivity, glm::vec3(0.f, 1.f, 0.f));
 				dir = glm::rotate(dir, -delta.y * s_MouseSensitivity, right);
 
-				camera.LookAt(pos, pos+dir);
+				camera.LookAt(pos, pos + dir);
 
 				// Update the projection for the possibility that the screen size has been changed.
 				camera.UpdateProj();

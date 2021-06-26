@@ -5,6 +5,7 @@
 #include "Scenes/MeshScene.h"
 #include "Scenes/TessellationScene.h"
 #include "Scenes/PBRScene.h"
+#include "Scenes/HatchingScene.h"
 
 int main(int argc, char* argv[])
 {
@@ -21,7 +22,8 @@ int main(int argc, char* argv[])
     application.AddScene(new RS::MeshScene());
     application.AddScene(new RS::TessellationScene());
     application.AddScene(new RS::PBRScene());
-    application.SelectScene(3);
+    application.AddScene(new RS::HatchingScene());
+    application.SelectScene(4);
     application.Run();
     application.Release();
 
