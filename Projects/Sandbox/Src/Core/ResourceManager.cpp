@@ -646,7 +646,7 @@ void ResourceManager::FreeTexture(TextureResource* pTexture, bool fullRemoval)
 	// This will only release it, if it is the last handler.
 	ImageResource* pImage = GetResource<ImageResource>(pTexture->ImageHandler);
 	if (pImage)
-		FreeImage(pImage, fullRemoval);
+		FreeResource(pImage);
 	else if(fullRemoval == false)
 		LOG_ERROR("Trying to free a texture resource {}, without an image resource!", pTexture->key);
 	pTexture->ImageHandler = 0;
