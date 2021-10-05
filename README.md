@@ -8,13 +8,13 @@ This uses premake5 to build the project and is already included. To build, run "
 # Scences
 
 ## Mesh
-![alt text](https://github.com/jonathan2222/RenderingSandboxD3D11/blob/main/Assets/Images/Mesh.png?raw=true)
+![alt text](https://github.com/jonathan2222/RenderingSandboxD3D11/blob/main/Assets/Textures/Images/Mesh.png?raw=true)
 
 ## Tessellation
-![alt text](https://github.com/jonathan2222/RenderingSandboxD3D11/blob/main/Assets/Images/Tessellation.png?raw=true)
+![alt text](https://github.com/jonathan2222/RenderingSandboxD3D11/blob/main/Assets/Textures/Images/Tessellation.png?raw=true)
 
 ## PBR
-![alt text](https://github.com/jonathan2222/RenderingSandboxD3D11/blob/main/Assets/Images/PBR.png?raw=true)
+![alt text](https://github.com/jonathan2222/RenderingSandboxD3D11/blob/main/Assets/Textures/Images/PBR.png?raw=true)
 
 ## Hatching
-![alt text](https://github.com/jonathan2222/RenderingSandboxD3D11/blob/main/Assets/Images/Hatching.png?raw=true)
+![alt text](https://github.com/jonathan2222/RenderingSandboxD3D11/blob/main/Assets/Textures/Images/Hatching.png?raw=true)
